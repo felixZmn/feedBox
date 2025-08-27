@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!--<meta name="viewport" content="width=device-width, initial-scale=1.0" />-->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"
+    />
+    <title>Reeeder</title>
+    <link rel="stylesheet" href="./style.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📰</text></svg>"
+    />
+  </head>
+  <body>
+    <div class="layout">
+      <div id="modal" class="modal">
+        <div class="modal-content">
+          <span class="modal-close">&times;</span>
+          <h2 id="modal-headline">Modal Title</h2>
+          <div id="modal-content-container">
+            <form class="modal-form" id="folder-add-edit">
+              <label class="field" for="folder-name">Folder name </label>
+
+              <input
+                id="folder-name"
+                name="folder-name"
+                type="text"
+                placeholder="My folder"
+              />
+
+              <label
+                class="field"
+                for="folder-color"
+                aria-labelledby="color-label"
+                >Color</label
+              >
+
+              <div class="color-row">
+                <select id="folder-color" name="folder-color">
+                  <option value="f-base">Grey</option>
+                  <option value="f-red">Red</option>
+                  <option value="f-orange">Orange</option>
+                  <option value="f-yellow">Yellow</option>
+                  <option value="f-green">Green</option>
+                  <option value="f-blue">Blue</option>
+                  <option value="f-violet">Violet</option>
+                </select>
+                <span
+                  id="color-swatch"
+                  class="swatch"
+                  aria-hidden="true"
+                ></span>
+              </div>
+
+              <button type="submit" class="btn">Save</button>
+            </form>
+
+            <form class="modal-form" id="feed-add-edit">
+              <label class="field" for="feed-uri">Feed Link</label>
+              <input
+                id="feed-uri"
+                name="feed-uri"
+                type="text"
+                placeholder="http[s]://"
+              />
+
+              <label class="field" for="feed-folder">Folder</label>
+
+              <div class="feed-folder-row">
+                <select id="feed-folder" name="feed-folder">
+                  <option value="0"></option>
+                  <option value="1">blogs</option>
+                  <option value="2">it sec</option>
+                  <option value="3">news</option>
+                  <option value="4">releases</option>
+                  <option value="5">tech</option>
+                </select>
+                <span
+                  id="color-swatch"
+                  class="swatch"
+                  aria-hidden="true"
+                ></span>
+              </div>
+
+              <button type="submit" class="btn">Save</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <aside id="feeds" class="feeds border-right">
+        <div class="header">
+          <div class="left"></div>
+          <div class="right">
+            <a class="item-spacer" id="trigger-refresh"
+              ><img
+                id="refresh-spinner"
+                class="icon f-base"
+                src="icons/stopwatch.svg"
+                alt="Open"
+            /></a>
+            <a class="item-spacer" id="trigger-add-folder"
+              ><img class="icon f-red" src="icons/folder_add.svg" alt="Open"
+            /></a>
+          </div>
+        </div>
+        <div class="column" id="feeds-col">
+          <!-- <div>
+            <img class="icon" src="icons/list_search.svg" />
+            <span class="folder-name">All Feeds</span>
+          </div> -->
+          <!-- <details>
+            <summary>
+              <img class="icon" src="icons/folder.svg" />
+              <span class="folder-name">News</span>
+            </summary>
+
+            <ul class="files">
+              <li>
+                <img class="file-img" src="icons/icon.png" alt="file icon" />
+                Frankfurter Allgemeine Zeitung
+              </li>
+              <li>
+                <img class="file-img" src="icons/icon.png" alt="file icon" />
+                The New York Times
+              </li>
+              <li>
+                <img class="file-img" src="icons/icon.png" alt="folder icon" />
+                Tagesschau
+              </li>
+            </ul>
+          </details> -->
+        </div>
+      </aside>
+
+      <main id="articlesList" class="articlesList border-right">
+        <div class="header">
+          <div class="left"></div>
+          <div class="right">
+            <a class="item-spacer" id="trigger-edit"
+              ><img class="icon f-base" src="icons/edit.svg" alt="Open"
+            /></a>
+          </div>
+        </div>
+        <div class="column">
+          <!-- <div class="article" onclick="showView('reader')">
+            <div class="header">
+              <span class="source">Ars Technica</span>
+              <span class="age">2h</span>
+            </div>
+            <div class="title">
+              Rocket Report: Firefly lights the markets up; SpaceX starts
+              selling trips to Mars
+            </div>
+          </div> -->
+        </div>
+      </main>
+
+      <section id="reader" class="reader">
+        <div class="header">
+          <div class="left"></div>
+          <div class="right">
+            <a
+              class="item-spacer d-none"
+              id="trigger-external-open"
+              href="#"
+              target="_blank"
+              ><img class="icon f-base" src="icons/external.svg" alt="Open"
+            /></a>
+            <a class="item-spacer" id="trigger-previous"
+              ><img class="icon f-base" src="icons/previous.svg" alt="Open"
+            /></a>
+            <a class="item-spacer" id="trigger-next"
+              ><img class="icon f-base" src="icons/next.svg" alt="Open"
+            /></a>
+            <a class="item-spacer" id="trigger-close"
+              ><img class="icon f-base" src="icons/close.svg" alt="Open"
+            /></a>
+          </div>
+        </div>
+        <div class="column">
+          <div class="article">
+            <h1 class="title">No article selected</h1>
+            <div id="reader-publisher"></div>
+            <div class="date"></div>
+            <div class="border-bottom"></div>
+            <div class="content"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </body>
+  <script type="module" src="./scripts/main.js"></script>
+</html>
