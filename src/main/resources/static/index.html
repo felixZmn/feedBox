@@ -7,11 +7,11 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"
     />
-    <title>Reeeder</title>
+    <title>feedBox</title>
     <link rel="stylesheet" href="./style.css" />
     <link
       rel="icon"
-      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📰</text></svg>"
+      href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgM2w4IDQuNWwwIDlsLTggNC41bC04IC00LjVsMCAtOWw4IC00LjUiIC8+PHBhdGggZD0iTTEyIDEybDggLTQuNSIgLz48cGF0aCBkPSJNMTIgMTJsMCA5IiAvPjxwYXRoIGQ9Ik0xMiAxMmwtOCAtNC41IiAvPjxwYXRoIGQ9Ik0xNiA1LjI1bC04IDQuNSIgLz48L3N2Zz4="
     />
   </head>
   <body>
@@ -92,8 +92,21 @@
       </div>
 
       <aside id="feeds" class="feeds border-right">
-        <div class="header">
-          <div class="left"></div>
+        <div class="column-header">
+          <div class="left">
+            <a class="item-spacer" id="trigger-export"
+              ><img
+                class="icon f-base"
+                src="icons/export.svg"
+                alt="Export Feeds"
+            /></a>
+            <a class="item-spacer" id="trigger-import"
+              ><img
+                class="icon f-base"
+                src="icons/import.svg"
+                alt="Import Feeds"
+            /></a>
+          </div>
           <div class="right">
             <a class="item-spacer" id="trigger-refresh"
               ><img
@@ -137,7 +150,7 @@
       </aside>
 
       <main id="articlesList" class="articlesList border-right">
-        <div class="header">
+        <div class="column-header">
           <div class="left"></div>
           <div class="right">
             <a class="item-spacer" id="trigger-edit"
@@ -160,7 +173,7 @@
       </main>
 
       <section id="reader" class="reader">
-        <div class="header">
+        <div class="column-header">
           <div class="left"></div>
           <div class="right">
             <a

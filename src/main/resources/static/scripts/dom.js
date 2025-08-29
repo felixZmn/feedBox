@@ -140,7 +140,7 @@ function createFolderElement(folder) {
 // Creates the "All Feeds" Element
 function viewAllFeedsElement() {
   const img = document.createElement("img");
-  img.src = "icons/stack.svg";
+  img.src = "icons/package.svg";
   img.classList.add("icon", "f-base");
 
   const span = document.createElement("span");

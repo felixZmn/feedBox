@@ -1,7 +1,7 @@
 :root {
   --font-color: #333;
   --font-color-muted: #666;
-  --font-color-highlight: #007bff;
+  --font-color-highlight: #ef4444;
   --background-color: #fff;
   --border-color: #ccc;
   --font-size-base: 15px;
@@ -115,14 +115,6 @@ button {
   height: 100vh;
 }
 
-.feeds > .header,
-.articlesList > .header,
-.reader > .header {
-  height: 2rem;
-  width: 100%;
-  border-bottom: 1px solid var(--border-color);
-}
-
 .feeds,
 .articlesList {
   width: 300px;
@@ -130,16 +122,13 @@ button {
 
 .column {
   overflow-y: auto;
-  height: calc(100vh - 3rem);
+  height: calc(100vh - 3.5rem);
+  margin: var(--default-space);
 }
 
 .folder-name {
   width: 100%;
   padding: var(--default-space) 0;
-}
-
-.column {
-  margin: var(--default-space);
 }
 
 .feed {
@@ -186,9 +175,8 @@ summary::marker {
 }
 
 .icon {
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
+  width: 20px;
+  height: 20px;
   display: inline-block;
 }
 
@@ -240,8 +228,7 @@ summary::marker {
 }
 
 .feeds .header,
-.articlesList .header,
-.reader .header {
+.articlesList .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -259,6 +246,37 @@ summary::marker {
   margin-left: auto;
   margin-right: auto;
   gap: var(--default-space);
+}
+
+.column-header {
+  position: relative; /* for the full-width faux-border */
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 800px) 1fr; /* center area limited to 800px */
+  align-content: center;
+
+  height: 2.5rem;
+  width: 100%;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.column-header .left,
+.column-header .right {
+  display: flex;
+}
+
+.column-header .left {
+  grid-column: 1;
+  justify-self: start;
+}
+
+.column-header .right {
+  grid-column: 2;
+  justify-self: end;
+}
+
+.left a,
+.right a {
+  display: block;
 }
 
 .reader .publisher,
@@ -308,7 +326,8 @@ summary::marker {
 }
 
 summary:hover,
-li:hover {
+li:hover,
+.details:hover {
   background-color: var(--font-color-highlight);
   border-radius: 2px;
 }

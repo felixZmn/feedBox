@@ -4,7 +4,7 @@
 
     <!-- project coordinates - values which uniquely identify this project -->
     <groupId>de.0x2b</groupId>
-    <artifactId>reeeder</artifactId>
+    <artifactId>feedBox</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 
     <!-- library dependencies -->
