@@ -1,7 +1,5 @@
 package de._0x2b.models;
 
-import java.time.Instant;
-
 public class Article {
     int id;
     int feedID;

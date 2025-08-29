@@ -36,7 +36,7 @@ export function renderArticlesList(articles) {
     articleDiv.appendChild(titleDiv);
 
     articleDiv.addEventListener("click", () => {
-      articleClickListener(article.id);
+      articleClickListener(article);
     });
 
     if (i == articles.length - 1) {
@@ -75,7 +75,7 @@ function createFeedElement(feed) {
   li.appendChild(icon);
   li.appendChild(document.createTextNode(feed.name || "Unnamed Feed"));
   li.addEventListener("click", (e) => {
-    feedClickListener(feed.id);
+    feedClickListener(feed);
   });
   return li;
 }
@@ -129,7 +129,7 @@ function createFolderElement(folder) {
   nameSpan.textContent = folder.name || "";
   nameSpan.className = "folder-name";
   nameSpan.addEventListener("click", (e) => {
-    folderClickListener(folder.id);
+    folderClickListener(folder);
   });
 
   summary.appendChild(img);

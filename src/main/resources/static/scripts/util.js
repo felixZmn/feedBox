@@ -1,5 +1,3 @@
-import { dialogType } from "./main.js";
-
 export function getRelativeTime(dateStr) {
   const date = new Date(dateStr);
   if (isNaN(date)) return null;
@@ -77,34 +75,22 @@ export function buildUrlParams(params) {
   return "?" + encodedParams.join("&");
 }
 
-export function hideDialog() {
-  document.getElementById("modal").style.display = "none";
-  document.getElementById("folder-add-edit").style.display = "none";
-  document.getElementById("feed-add-edit").style.display = "none";
-}
+export async function fetchJson(url) {
+  try {
+    const response = await fetch(url);
 
-export function showDialog(type) {
-  switch (type) {
-    case dialogType.ADD_FOLDER:
-      document.getElementById("modal-headline").textContent = "Add Folder";
-      document.getElementById("folder-add-edit").style.display = "grid";
-      break;
-    case dialogType.EDIT_FOLDER:
-      document.getElementById("modal-headline").textContent = "Edit Folder";
-      document.getElementById("folder-add-edit").style.display = "grid";
-      break;
-    case dialogType.ADD_FEED:
-      document.getElementById("modal-headline").textContent = "Add Feed";
-      document.getElementById("feed-add-edit").style.display = "grid";
-      break;
-    case dialogType.EDIT_FEED:
-      document.getElementById("modal-headline").textContent = "Edit Feed";
-      document.getElementById("feed-add-edit").style.display = "grid";
-      break;
+    if (!response.ok) {
+      throw new Error(
+        "Error fetching data from " + url + ": " + response.status
+      );
+    }
 
-    default:
-      break;
+    if (response.status === 204) {
+      return [];
+    }
+
+    return await response.json();
+  } catch (e) {
+    throw new Error("Error fetching data from " + url + ": " + response.status);
   }
-
-  document.getElementById("modal").style.display = "block";
 }

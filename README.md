@@ -7,3 +7,8 @@
 ## icons
 
 https://tablericons.com/
+
+## Repo Errors:
+
+- -1: General error
+- -2: duplicate key violation

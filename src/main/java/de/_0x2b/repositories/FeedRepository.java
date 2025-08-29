@@ -18,6 +18,10 @@ public class FeedRepository {
             SELECT id, folder_id, name, url, feed_url FROM feed
             """;
 
+    private static final String DELETE = """
+            DELETE FROM feed WHERE id = ?
+            """;
+
     public int save(Feed feed) {
         try (Connection conn = Database.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(INSERT_ONE)) {
@@ -48,6 +52,19 @@ public class FeedRepository {
             e.printStackTrace();
         }
         return List.of();
+    }
+
+    public int delete(int id) {
+        try (Connection conn = Database.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(DELETE)) {
+
+            stmt.setInt(1, id);
+            return stmt.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return -1;
     }
 
     private List<Feed> parseResult(ResultSet rs) throws SQLException {

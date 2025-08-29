@@ -48,7 +48,7 @@ public class OPMLController {
             } else {
                 // remaining: folder
                 var folderName = outline.getAttribute("text");
-                var folderId = folderService.insertOne(
+                var folderId = folderService.saveIgnoreDuplicates(
                         new Folder(-1, folderName, List.of(), "f-base"));
                 parseOutline(outline.getSubElements(), folderId);
             }

@@ -29,6 +29,7 @@
                 name="folder-name"
                 type="text"
                 placeholder="My folder"
+                required
               />
 
               <label
@@ -55,7 +56,9 @@
                 ></span>
               </div>
 
-              <button type="submit" class="btn">Save</button>
+              <button id="trigger-save-folder" type="submit" class="btn">
+                Save
+              </button>
             </form>
 
             <form class="modal-form" id="feed-add-edit">
@@ -116,7 +119,7 @@
                 alt="Open"
             /></a>
             <a class="item-spacer" id="trigger-add-folder"
-              ><img class="icon f-red" src="icons/folder_add.svg" alt="Open"
+              ><img class="icon f-base" src="icons/folder_add.svg" alt="Open"
             /></a>
           </div>
         </div>
@@ -153,6 +156,9 @@
         <div class="column-header">
           <div class="left"></div>
           <div class="right">
+            <a class="item-spacer" id="trigger-delete"
+              ><img class="icon f-red" src="icons/trash.svg" alt="Open"
+            /></a>
             <a class="item-spacer" id="trigger-edit"
               ><img class="icon f-base" src="icons/edit.svg" alt="Open"
             /></a>

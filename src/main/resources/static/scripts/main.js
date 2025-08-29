@@ -1,10 +1,16 @@
 import { showView, navigateToArticlesList, navigateToReader } from "./nav.js";
-import { buildUrlParams, hideDialog, showDialog } from "./util.js";
+import { buildUrlParams, fetchJson } from "./util.js";
 import {
   renderFoldersList,
   renderArticlesList,
   renderReaderView,
 } from "./dom.js";
+import {
+  hideDialog,
+  showAddFolderDialog,
+  showEditFeedDialog,
+  showEditFolderDialog,
+} from "./dialog.js";
 
 const articleLoadType = Object.freeze({
   ALL: "",
@@ -23,8 +29,10 @@ var articles = null;
 var paginationId = null;
 var paginationPublished = null;
 var isRefreshing = false;
-var lastClickedType = articleLoadType.ALL;
-var lastClickedId = null;
+var lastClickedFeedItem = {
+  type: articleLoadType.ALL,
+  obj: null,
+};
 
 window.addEventListener("DOMContentLoaded", async () => {
   showView("feeds");
@@ -48,7 +56,7 @@ document.addEventListener("click", (e) => {
 });
 
 document.getElementById("trigger-edit").addEventListener("click", (e) => {
-  editFeedClick();
+  editFeedFolderClick();
 });
 document.getElementById("trigger-previous").addEventListener("click", (e) => {
   dummy();
@@ -63,19 +71,27 @@ document.getElementById("trigger-refresh").addEventListener("click", (e) => {
   refreshFeeds();
 });
 document.getElementById("trigger-add-folder").addEventListener("click", (e) => {
-  addFolderClick();
+  showAddFolderDialog(createFolder);
+});
+document.getElementById("trigger-delete").addEventListener("click", (e) => {
+  deleteElementClick();
 });
 
-function addFolderClick() {
-  showDialog(dialogType.ADD_FOLDER);
+function editFeedFolderClick() {
+  if (lastClickedFeedItem.type == articleLoadType.FEED) {
+    showEditFeedDialog(updateFeed);
+  }
+  if (lastClickedFeedItem.type == articleLoadType.FOLDER) {
+    showEditFolderDialog(lastClickedFeedItem.obj, updateFolder);
+  }
 }
 
-function editFeedClick() {
-  if (lastClickedType == articleLoadType.FEED) {
-    showDialog(dialogType.EDIT_FEED);
+function deleteElementClick() {
+  if (lastClickedFeedItem.type == articleLoadType.FOLDER) {
+    deleteFolder(lastClickedFeedItem.obj);
   }
-  if (lastClickedType == articleLoadType.FOLDER) {
-    showDialog(dialogType.EDIT_FOLDER);
+  if (lastClickedFeedItem.type == articleLoadType.FEED) {
+    deleteFeed(lastClickedFeedItem.obj);
   }
 }
 
@@ -83,22 +99,26 @@ function dummy() {
   console.log("Click!");
 }
 
-async function loadArticles(t, id) {
+async function loadArticles(type, object) {
   var url = "./api/articles";
   var params = new Map();
 
-  lastClickedType = t;
-  if (id != null) {
-    lastClickedId = id;
+  lastClickedFeedItem.type = type;
+  if (object != null) {
+    lastClickedFeedItem.obj = object;
   }
 
-  params.set(lastClickedType, lastClickedId);
+  params.set(lastClickedFeedItem.type, lastClickedFeedItem.obj?.id);
   if (paginationPublished != null && paginationId != null) {
     params.set("pagination_id", paginationId);
     params.set("pagination_date", paginationPublished);
   }
 
   var newArticles = await fetchJson(url + buildUrlParams(params));
+  if (newArticles.length == 0) {
+    return;
+  }
+
   if (articles == null) {
     articles = newArticles;
   } else {
@@ -117,14 +137,14 @@ async function loadArticles(t, id) {
   renderArticlesList(articles);
 }
 
-export function loadArticle(articleId) {
+export function loadArticle(article) {
   // article should be stored in global articles array
-  const article = articles.find((a) => a.id === articleId);
-  if (!article) {
-    console.error("Article not found:", articleId);
+  const result = articles.find((a) => a.id === article.id);
+  if (!result) {
+    console.error("Article not found:", article);
     return;
   }
-  renderReaderView(article);
+  renderReaderView(result);
 }
 
 // collapse/expand mechanic
@@ -150,33 +170,13 @@ function addFolderEvents() {
   }
 }
 
-async function fetchJson(url) {
-  try {
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error(
-        "Error fetching data from " + url + ": " + response.status
-      );
-    }
-
-    if (response.status === 204) {
-      return [];
-    }
-
-    return await response.json();
-  } catch (e) {
-    throw new Error("Error fetching data from " + url + ": " + response.status);
-  }
-}
-
 export function scrollObserver() {
   return new IntersectionObserver(
     (entries, obs) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           obs.disconnect();
-          loadArticles(lastClickedType);
+          loadArticles(lastClickedFeedItem.type, null);
         }
       });
     },
@@ -217,32 +217,32 @@ export function allFeedsClickListener() {
 
 /**
  * Click listener for an click on a single feed in the left-side list
- * @param {Number} feedId id of the clicked feed
+ * @param {Feed} feed the clicked feed
  */
-export function feedClickListener(feedId) {
+export function feedClickListener(feed) {
   navigateToArticlesList();
   resetPagination();
   clearArticlesList();
-  loadArticles(articleLoadType.FEED, feedId);
+  loadArticles(articleLoadType.FEED, feed);
 }
 
 /**
  * Click listener for an click on a single folder in the left-side list
- * @param {Number} folderId id of the clicked folder
+ * @param {Folder} folder id of the clicked folder
  */
-export function folderClickListener(folderId) {
+export function folderClickListener(folder) {
   navigateToArticlesList();
   resetPagination();
   clearArticlesList();
-  loadArticles(articleLoadType.FOLDER, folderId);
+  loadArticles(articleLoadType.FOLDER, folder);
 }
 
 /**
  * Click listener for an click on an single article in the middle list
- * @param {Number} articleId id of the clicked article
+ * @param {Article} article the clicked article
  */
-export function articleClickListener(articleId) {
-  loadArticle(articleId);
+export function articleClickListener(article) {
+  loadArticle(article);
   navigateToReader();
 }
 
@@ -275,4 +275,76 @@ async function refreshFeeds() {
   document.getElementById("refresh-spinner").classList.remove("spinner");
   allFeedsClickListener();
   isRefreshing = false;
+}
+
+async function createFolder() {
+  var name = document.getElementById("folder-name").value;
+  var color = document.getElementById("folder-color").value;
+
+  const response = await fetch("./api/folders", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name: name, color: color }),
+  });
+
+  if (response.ok) {
+    loadFolders();
+    hideDialog();
+  } else {
+    alert("Error saving folder: " + response.statusText);
+  }
+}
+
+async function updateFolder() {
+  var name = document.getElementById("folder-name").value;
+  var color = document.getElementById("folder-color").value;
+
+  const response = await fetch(`./api/folders/${lastClickedFeedItem.obj.id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name: name, color: color }),
+  });
+
+  if (response.ok) {
+    loadFolders();
+    hideDialog();
+    lastClickedFeedItem.obj.name = name;
+    lastClickedFeedItem.obj.color = color;
+  } else {
+    alert("Error updating folder: " + response.statusText);
+  }
+}
+
+async function deleteFolder(folder) {
+  const response = await fetch(`./api/folders/${folder.id}`, {
+    method: "DELETE",
+  });
+
+  if (response.ok) {
+    loadFolders();
+    hideDialog();
+  } else {
+    alert("Error deleting folder: " + response.statusText);
+  }
+}
+
+async function createFeed() {}
+
+async function updateFeed() {}
+
+async function deleteFeed(feed) {
+  const response = await fetch(`./api/feeds/${feed.id}`, {
+    method: "DELETE",
+  });
+
+  if (response.ok) {
+    loadFolders();
+    hideDialog();
+  } else {
+    alert("Error deleting feed: " + response.statusText);
+  }
 }

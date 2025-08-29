@@ -22,8 +22,20 @@ public class FolderRepository {
             ORDER BY folder.name, feed.name
             """;
 
-    private static final String INSERT_ONE = """
+    private static final String INSERT_ONE_IGNORE = """
             INSERT INTO folder (name, color) VALUES (?, ?) ON CONFLICT (name) DO UPDATE SET name = excluded.name RETURNING id
+            """;
+
+    private static final String INSERT_ONE = """
+            INSERT INTO folder (name, color) VALUES (?, ?) RETURNING id
+            """;
+
+    private static final String UPDATE = """
+            UPDATE folder set name = ?, color = ? WHERE id = ? RETURNING id
+            """;
+
+    private static final String DELETE = """
+            DELETE FROM folder WHERE id = ?
             """;
 
     public List<Folder> findAll() {
@@ -38,6 +50,27 @@ public class FolderRepository {
         return List.of();
     }
 
+    public int saveIgnoreDuplicates(Folder folder) {
+        try (Connection conn = Database.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(INSERT_ONE_IGNORE)) {
+
+            stmt.setString(1, folder.getName());
+            stmt.setString(2, folder.getColor());
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    int id = rs.getInt("id");
+                    return id;
+                }
+            }
+        } catch (SQLException e) {
+            if (e.getSQLState().equals("23505")) {
+                return -2; // unique violation
+            }
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
     public int save(Folder folder) {
         try (Connection conn = Database.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(INSERT_ONE)) {
@@ -50,6 +83,44 @@ public class FolderRepository {
                     return id;
                 }
             }
+        } catch (SQLException e) {
+            if (e.getSQLState().equals("23505")) {
+                return -2; // unique violation
+            }
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
+    public int update(Folder folder) {
+        try (Connection conn = Database.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(UPDATE)) {
+
+            stmt.setString(1, folder.getName());
+            stmt.setString(2, folder.getColor());
+            stmt.setInt(3, folder.getId());
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    int id = rs.getInt("id");
+                    return id;
+                }
+            }
+        } catch (SQLException e) {
+            if (e.getSQLState().equals("23505")) {
+                return -2; // unique violation
+            }
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
+    public int delete(int id) {
+        try (Connection conn = Database.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(DELETE)) {
+
+            stmt.setInt(1, id);
+            return stmt.executeUpdate();
+
         } catch (SQLException e) {
             e.printStackTrace();
         }

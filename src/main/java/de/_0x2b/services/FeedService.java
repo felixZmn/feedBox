@@ -5,7 +5,6 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 import com.apptasticsoftware.rssreader.Item;
 import com.apptasticsoftware.rssreader.RssReader;
@@ -68,5 +67,9 @@ public class FeedService {
         } catch (IOException e) {
             System.out.printf("Error refreshing feed [%s] \n %s\n", feed.getName(), e.getMessage());
         }
+    }
+
+    public int deleteFeed(int feedId) {
+        return feedRepository.delete(feedId);
     }
 }

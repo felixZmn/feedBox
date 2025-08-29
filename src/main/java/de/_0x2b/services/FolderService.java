@@ -12,8 +12,19 @@ public class FolderService {
         return folderRepository.findAll();
     }
 
-    public int insertOne(Folder folder) {
+    public int save(Folder folder) {
         return folderRepository.save(folder);
     }
 
+    public int saveIgnoreDuplicates(Folder folder) {
+        return folderRepository.saveIgnoreDuplicates(folder);
+    }
+
+    public int update(Folder folder) {
+        return folderRepository.update(folder);
+    }
+
+    public int delete(int folderId) {
+        return folderRepository.delete(folderId);
+    }
 }

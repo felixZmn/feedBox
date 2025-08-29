@@ -11,6 +11,7 @@ public class FeedController {
     public void registerRoutes(Javalin app) {
         app.post("/api/feeds", this::saveFeed);
         app.get("/api/feeds/refresh", this::refreshFeeds);
+        app.delete("/api/feeds/{id}", this::deleteFeed);
     }
 
     private void saveFeed(Context ctx) {
@@ -19,6 +20,16 @@ public class FeedController {
 
     private void refreshFeeds(Context ctx) {
         feedService.refresh();
+        ctx.status(HttpStatus.NO_CONTENT);
+    }
+
+    private void deleteFeed(Context ctx) {
+        int feedId = Integer.parseInt(ctx.pathParam("id"));
+        var result = feedService.deleteFeed(feedId);
+        if (result == -1) {
+            ctx.status(500).result("Failed to delete folder");
+            return;
+        }
         ctx.status(HttpStatus.NO_CONTENT);
     }
 }
