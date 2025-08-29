@@ -1,4 +1,33 @@
-# feedBox
+<p align="center">
+    <h1 align="center">feedBox</h1>
+    <p align="center">
+    <img src="./src/main/resources/static/icons/package.svg" alt="FeedBox Logo" width="100"/>
+    <h2 align="center">Put all your feeds into a box!</h2>
+</p>
+
+![desktop light mode](./docs/images/desktop-light.png)
+
+# What is feedBox?
+
+FeedBox is a simple, self-hosted feed reader build with Java. It allows you to manage all your feeds in a single place - without ads, tracking, ai or other distractions.
+
+# Features
+
+Currently, the application is in an non-production state. The following features are planned:
+
+- [ ] Add, edit and delete feeds
+- [ ] Colored folders
+- [ ] Dark mode
+- [ ] mobile view
+- [ ] helm chart
+- [ ] import and export of opml files
+- [ ] automatic periodic refresh in background
+
+# Deployment
+
+TBD
+
+# Development
 
 ## database
 
@@ -7,8 +36,3 @@
 ## icons
 
 https://tablericons.com/
-
-## Repo Errors:
-
-- -1: General error
-- -2: duplicate key violation
