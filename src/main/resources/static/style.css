@@ -365,7 +365,6 @@ li:hover,
   background: var(--background-color);
   margin: 10% auto;
   padding: 20px;
-  border-radius: 8px;
   width: 400px;
   max-width: 90%;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
@@ -405,7 +404,17 @@ li:hover,
   padding: var(--default-space);
 }
 
-.modal-form button {
+.modal-form .left {
+  justify-self: start;
+  grid-column: 1;
+}
+
+.modal-form .right {
   justify-self: start;
   grid-column: 2;
+}
+
+.modal-form .full {
+  grid-column: 1 / span 2;
+  width: 100%;
 }

@@ -2,6 +2,7 @@ export function hideDialog() {
   document.getElementById("modal").style.display = "none";
   document.getElementById("folder-add-edit").style.display = "none";
   document.getElementById("feed-add-edit").style.display = "none";
+  document.getElementById("confirm-dialog").style.display = "none";
 }
 
 export function showConfirmDialog(
@@ -9,7 +10,24 @@ export function showConfirmDialog(
   message,
   confirmAction,
   cancelAction
-) {}
+) {
+  document.getElementById("modal-headline").textContent = headline;
+  document.getElementById("confirm-message").textContent = message;
+  document.getElementById("confirm-dialog").style.display = "grid";
+  var yesButton = document.getElementById("confirm-yes");
+  yesButton = removeAllEventListeners(yesButton);
+  yesButton.addEventListener("click", () => {
+    if (confirmAction) confirmAction();
+    hideDialog();
+  });
+  var noButton = document.getElementById("confirm-no");
+  noButton = removeAllEventListeners(noButton);
+  noButton.addEventListener("click", () => {
+    if (cancelAction) cancelAction();
+    hideDialog();
+  });
+  document.getElementById("modal").style.display = "block";
+}
 
 export function showAddFolderDialog(confirmAction, cancelAction) {
   folderDialog("Add Folder", confirmAction, cancelAction);

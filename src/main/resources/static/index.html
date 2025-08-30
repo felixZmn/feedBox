@@ -23,7 +23,6 @@
           <div id="modal-content-container">
             <div class="modal-form" id="folder-add-edit">
               <label class="field" for="folder-name">Folder name </label>
-
               <input
                 id="folder-name"
                 name="folder-name"
@@ -38,7 +37,6 @@
                 aria-labelledby="color-label"
                 >Color</label
               >
-
               <div class="color-row">
                 <select id="folder-color" name="folder-color">
                   <option value="f-base">Grey</option>
@@ -56,7 +54,7 @@
                 ></span>
               </div>
 
-              <button id="trigger-save-folder" type="submit" class="btn">
+              <button id="trigger-save-folder" type="submit" class="btn right">
                 Save
               </button>
             </div>
@@ -71,7 +69,6 @@
               />
 
               <label class="field" for="feed-folder">Folder</label>
-
               <div class="feed-folder-row">
                 <select id="feed-folder" name="feed-folder">
                   <option value="0"></option>
@@ -88,7 +85,15 @@
                 ></span>
               </div>
 
-              <button type="submit" class="btn">Save</button>
+              <button type="submit" class="btn right">Save</button>
+            </div>
+
+            <div class="modal-form" id="confirm-dialog">
+              <p class="full" id="confirm-message">Are you sure?</p>
+              <p class="right">
+                <button id="confirm-yes" class="btn">Yes</button>
+                <button id="confirm-no" class="btn">No</button>
+              </p>
             </div>
           </div>
         </div>

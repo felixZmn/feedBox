@@ -10,6 +10,7 @@ import {
   showAddFolderDialog,
   showEditFeedDialog,
   showEditFolderDialog,
+  showConfirmDialog,
 } from "./dialog.js";
 
 const articleLoadType = Object.freeze({
@@ -68,7 +69,18 @@ document.getElementById("trigger-add-folder").addEventListener("click", (e) => {
   showAddFolderDialog(createFolder);
 });
 document.getElementById("trigger-delete").addEventListener("click", (e) => {
-  deleteElementClick();
+  var message = "";
+  if (lastClickedFeedItem.type == articleLoadType.FOLDER) {
+    message = `Are you sure you want to delete the folder "${lastClickedFeedItem.obj.name}"? All contained feeds will be deleted".`;
+  }
+  if (lastClickedFeedItem.type == articleLoadType.FEED) {
+    message = `Are you sure you want to delete the feed "${lastClickedFeedItem.obj.name}"?`;
+  }
+  if (message == "") {
+    return;
+  }
+
+  showConfirmDialog("Delete", message, deleteElementClick);
 });
 document.getElementById("trigger-import").addEventListener("click", (e) => {
   importFeeds();
