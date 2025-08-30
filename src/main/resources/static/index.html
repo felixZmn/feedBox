@@ -60,10 +60,10 @@
             </div>
 
             <div class="modal-form" id="feed-add-edit">
-              <label class="field" for="feed-uri">Feed Link</label>
+              <label class="field" for="feed-url">Feed Link</label>
               <input
-                id="feed-uri"
-                name="feed-uri"
+                id="feed-url"
+                name="feed-url"
                 type="text"
                 placeholder="http[s]://"
               />
@@ -75,12 +75,13 @@
                   <option value="1">blogs</option>
                   <option value="2">it sec</option>
                   <option value="3">news</option>
-                  <option value="4">releases</option>
-                  <option value="5">tech</option>
+                  <option value="54">tech</option>
                 </select>
               </div>
 
-              <button type="submit" class="btn right">Save</button>
+              <button type="submit" id="trigger-save-feed" class="btn right">
+                Save
+              </button>
             </div>
 
             <div class="modal-form" id="confirm-dialog">

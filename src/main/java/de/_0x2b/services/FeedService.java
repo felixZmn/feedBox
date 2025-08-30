@@ -19,8 +19,12 @@ public class FeedService {
     private final ArticleRepository articleRepository = new ArticleRepository();
     private DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'");
 
-    public int saveOne(Feed feed) {
-        return feedRepository.save(feed);
+    public int create(Feed feed) {
+        return feedRepository.create(feed);
+    }
+
+    public int update(Feed feed) {
+        return feedRepository.update(feed);
     }
 
     public void refresh() {

@@ -46,7 +46,7 @@ public class OPMLController {
                 // rss feed
                 var feed = new Feed(-1, folder, outline.getAttribute("text"), outline.getAttribute("htmlUrl"),
                         outline.getAttribute("xmlUrl"));
-                feedService.saveOne(feed);
+                feedService.create(feed);
             } else {
                 // remaining: folder
                 var folderName = outline.getAttribute("text");

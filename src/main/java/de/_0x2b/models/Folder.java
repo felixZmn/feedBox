@@ -12,8 +12,11 @@ public class Folder {
     String color;
 
     @JsonCreator
-    public Folder(@JsonProperty("id") int id, @JsonProperty("name") String name,
-            @JsonProperty("feeds") List<Feed> feeds, @JsonProperty("color") String color) {
+    public Folder(
+            @JsonProperty("id") int id,
+            @JsonProperty("name") String name,
+            @JsonProperty("feeds") List<Feed> feeds,
+            @JsonProperty("color") String color) {
         this.id = id;
         this.name = name;
         this.feeds = feeds;

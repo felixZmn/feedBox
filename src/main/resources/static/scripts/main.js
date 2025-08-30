@@ -94,10 +94,10 @@ document.getElementById("trigger-import").addEventListener("click", (e) => {
 
 function editFeedFolderClick() {
   if (lastClickedFeedItem.type == articleLoadType.FEED) {
-    showEditFeedDialog(updateFeed);
+    showEditFeedDialog(lastClickedFeedItem.obj, editFeed);
   }
   if (lastClickedFeedItem.type == articleLoadType.FOLDER) {
-    showEditFolderDialog(lastClickedFeedItem.obj, updateFolder);
+    showEditFolderDialog(lastClickedFeedItem.obj, editFolder);
   }
 }
 
@@ -312,7 +312,7 @@ async function createFolder() {
   }
 }
 
-async function updateFolder() {
+async function editFolder() {
   var name = document.getElementById("folder-name").value;
   var color = document.getElementById("folder-color").value;
 
@@ -349,7 +349,28 @@ async function deleteFolder(folder) {
 
 async function createFeed() {}
 
-async function updateFeed() {}
+async function editFeed() {
+  var feed = lastClickedFeedItem.obj;
+  feed.feedUrl = document.getElementById("feed-url").value;
+  feed.folderId = document.getElementById("feed-folder").value;
+
+  const response = await fetch(`./api/feeds/${feed.id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(feed),
+  });
+
+  if (response.ok) {
+    loadFolders();
+    hideDialog();
+    lastClickedFeedItem.obj.url = url;
+    lastClickedFeedItem.obj.folderId = folder;
+  } else {
+    alert("Error updating feed: " + response.statusText);
+  }
+}
 
 async function deleteFeed(feed) {
   const response = await fetch(`./api/feeds/${feed.id}`, {

@@ -56,9 +56,8 @@ export function showAddFeedDialog(confirmAction, cancelAction) {
 }
 
 export function showEditFeedDialog(feed, confirmAction, cancelAction) {
-  console.log(feed);
-  document.getElementById("feed-uri").value = feed.feedUri;
-  document.getElementById("feed-folder").value = feed.folder;
+  document.getElementById("feed-url").value = feed.feedUrl;
+  document.getElementById("feed-folder").value = feed.folderId;
   feedDialog("Edit Feed", confirmAction, cancelAction);
 }
 

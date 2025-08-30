@@ -17,12 +17,14 @@ public class FeedRepository {
     private static final String SELECT_ALL = """
             SELECT id, folder_id, name, url, feed_url FROM feed
             """;
-
+    private static final String UPDATE = """
+            UPDATE feed set folder_id = ?, name = ?, url = ?, feed_url = ? WHERE id = ? RETURNING id
+            """;
     private static final String DELETE = """
             DELETE FROM feed WHERE id = ?
             """;
 
-    public int save(Feed feed) {
+    public int create(Feed feed) {
         try (Connection conn = Database.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(INSERT_ONE)) {
 
@@ -30,6 +32,27 @@ public class FeedRepository {
             stmt.setString(2, feed.getName());
             stmt.setString(3, feed.getUrl());
             stmt.setString(4, feed.getFeedUrl());
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    int id = rs.getInt("id");
+                    return id;
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
+    public int update(Feed feed) {
+        try (Connection conn = Database.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(UPDATE)) {
+
+            stmt.setInt(1, feed.getFolderId());
+            stmt.setString(2, feed.getName());
+            stmt.setString(3, feed.getUrl());
+            stmt.setString(4, feed.getFeedUrl());
+            stmt.setInt(5, feed.getId());
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     int id = rs.getInt("id");

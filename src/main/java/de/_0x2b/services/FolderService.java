@@ -12,7 +12,7 @@ public class FolderService {
         return folderRepository.findAll();
     }
 
-    public int save(Folder folder) {
+    public int create(Folder folder) {
         return folderRepository.save(folder);
     }
 
