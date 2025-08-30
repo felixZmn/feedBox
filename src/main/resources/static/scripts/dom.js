@@ -66,6 +66,22 @@ export function renderReaderView(article) {
   externalLink.classList.remove("d-none");
 }
 
+export function clearReaderView() {
+  const title = document.querySelector("#reader .title");
+  const content = document.querySelector("#reader .content");
+  const publisher = document.querySelector("#reader-publisher");
+  const date = document.querySelector("#reader .date");
+  const externalLink = document.querySelector("#trigger-external-open");
+
+  title.innerText = "No article selected";
+  content.innerHTML = "";
+  date.innerText = "";
+  publisher.innerText = "";
+  externalLink.href = "";
+
+  externalLink.classList.add("d-none");
+}
+
 function createFeedElement(feed) {
   const li = document.createElement("li");
   const icon = document.createElement("img");

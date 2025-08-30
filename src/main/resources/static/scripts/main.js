@@ -1,9 +1,15 @@
-import { showView, navigateToArticlesList, navigateToReader } from "./nav.js";
+import {
+  showView,
+  navigateToArticlesList,
+  navigateToReader,
+  navigateToFeeds,
+} from "./nav.js";
 import { buildUrlParams, fetchJson } from "./util.js";
 import {
   renderFoldersList,
   renderArticlesList,
   renderReaderView,
+  clearReaderView,
 } from "./dom.js";
 import {
   hideDialog,
@@ -352,6 +358,10 @@ async function deleteFeed(feed) {
 
   if (response.ok) {
     loadFolders();
+    articles = articles.filter((a) => a.feedId !== feed.id);
+    renderArticlesList(articles);
+    navigateToFeeds();
+    clearReaderView();
     hideDialog();
   } else {
     alert("Error deleting feed: " + response.statusText);
