@@ -10,7 +10,6 @@ import {
   showAddFolderDialog,
   showEditFeedDialog,
   showEditFolderDialog,
-  showImportFeedDialog,
 } from "./dialog.js";
 
 const articleLoadType = Object.freeze({
@@ -72,7 +71,7 @@ document.getElementById("trigger-delete").addEventListener("click", (e) => {
   deleteElementClick();
 });
 document.getElementById("trigger-import").addEventListener("click", (e) => {
-  showImportFeedDialog(importFeeds);
+  importFeeds();
 });
 
 function editFeedFolderClick() {
@@ -348,26 +347,36 @@ async function deleteFeed(feed) {
 }
 
 async function importFeeds() {
-  const input = document.getElementById("import-file");
-  if (input.files.length === 0) {
-    alert("Please select a file to import.");
-    return;
-  }
-  const file = input.files[0];
+  const fileInput = document.createElement("input");
+  fileInput.type = "file";
+  fileInput.style.display = "none";
+  fileInput.accept = ".opml,.xml,application/xml,text/xml";
+  document.body.appendChild(fileInput);
 
-  const response = await fetch("./api/opml", {
-    method: "POST",
-    body: file,
-    headers: {
-      "Content-Type": file.type,
-    },
+  fileInput.addEventListener("change", async () => {
+    if (fileInput.files.length === 0) {
+      alert("Please select a file to import.");
+      return;
+    }
+    const file = fileInput.files[0];
+
+    const response = await fetch("./api/opml", {
+      method: "POST",
+      body: file,
+      headers: {
+        "Content-Type": file.type,
+      },
+    });
+
+    if (response.ok) {
+      loadFolders();
+      refreshFeeds();
+    } else {
+      alert("Error importing feeds: " + response.statusText);
+    }
+
+    document.body.removeChild(fileInput);
   });
 
-  if (response.ok) {
-    loadFolders();
-    hideDialog();
-    refreshFeeds();
-  } else {
-    alert("Error importing feeds: " + response.statusText);
-  }
+  fileInput.click();
 }
