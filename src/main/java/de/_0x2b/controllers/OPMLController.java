@@ -1,5 +1,6 @@
 package de._0x2b.controllers;
 
+import java.io.InputStream;
 import java.util.List;
 
 import be.ceau.opml.OpmlParseException;
@@ -25,7 +26,8 @@ public class OPMLController {
 
     private void importOPML(Context ctx) {
         try {
-            Opml opml = new OpmlParser().parse(ctx.uploadedFile("subscriptions").content());
+            InputStream bodyStream = ctx.bodyInputStream();
+            Opml opml = new OpmlParser().parse(bodyStream);
             var body = opml.getBody();
             parseOutline(body.getOutlines(), 0);
 

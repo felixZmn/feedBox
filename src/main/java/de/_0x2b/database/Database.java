@@ -54,7 +54,7 @@ public class Database {
                     name VARCHAR(255) NOT NULL,
                     url VARCHAR(2048) NOT NULL UNIQUE,
                     feed_url VARCHAR(2048) NOT NULL UNIQUE,
-                    FOREIGN KEY (folder_id) REFERENCES folder(id)
+                    FOREIGN KEY (folder_id) REFERENCES folder(id) ON DELETE CASCADE
                 );
 
                 CREATE TABLE IF NOT EXISTS article (
@@ -68,7 +68,7 @@ public class Database {
                     authors TEXT NOT NULL,
                     image_url TEXT NULL,
                     categories TEXT NULL,
-                    FOREIGN KEY (feed_id) REFERENCES feed(id)
+                    FOREIGN KEY (feed_id) REFERENCES feed(id) ON DELETE CASCADE
                 );
 
                 INSERT INTO folder (id, name) VALUES (0,'') ON CONFLICT DO NOTHING;

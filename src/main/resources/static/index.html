@@ -21,7 +21,7 @@
           <span class="modal-close">&times;</span>
           <h2 id="modal-headline">Modal Title</h2>
           <div id="modal-content-container">
-            <form class="modal-form" id="folder-add-edit">
+            <div class="modal-form" id="folder-add-edit">
               <label class="field" for="folder-name">Folder name </label>
 
               <input
@@ -59,9 +59,9 @@
               <button id="trigger-save-folder" type="submit" class="btn">
                 Save
               </button>
-            </form>
+            </div>
 
-            <form class="modal-form" id="feed-add-edit">
+            <div class="modal-form" id="feed-add-edit">
               <label class="field" for="feed-uri">Feed Link</label>
               <input
                 id="feed-uri"
@@ -89,7 +89,20 @@
               </div>
 
               <button type="submit" class="btn">Save</button>
-            </form>
+            </div>
+
+            <div class="modal-form" id="feed-import">
+              <label class="field" for="import-file">Import OPML file</label>
+              <input
+                id="import-file"
+                name="import-file"
+                type="file"
+                accept=".opml"
+              />
+              <button id="trigger-import-feed" type="submit" class="btn">
+                Import
+              </button>
+            </div>
           </div>
         </div>
       </div>

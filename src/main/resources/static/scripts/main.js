@@ -10,6 +10,7 @@ import {
   showAddFolderDialog,
   showEditFeedDialog,
   showEditFolderDialog,
+  showImportFeedDialog,
 } from "./dialog.js";
 
 const articleLoadType = Object.freeze({
@@ -43,12 +44,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   };
 });
 
-document.querySelectorAll("#modal-content-container form").forEach((form) => {
-  form.addEventListener("click", (e) => {
-    e.preventDefault();
-  });
-});
-
 document.addEventListener("click", (e) => {
   if (e.target === document.getElementById("modal")) {
     hideDialog();
@@ -75,6 +70,9 @@ document.getElementById("trigger-add-folder").addEventListener("click", (e) => {
 });
 document.getElementById("trigger-delete").addEventListener("click", (e) => {
   deleteElementClick();
+});
+document.getElementById("trigger-import").addEventListener("click", (e) => {
+  showImportFeedDialog(importFeeds);
 });
 
 function editFeedFolderClick() {
@@ -346,5 +344,30 @@ async function deleteFeed(feed) {
     hideDialog();
   } else {
     alert("Error deleting feed: " + response.statusText);
+  }
+}
+
+async function importFeeds() {
+  const input = document.getElementById("import-file");
+  if (input.files.length === 0) {
+    alert("Please select a file to import.");
+    return;
+  }
+  const file = input.files[0];
+
+  const response = await fetch("./api/opml", {
+    method: "POST",
+    body: file,
+    headers: {
+      "Content-Type": file.type,
+    },
+  });
+
+  if (response.ok) {
+    loadFolders();
+    hideDialog();
+    refreshFeeds();
+  } else {
+    alert("Error importing feeds: " + response.statusText);
   }
 }

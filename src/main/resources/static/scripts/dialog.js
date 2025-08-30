@@ -2,6 +2,7 @@ export function hideDialog() {
   document.getElementById("modal").style.display = "none";
   document.getElementById("folder-add-edit").style.display = "none";
   document.getElementById("feed-add-edit").style.display = "none";
+  document.getElementById("feed-import").style.display = "none";
 }
 
 export function showConfirmDialog(
@@ -50,6 +51,18 @@ function feedDialog(headline, confirmAction, cancelAction) {
   var saveButton = document.getElementById("trigger-save-feed");
   saveButton = removeAllEventListeners(saveButton);
   saveButton.addEventListener("click", () => {
+    if (confirmAction) confirmAction();
+    hideDialog();
+  });
+  document.getElementById("modal").style.display = "block";
+}
+
+export function showImportFeedDialog(confirmAction, cancelAction) {
+  document.getElementById("modal-headline").textContent = "Import Feeds";
+  document.getElementById("feed-import").style.display = "grid";
+  var importButton = document.getElementById("trigger-import-feed");
+  importButton = removeAllEventListeners(importButton);
+  importButton.addEventListener("click", () => {
     if (confirmAction) confirmAction();
     hideDialog();
   });
