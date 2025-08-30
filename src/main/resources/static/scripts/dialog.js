@@ -3,6 +3,8 @@ export function hideDialog() {
   document.getElementById("folder-add-edit").style.display = "none";
   document.getElementById("feed-add-edit").style.display = "none";
   document.getElementById("confirm-dialog").style.display = "none";
+  document.getElementById("folder-name").value = "";
+  document.getElementById("feed-url").value = "";
 }
 
 export function showConfirmDialog(

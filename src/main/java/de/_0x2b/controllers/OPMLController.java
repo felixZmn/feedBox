@@ -7,6 +7,7 @@ import be.ceau.opml.OpmlParseException;
 import be.ceau.opml.OpmlParser;
 import be.ceau.opml.entity.Opml;
 import be.ceau.opml.entity.Outline;
+import de._0x2b.exceptions.DuplicateEntityException;
 import de._0x2b.models.Feed;
 import de._0x2b.models.Folder;
 import de._0x2b.services.FeedService;
@@ -46,7 +47,11 @@ public class OPMLController {
                 // rss feed
                 var feed = new Feed(-1, folder, outline.getAttribute("text"), outline.getAttribute("htmlUrl"),
                         outline.getAttribute("xmlUrl"));
-                feedService.create(feed);
+                try {
+                    feedService.create(feed);
+                } catch (DuplicateEntityException e) {
+                    // ignore
+                }
             } else {
                 // remaining: folder
                 var folderName = outline.getAttribute("text");

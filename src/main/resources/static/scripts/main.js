@@ -10,6 +10,7 @@ import {
   renderArticlesList,
   renderReaderView,
   clearReaderView,
+  folderDropdownOptions,
 } from "./dom.js";
 import {
   hideDialog,
@@ -17,6 +18,7 @@ import {
   showEditFeedDialog,
   showEditFolderDialog,
   showConfirmDialog,
+  showAddFeedDialog,
 } from "./dialog.js";
 
 const articleLoadType = Object.freeze({
@@ -74,6 +76,10 @@ document.getElementById("trigger-refresh").addEventListener("click", (e) => {
 document.getElementById("trigger-add-folder").addEventListener("click", (e) => {
   showAddFolderDialog(createFolder);
 });
+document.getElementById("trigger-add-feed").addEventListener("click", (e) => {
+  showAddFeedDialog(createFeed);
+});
+
 document.getElementById("trigger-delete").addEventListener("click", (e) => {
   var message = "";
   if (lastClickedFeedItem.type == articleLoadType.FOLDER) {
@@ -266,6 +272,7 @@ export function articleClickListener(article) {
 async function loadFolders() {
   var foldersWithFeeds = await fetchJson("./api/folders");
   renderFoldersList(foldersWithFeeds);
+  folderDropdownOptions(foldersWithFeeds);
   addFolderEvents();
 }
 
@@ -347,7 +354,25 @@ async function deleteFolder(folder) {
   }
 }
 
-async function createFeed() {}
+async function createFeed() {
+  var url = document.getElementById("feed-url").value;
+  var folder = document.getElementById("feed-folder").value;
+
+  const response = await fetch("./api/feeds", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ feedUrl: url, folderId: folder }),
+  });
+
+  if (response.ok) {
+    loadFolders();
+    hideDialog();
+  } else {
+    alert("Error saving feed: " + response.statusText);
+  }
+}
 
 async function editFeed() {
   var feed = lastClickedFeedItem.obj;
@@ -365,8 +390,8 @@ async function editFeed() {
   if (response.ok) {
     loadFolders();
     hideDialog();
-    lastClickedFeedItem.obj.url = url;
-    lastClickedFeedItem.obj.folderId = folder;
+    lastClickedFeedItem.obj.url = feed.feedUrl;
+    lastClickedFeedItem.obj.folderId = feed.folderId;
   } else {
     alert("Error updating feed: " + response.statusText);
   }

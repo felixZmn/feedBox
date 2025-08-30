@@ -13,18 +13,14 @@ FeedBox is a simple, self-hosted feed reader build with Java. It allows you to m
 
 # Features
 
-Currently, the application is in an non-production state. The following tasks are planned or in progress:
+Currently, the application is in an non-production state. The following features are planned:
 
-- [ ] Add, edit and delete feeds
-- [x] Colored folders
-- [x] Dark mode
-- [ ] mobile view
-- [ ] helm chart
-- [x] import ompl files
-- [ ] export ompl files
-- [ ] automatic periodic refresh in background
-- [ ] while deleting a folder, move all contained feeds to "Uncategorized" instead of deleting them
-- [ ] background refresh of feeds
+- Simple UI with automatic dark mode
+- Mobile or Desktop view
+- Fully self-hostable
+- Import or export your feeds as OPML
+- Organize your feeds in Folders
+- Periodic refresh in the background
 
 # Deployment
 

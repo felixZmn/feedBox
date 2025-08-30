@@ -35,6 +35,23 @@ public class FeedService {
         });
     }
 
+    public void refresh(int id) {
+        var feed = feedRepository.findOne(id);
+        parseFeed(feed.get(0));
+    }
+
+    public Feed query(Feed feed) {
+        RssReader rssReader = new RssReader();
+        try {
+            var channel = rssReader.read(feed.getFeedUrl()).toList().get(0).getChannel();
+            feed.setUrl(channel.getLink());
+            feed.setName(channel.getTitle());
+        } catch (IOException e) {
+            System.out.printf("Error querying feed [%s] \n %s\n", feed.getFeedUrl(), e.getMessage());
+        }
+        return feed;
+    }
+
     private void parseFeed(Feed feed) {
         System.setProperty("jdk.xml.totalEntitySizeLimit", "500000");
         System.setProperty("jdk.xml.maxGeneralEntitySizeLimit", "500000");

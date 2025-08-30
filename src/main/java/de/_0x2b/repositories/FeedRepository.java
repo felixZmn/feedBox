@@ -8,14 +8,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 import de._0x2b.database.Database;
+import de._0x2b.exceptions.DuplicateEntityException;
 import de._0x2b.models.Feed;
 
 public class FeedRepository {
     private static final String INSERT_ONE = """
-            INSERT INTO feed (folder_id, name, url, feed_url) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING RETURNING id
+            INSERT INTO feed (folder_id, name, url, feed_url) VALUES (?, ?, ?, ?) RETURNING id
             """;
     private static final String SELECT_ALL = """
             SELECT id, folder_id, name, url, feed_url FROM feed
+            """;
+    private static final String SELECT_ONE = """
+            SELECT id, folder_id, name, url, feed_url FROM feed where id = ?
             """;
     private static final String UPDATE = """
             UPDATE feed set folder_id = ?, name = ?, url = ?, feed_url = ? WHERE id = ? RETURNING id
@@ -34,12 +38,14 @@ public class FeedRepository {
             stmt.setString(4, feed.getFeedUrl());
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    int id = rs.getInt("id");
-                    return id;
+                    return rs.getInt("id");
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
+            if (e.getSQLState().equals("23505")) {
+                throw new DuplicateEntityException("Feed with this URL already exists");
+            }
         }
         return -1;
     }
@@ -68,6 +74,20 @@ public class FeedRepository {
     public List<Feed> findAll() {
         try (Connection conn = Database.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
+            try (var rs = stmt.executeQuery()) {
+                return parseResult(rs);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return List.of();
+    }
+
+    public List<Feed> findOne(int id) {
+        try (Connection conn = Database.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(SELECT_ONE)) {
+
+            stmt.setInt(1, id);
             try (var rs = stmt.executeQuery()) {
                 return parseResult(rs);
             }

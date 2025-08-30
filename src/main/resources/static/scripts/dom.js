@@ -175,3 +175,18 @@ function viewAllFeedsElement() {
   details.appendChild(summary);
   return details;
 }
+
+export function folderDropdownOptions(folders) {
+  const select = document.getElementById("feed-folder");
+  select.innerHTML = '<option value="0">No Folder</option>'; // Reset options
+
+  folders.forEach((folder) => {
+    if (folder.id == 0) {
+      return; // Skip "no folder" option
+    }
+    const option = document.createElement("option");
+    option.value = folder.id;
+    option.textContent = folder.name;
+    select.appendChild(option);
+  });
+}
