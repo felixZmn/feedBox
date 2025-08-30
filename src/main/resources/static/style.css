@@ -10,8 +10,7 @@
   --default-space: 0.5rem;
 }
 .f-base {
-  filter: brightness(0) saturate(100%) invert(32%) sepia(9%) saturate(1260%)
-    hue-rotate(180deg) brightness(94%) contrast(87%);
+  filter: brightness(0) saturate(100%);
 }
 .f-red {
   filter: brightness(0) saturate(100%) invert(12%) sepia(54%) saturate(7436%)
@@ -253,9 +252,8 @@ summary::marker {
   display: grid;
   grid-template-columns: 1fr minmax(0, 800px) 1fr; /* center area limited to 800px */
   align-content: center;
-
+  padding: 0 var(--default-space);
   height: 2.5rem;
-  width: 100%;
   border-bottom: 1px solid var(--border-color);
 }
 

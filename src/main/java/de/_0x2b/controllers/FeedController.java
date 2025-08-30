@@ -27,7 +27,7 @@ public class FeedController {
         int feedId = Integer.parseInt(ctx.pathParam("id"));
         var result = feedService.deleteFeed(feedId);
         if (result == -1) {
-            ctx.status(500).result("Failed to delete folder");
+            ctx.status(500).result("Failed to delete feed");
             return;
         }
         ctx.status(HttpStatus.NO_CONTENT);

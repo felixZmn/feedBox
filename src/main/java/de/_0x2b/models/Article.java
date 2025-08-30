@@ -2,7 +2,7 @@ package de._0x2b.models;
 
 public class Article {
     int id;
-    int feedID;
+    int feedId;
     String feedName;
     String title;
     String description;
@@ -13,10 +13,10 @@ public class Article {
     String imageUrl;
     String categories;
 
-    public Article(int id, int feedID, String feedName, String title, String description, String content, String link,
+    public Article(int id, int feedId, String feedName, String title, String description, String content, String link,
             String published, String authors, String imageUrl, String categories) {
         this.id = id;
-        this.feedID = feedID;
+        this.feedId = feedId;
         this.feedName = feedName;
         this.title = title;
         this.description = description;
@@ -32,8 +32,8 @@ public class Article {
         return id;
     }
 
-    public int getFeedID() {
-        return feedID;
+    public int getFeedId() {
+        return feedId;
     }
 
     public String getFeedName() {

@@ -177,7 +177,7 @@ public class ArticleRepository {
                 final int batchSize = 500;
                 int count = 0;
                 for (Article a : articles) {
-                    stmt.setInt(1, a.getFeedID());
+                    stmt.setInt(1, a.getFeedId());
                     stmt.setString(2, a.getTitle());
                     stmt.setString(3, a.getDescription());
                     stmt.setString(4, a.getContent());

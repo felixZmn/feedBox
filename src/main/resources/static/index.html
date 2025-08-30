@@ -78,11 +78,6 @@
                   <option value="4">releases</option>
                   <option value="5">tech</option>
                 </select>
-                <span
-                  id="color-swatch"
-                  class="swatch"
-                  aria-hidden="true"
-                ></span>
               </div>
 
               <button type="submit" class="btn right">Save</button>
@@ -120,7 +115,7 @@
               ><img
                 id="refresh-spinner"
                 class="icon f-base"
-                src="icons/stopwatch.svg"
+                src="icons/refresh.svg"
                 alt="Open"
             /></a>
             <a class="item-spacer" id="trigger-add-folder"
@@ -159,10 +154,14 @@
 
       <main id="articlesList" class="articlesList border-right">
         <div class="column-header">
-          <div class="left"></div>
-          <div class="right">
+          <div class="left">
             <a class="item-spacer" id="trigger-delete"
               ><img class="icon f-red" src="icons/trash.svg" alt="Open"
+            /></a>
+          </div>
+          <div class="right">
+            <a class="item-spacer" id="trigger-add-feed"
+              ><img class="icon f-base" src="icons/feed_add.svg" alt="Open"
             /></a>
             <a class="item-spacer" id="trigger-edit"
               ><img class="icon f-base" src="icons/edit.svg" alt="Open"
@@ -195,13 +194,16 @@
               ><img class="icon f-base" src="icons/external.svg" alt="Open"
             /></a>
             <a class="item-spacer" id="trigger-previous"
-              ><img class="icon f-base" src="icons/previous.svg" alt="Open"
+              ><img
+                class="icon f-base"
+                src="icons/reader_previous.svg"
+                alt="Open"
             /></a>
             <a class="item-spacer" id="trigger-next"
-              ><img class="icon f-base" src="icons/next.svg" alt="Open"
+              ><img class="icon f-base" src="icons/reader_next.svg" alt="Open"
             /></a>
             <a class="item-spacer" id="trigger-close"
-              ><img class="icon f-base" src="icons/close.svg" alt="Open"
+              ><img class="icon f-base" src="icons/reader_close.svg" alt="Open"
             /></a>
           </div>
         </div>
