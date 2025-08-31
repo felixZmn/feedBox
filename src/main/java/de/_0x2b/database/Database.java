@@ -15,7 +15,7 @@ public class Database {
             return; // already connected/started
 
         HikariConfig config = new HikariConfig();
-        config.setJdbcUrl("jdbc:postgresql://localhost:5432/postgres");
+        config.setJdbcUrl("jdbc:postgresql://postgres:5432/postgres");
         config.setUsername("user");
         config.setPassword("password");
         config.setMaximumPoolSize(10); // adjust as needed
