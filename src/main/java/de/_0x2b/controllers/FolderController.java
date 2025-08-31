@@ -1,5 +1,6 @@
 package de._0x2b.controllers;
 
+import de._0x2b.exceptions.DuplicateEntityException;
 import de._0x2b.models.Folder;
 import de._0x2b.services.FolderService;
 import io.javalin.Javalin;
@@ -17,19 +18,18 @@ public class FolderController {
     }
 
     private void get(Context ctx) {
-        ctx.json(folderService.getAll());
+        ctx.json(folderService.findAll());
     }
 
     private void create(Context ctx) {
-        var result = folderService.create(ctx.bodyAsClass(Folder.class));
-        if (result == -1) {
-            ctx.status(500).result("Failed to create folder");
+        int result;
+        try {
+            result = folderService.create(ctx.bodyAsClass(Folder.class));
+        } catch (DuplicateEntityException e) {
+            ctx.status(409).result("Folder already exists");
             return;
         }
-        if (result == -2) {
-            ctx.status(409).result("Folder with this name already exists");
-            return;
-        }
+
         ctx.status(201).json(result);
     }
 
@@ -37,12 +37,10 @@ public class FolderController {
         var folder = ctx.bodyAsClass(Folder.class);
         folder.setId(Integer.parseInt(ctx.pathParam("id")));
 
-        var result = folderService.update(folder);
-        if (result == -1) {
-            ctx.status(500).result("Failed to create folder");
-            return;
-        }
-        if (result == -2) {
+        int result;
+        try {
+            result = folderService.update(folder);
+        } catch (DuplicateEntityException e) {
             ctx.status(409).result("Folder with this name already exists");
             return;
         }

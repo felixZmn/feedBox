@@ -16,17 +16,17 @@ public class ArticleService {
         return articleRepository.findAll(paginationId, paginationPublished);
     }
 
-    public List<Article> getByFolder(int paginationId, String paginationPublished, int folderId) {
+    public List<Article> findByFolder(int paginationId, String paginationPublished, int folderId) {
         if (paginationId == -1 && paginationPublished == "") {
-            return articleRepository.findAllByFolder(folderId);
+            return articleRepository.findByFolder(folderId);
         }
-        return articleRepository.findAllByFolder(folderId, paginationId, paginationPublished);
+        return articleRepository.findByFolder(folderId, paginationId, paginationPublished);
     }
 
-    public List<Article> getByFeed(int paginationId, String paginationPublished, int feedId) {
+    public List<Article> findByFeed(int paginationId, String paginationPublished, int feedId) {
         if (paginationId == -1 && paginationPublished == "") {
-            return articleRepository.findAllByFeed(feedId);
+            return articleRepository.findByFeed(feedId);
         }
-        return articleRepository.findAllByFeed(feedId, paginationId, paginationPublished);
+        return articleRepository.findByFeed(feedId, paginationId, paginationPublished);
     }
 }

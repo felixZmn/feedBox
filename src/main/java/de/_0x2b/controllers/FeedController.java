@@ -42,12 +42,10 @@ public class FeedController {
         var feed = ctx.bodyAsClass(de._0x2b.models.Feed.class);
         feed.setId(Integer.parseInt(ctx.pathParam("id")));
 
-        var result = feedService.update(feed);
-        if (result == -1) {
-            ctx.status(500).result("Failed to update feed");
-            return;
-        }
-        if (result == -2) {
+        int result;
+        try {
+            result = feedService.update(feed);
+        } catch (DuplicateEntityException e) {
             ctx.status(409).result("Feed with this URL already exists");
             return;
         }

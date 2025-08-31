@@ -97,7 +97,7 @@ public class ArticleRepository {
         return List.of();
     }
 
-    public List<Article> findAllByFeed(int feedId) {
+    public List<Article> findByFeed(int feedId) {
         try (Connection conn = Database.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FEED)) {
 
@@ -112,7 +112,7 @@ public class ArticleRepository {
         return List.of();
     }
 
-    public List<Article> findAllByFeed(int feedId, int paginationId, String paginationDate) {
+    public List<Article> findByFeed(int feedId, int paginationId, String paginationDate) {
         try (Connection conn = Database.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FEED_PAGINATED)) {
 
@@ -130,7 +130,7 @@ public class ArticleRepository {
         return List.of();
     }
 
-    public List<Article> findAllByFolder(int folderId) {
+    public List<Article> findByFolder(int folderId) {
         try (Connection conn = Database.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FOLDER)) {
 
@@ -145,7 +145,7 @@ public class ArticleRepository {
         return List.of();
     }
 
-    public List<Article> findAllByFolder(int folderId, int paginationId, String paginationDate) {
+    public List<Article> findByFolder(int folderId, int paginationId, String paginationDate) {
         try (Connection conn = Database.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FOLDER_PAGINATED)) {
 
@@ -163,11 +163,7 @@ public class ArticleRepository {
         return List.of();
     }
 
-    public void saveOne(Article article) {
-
-    }
-
-    public void saveMany(List<Article> articles) {
+    public void create(List<Article> articles) {
         if (articles == null || articles.isEmpty()) {
             return;
         }

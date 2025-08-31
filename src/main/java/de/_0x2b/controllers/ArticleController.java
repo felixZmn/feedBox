@@ -23,10 +23,10 @@ public class ArticleController {
 
         List<Article> result;
         if (folderId != -1) {
-            result = articleService.getByFolder(paginationId, paginationDate, folderId);
+            result = articleService.findByFolder(paginationId, paginationDate, folderId);
         } else if (feedId != -1) {
             System.out.println("FeedId: " + feedId);
-            result = articleService.getByFeed(paginationId, paginationDate, feedId);
+            result = articleService.findByFeed(paginationId, paginationDate, feedId);
         } else {
             result = articleService.getAll(paginationId, paginationDate);
         }

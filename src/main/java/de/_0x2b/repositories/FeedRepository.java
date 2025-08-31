@@ -66,7 +66,10 @@ public class FeedRepository {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
+            if (e.getSQLState().equals("23505")) {
+                throw new DuplicateEntityException("Feed with this URL already exists");
+            }
         }
         return -1;
     }

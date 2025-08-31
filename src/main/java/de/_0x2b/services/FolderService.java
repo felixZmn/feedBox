@@ -8,16 +8,16 @@ import de._0x2b.repositories.FolderRepository;
 public class FolderService {
     private final FolderRepository folderRepository = new FolderRepository();
 
-    public List<Folder> getAll() {
+    public List<Folder> findAll() {
         return folderRepository.findAll();
     }
 
-    public int create(Folder folder) {
-        return folderRepository.save(folder);
+    public List<Folder> findByName(String name) {
+        return folderRepository.findByName(name);
     }
 
-    public int saveIgnoreDuplicates(Folder folder) {
-        return folderRepository.saveIgnoreDuplicates(folder);
+    public int create(Folder folder) {
+        return folderRepository.create(folder);
     }
 
     public int update(Folder folder) {

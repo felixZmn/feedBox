@@ -55,8 +55,13 @@ public class OPMLController {
             } else {
                 // remaining: folder
                 var folderName = outline.getAttribute("text");
-                var folderId = folderService.saveIgnoreDuplicates(
-                        new Folder(-1, folderName, List.of(), "f-base"));
+
+                var folderId = 0;
+                try {
+                    folderId = folderService.create(new Folder(-1, folderName, List.of(), "f-base"));
+                } catch (DuplicateEntityException e) {
+                    folderId = folderService.findByName(folderName).get(0).getId();
+                }
                 parseOutline(outline.getSubElements(), folderId);
             }
         }

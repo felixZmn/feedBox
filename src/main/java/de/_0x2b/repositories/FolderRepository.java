@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import de._0x2b.database.Database;
+import de._0x2b.exceptions.DuplicateEntityException;
 import de._0x2b.models.Feed;
 import de._0x2b.models.Folder;
 
@@ -26,8 +27,12 @@ public class FolderRepository {
             ORDER BY folder.name, feed.name
             """;
 
-    private static final String INSERT_ONE_IGNORE = """
-            INSERT INTO folder (name, color) VALUES (?, ?) ON CONFLICT (name) DO UPDATE SET name = excluded.name RETURNING id
+    private static final String SELECT_ALL_BY_NAME = """
+            SELECT folder.id as "folder_id", folder.name as "folder_name", folder.color as "folder_color", feed.id  AS "feed_id", feed.name AS "feed_name", feed.url AS "feed_url"
+            FROM folder
+            LEFT JOIN feed ON folder.id = feed.folder_id
+            wHERE folder.name = ?
+            ORDER BY folder.name, feed.name
             """;
 
     private static final String INSERT_ONE = """
@@ -54,31 +59,22 @@ public class FolderRepository {
         return List.of();
     }
 
-    public int saveIgnoreDuplicates(Folder folder) {
+    public List<Folder> findByName(String name) {
         try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(INSERT_ONE_IGNORE)) {
-
-            stmt.setString(1, folder.getName());
-            stmt.setString(2, folder.getColor());
+                PreparedStatement stmt = conn.prepareStatement(SELECT_ALL_BY_NAME)) {
+            stmt.setString(1, name);
             try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    int id = rs.getInt("id");
-                    return id;
-                }
+                return parseResult(rs);
             }
         } catch (SQLException e) {
-            if (e.getSQLState().equals("23505")) {
-                return -2; // unique violation
-            }
             e.printStackTrace();
         }
-        return -1;
+        return List.of();
     }
 
-    public int save(Folder folder) {
+    public int create(Folder folder) {
         try (Connection conn = Database.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(INSERT_ONE)) {
-
             stmt.setString(1, folder.getName());
             stmt.setString(2, folder.getColor());
             try (ResultSet rs = stmt.executeQuery()) {
@@ -88,10 +84,10 @@ public class FolderRepository {
                 }
             }
         } catch (SQLException e) {
+            System.out.println(e.getMessage());
             if (e.getSQLState().equals("23505")) {
-                return -2; // unique violation
+                throw new DuplicateEntityException("Folder with this URL already exists");
             }
-            e.printStackTrace();
         }
         return -1;
     }
@@ -110,10 +106,10 @@ public class FolderRepository {
                 }
             }
         } catch (SQLException e) {
+            System.out.println(e.getMessage());
             if (e.getSQLState().equals("23505")) {
-                return -2; // unique violation
+                throw new DuplicateEntityException("Folder with this URL already exists");
             }
-            e.printStackTrace();
         }
         return -1;
     }

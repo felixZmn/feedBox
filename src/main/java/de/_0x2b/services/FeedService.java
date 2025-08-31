@@ -27,6 +27,9 @@ public class FeedService {
         return feedRepository.update(feed);
     }
 
+    /**
+     * Refresh all feeds in the database
+     */
     public void refresh() {
         var feeds = feedRepository.findAll();
 
@@ -35,11 +38,22 @@ public class FeedService {
         });
     }
 
+    /**
+     * Refresh a single feed by its ID
+     * 
+     * @param id
+     */
     public void refresh(int id) {
         var feed = feedRepository.findOne(id);
         parseFeed(feed.get(0));
     }
 
+    /**
+     * Query a feed URL and return the filled feed object
+     * 
+     * @param feed Feed object with feed_url filled
+     * @return Feed object with name and url filled
+     */
     public Feed query(Feed feed) {
         RssReader rssReader = new RssReader();
         try {
@@ -84,7 +98,7 @@ public class FeedService {
                     System.out.printf("Error refreshing feed [%s] \n %s\n", feed.getName(), e.getMessage());
                 }
             }
-            articleRepository.saveMany(articles);
+            articleRepository.create(articles);
         } catch (IOException e) {
             System.out.printf("Error refreshing feed [%s] \n %s\n", feed.getName(), e.getMessage());
         }
