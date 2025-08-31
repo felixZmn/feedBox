@@ -10,15 +10,15 @@ import com.zaxxer.hikari.HikariDataSource;
 public class Database {
     private static HikariDataSource dataSource;
 
-    public static void connect() {
+    public static void connect(String host, String port, String dbName, String username, String password) {
         if (dataSource != null)
             return; // already connected/started
 
         HikariConfig config = new HikariConfig();
-        config.setJdbcUrl("jdbc:postgresql://postgres:5432/postgres");
-        config.setUsername("user");
-        config.setPassword("password");
-        config.setMaximumPoolSize(10); // adjust as needed
+        config.setJdbcUrl(String.format("jdbc:postgresql://%s:%s/%s", host, port, dbName));
+        config.setUsername(username);
+        config.setPassword(password);
+        config.setMaximumPoolSize(10);
         config.setMinimumIdle(2);
         config.setConnectionTimeout(30000);
 

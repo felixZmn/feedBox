@@ -1,5 +1,8 @@
 package de._0x2b.feedBox;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +18,16 @@ public class FeedBox {
     private static final Logger logger = LoggerFactory.getLogger(FeedBox.class);
 
     public static void main(String[] args) {
-        Database.connect();
+        var variables = getVariables();
+        System.out.println("Using database at " + variables.get("dbHost") + ":" + variables.get("dbPort") + "/"
+                + variables.get("dbName")); // ToDo: Logger
+
+        Database.connect(
+                variables.get("dbHost"),
+                variables.get("dbPort"),
+                variables.get("dbName"),
+                variables.get("dbUsername"),
+                variables.get("dbPassword"));
         Database.migrate();
 
         var app = Javalin.create(config -> {
@@ -39,10 +51,42 @@ public class FeedBox {
         folderController.registerRoutes(app);
         feedController.registerRoutes(app);
 
-        app.start(7070);
+        app.start(Integer.parseInt(variables.get("appPort")));
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             Database.disconnect();
         }));
+    }
+
+    private static Map<String, String> getVariables() {
+        var dbUsername = System.getenv("PG_USER");
+        var dbPassword = System.getenv("PG_PASSWORD");
+        var dbHost = System.getenv("PG_HOST");
+        var dbPort = System.getenv("PG_PORT");
+        var dbName = System.getenv("PG_DB");
+        var appPort = System.getenv("PORT");
+
+        if (dbUsername == null)
+            throw new IllegalStateException("PG_USER not set");
+        if (dbPassword == null)
+            throw new IllegalStateException("PG_PASSWORD not set");
+        if (dbHost == null)
+            throw new IllegalStateException("PG_HOST not set");
+        if (dbPort == null)
+            throw new IllegalStateException("PG_PORT not set");
+        if (dbName == null)
+            throw new IllegalStateException("PG_DB not set");
+        if (appPort == null)
+            appPort = "7070"; // default port
+
+        Map<String, String> variables = new HashMap<>();
+        variables.put("dbUsername", dbUsername);
+        variables.put("dbPassword", dbPassword);
+        variables.put("dbHost", dbHost);
+        variables.put("dbPort", dbPort);
+        variables.put("dbName", dbName);
+        variables.put("appPort", appPort);
+
+        return variables;
     }
 }

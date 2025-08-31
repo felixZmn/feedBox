@@ -30,6 +30,8 @@ docker network create appnet
 docker run -d --name postgres -p 5432:5432 -e POSTGRES_USER=user -e POSTGRES_PASSWORD=password -e POSTGRES_DB=postgres --network appnet postgres
 docker run --name feedbox -p 7070:7070 --rm --network appnet feedbox
 
+PG_USER=user PG_PASSWORD=password PG_HOST=127.0.0.1 PG_PORT=5432 PG_DB=postgres java -jar target/feedBox.jar
+
 ## icons
 
 https://tablericons.com/
