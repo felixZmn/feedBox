@@ -1,4 +1,4 @@
-package de._0x2b.reeder;
+package de._0x2b.feedBox;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,8 +11,8 @@ import de._0x2b.database.Database;
 import io.javalin.Javalin;
 import io.javalin.http.staticfiles.Location;
 
-public class Reeeder {
-    private static final Logger logger = LoggerFactory.getLogger(Reeeder.class);
+public class FeedBox {
+    private static final Logger logger = LoggerFactory.getLogger(FeedBox.class);
 
     public static void main(String[] args) {
         Database.connect();
