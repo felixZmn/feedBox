@@ -8,20 +8,11 @@
         <Console name="Console" target="SYSTEM_OUT" follow="true">
             <PatternLayout pattern="${COLOR_LOG_PATTERN}" />
         </Console>
-        <RollingFile name="File"
-            fileName="sample-app.log"
-            filePattern="sample-app-%d{yyyy-MM-dd}-%i.log">
-            <PatternLayout pattern="${LOG_PATTERN}" />
-            <Policies>
-                <SizeBasedTriggeringPolicy size="1GB" />
-            </Policies>
-        </RollingFile>
     </Appenders>
 
     <Loggers>
         <Root level="INFO">
             <AppenderRef ref="Console" />
-            <AppenderRef ref="File" />
         </Root>
     </Loggers>
 </Configuration>
