@@ -25,7 +25,9 @@ Currently, the application is in an non-production state. The following features
 # Deployment
 
 mvn clean install
-docker build -t feedbox .
+docker build -t ghcr.io/felixzmn/docker/feedbox:latest .
+docker push ghcr.io/felixzmn/docker/feedbox:latest
+
 docker network create appnet
 docker run -d --name postgres -p 5432:5432 -e POSTGRES_USER=user -e POSTGRES_PASSWORD=password -e POSTGRES_DB=postgres --network appnet postgres
 docker run --name feedbox -p 7070:7070 --rm --network appnet feedbox
