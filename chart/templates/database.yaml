@@ -1,0 +1,18 @@
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: newsfeed
+  annotations:
+    postgres-operator.crunchydata.com/autoCreateUserSchema: "true"
+
+spec:
+  postgresVersion: 17
+  instances:
+    - name: newsfeed
+      dataVolumeClaimSpec:
+        storageClassName: longhorn
+        accessModes:
+        - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: 1Gi

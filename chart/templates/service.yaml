@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "feedbox.fullname" . }}
+  labels:
+    {{- include "feedbox.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.oauth2Proxy.service.port }}
+      targetPort: {{ .Values.oauth2Proxy.service.port }}
+      protocol: TCP
+      name: oauth2-proxy
+  selector:
+    {{- include "feedbox.selectorLabels" . | nindent 4 }}
