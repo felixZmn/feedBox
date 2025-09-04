@@ -1,5 +1,5 @@
 database:
-  secretName: "newsfeed-pguser-newsfeed"
+  existingSecret: "newsfeed-pguser-newsfeed"
   usernameKey: user
   passwordKey: password
   hostKey: host
@@ -7,18 +7,20 @@ database:
   dbKey: dbname
 
 oauth2Proxy:
-  config:
-    client_id: 3TFPsHQJzo1ykm5vUIUxwm2e9zvdd9vhKDDu8kWt
-    client_secret: GkMOREwaKCIxwRy7m3hlVr8861AAZOSzWjgk3JT5JnG8NPSFG3Kwne9WeTrTbLrilELOzuFJD48My9CD73kCLQEgd319CQlWy7mhyKa3aKjffOUjlNDXcZeTC0pt427f
-    redirect_uri: https://news.0x2b.de/oauth2/callback
-    issuer_url: https://authentik.0x2b.de/application/o/newsfeed/
-    cookie_secret: GGPZ0DBhAbonXxr6wnkMHILK4IT1b0Xv
-    upstream: http://newsfeed-feedbox.newsfeed.svc.cluster.local:7070
+  existingSecret: "newsfeed-oauth2proxy"
+  clientIdKey: client_id
+  clientSecretKey: client_secret
+  cookieSecretKey: cookie_secret
+  redirect_uri: https://news.0x2b.de/oauth2/callback
+  issuer_url: https://authentik.0x2b.de/application/o/newsfeed/
+  upstream: http://newsfeed-feedbox.newsfeed.svc.cluster.local:7070
+  
   image:
     repository: "quay.io/oauth2-proxy"
     name: "oauth2-proxy"
     tag: "v7.12.0-alpine"
     imagePullPolicy: ""
+  
   securityContext: 
     capabilities:
       drop:
@@ -26,11 +28,24 @@ oauth2Proxy:
     readOnlyRootFilesystem: true
     runAsNonRoot: true
     runAsUser: 1000
+
+  resources: {}
+
   service:
     type: ClusterIP
     port: 4180
 
 replicaCount: 1
+
+imagePullSecrets: 
+- name: regcred
+nameOverride: ""
+fullnameOverride: ""
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
 
 image:
   repository: ghcr.io/felixzmn/docker
@@ -38,16 +53,8 @@ image:
   tag: "latest"
   pullPolicy: Always
 
-imagePullSecrets: 
-- name: regcred
-
-nameOverride: ""
-fullnameOverride: ""
-
-podAnnotations: {}
-podLabels: {}
 podSecurityContext: 
-  fsGroup: 2000
+  fsGroup: 1000
 
 securityContext: 
   capabilities:
@@ -78,30 +85,17 @@ ingress:
 
 resources:
   limits:
-    cpu: 5000m
+    cpu: 500m
     memory: 350Mi
   requests:
     cpu: 250m
     memory: 150Mi
 
-# This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-#livenessProbe:
-#  httpGet:
-#    path: /
-#    port: http
-#readinessProbe:
-#  httpGet:
-#    path: /
-#    port: http
-
-# Additional volumeMounts on the output Deployment definition.
-volumeMounts: []
-# - name: foo
-#   mountPath: "/etc/foo"
-#   readOnly: true
-
-nodeSelector: {}
-
-tolerations: []
-
-affinity: {}
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: http
