@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import de._0x2b.controllers.ArticleController;
 import de._0x2b.controllers.FeedController;
 import de._0x2b.controllers.FolderController;
+import de._0x2b.controllers.HealthController;
 import de._0x2b.controllers.OPMLController;
 import de._0x2b.database.Database;
 import io.javalin.Javalin;
@@ -45,11 +46,13 @@ public class FeedBox {
         OPMLController opmlController = new OPMLController();
         FolderController folderController = new FolderController();
         FeedController feedController = new FeedController();
+        HealthController healthController = new HealthController();
 
         articleController.registerRoutes(app);
         opmlController.registerRoutes(app);
         folderController.registerRoutes(app);
         feedController.registerRoutes(app);
+        healthController.registerRoutes(app);
 
         app.start(Integer.parseInt(variables.get("appPort")));
 
