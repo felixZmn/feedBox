@@ -7,7 +7,11 @@ import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
 
 public class FeedController {
-    private final FeedService feedService = new FeedService();
+    private final FeedService feedService;
+
+    public FeedController(FeedService feedService) {
+        this.feedService = feedService;
+    }
 
     public void registerRoutes(Javalin app) {
         app.post("/api/feeds", this::createFeed);

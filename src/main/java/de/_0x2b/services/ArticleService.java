@@ -1,15 +1,19 @@
 package de._0x2b.services;
 
-import java.util.List;
-
 import de._0x2b.models.Article;
 import de._0x2b.repositories.ArticleRepository;
 
+import java.util.List;
+
 public class ArticleService {
-    private final ArticleRepository articleRepository = new ArticleRepository();
+    private final ArticleRepository articleRepository;
+
+    public ArticleService(ArticleRepository repository) {
+        this.articleRepository = repository;
+    }
 
     public List<Article> getAll(int paginationId, String paginationPublished) {
-        if (paginationId == -1 && paginationPublished == "") {
+        if (paginationId == -1 && "".equals(paginationPublished)) {
             return articleRepository.findAll();
 
         }
@@ -17,14 +21,14 @@ public class ArticleService {
     }
 
     public List<Article> findByFolder(int paginationId, String paginationPublished, int folderId) {
-        if (paginationId == -1 && paginationPublished == "") {
+        if (paginationId == -1 && "".equals(paginationPublished)) {
             return articleRepository.findByFolder(folderId);
         }
         return articleRepository.findByFolder(folderId, paginationId, paginationPublished);
     }
 
     public List<Article> findByFeed(int paginationId, String paginationPublished, int feedId) {
-        if (paginationId == -1 && paginationPublished == "") {
+        if (paginationId == -1 && "".equals(paginationPublished)) {
             return articleRepository.findByFeed(feedId);
         }
         return articleRepository.findByFeed(feedId, paginationId, paginationPublished);

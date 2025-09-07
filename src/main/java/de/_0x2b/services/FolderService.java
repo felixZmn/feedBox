@@ -1,12 +1,17 @@
 package de._0x2b.services;
 
-import java.util.List;
-
 import de._0x2b.models.Folder;
 import de._0x2b.repositories.FolderRepository;
 
+import java.util.List;
+
 public class FolderService {
-    private final FolderRepository folderRepository = new FolderRepository();
+    private final FolderRepository folderRepository;
+
+    public FolderService(FolderRepository folderRepository) {
+        this.folderRepository = folderRepository;
+    }
+
 
     public List<Folder> findAll() {
         return folderRepository.findAll();

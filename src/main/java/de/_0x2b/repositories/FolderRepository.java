@@ -4,6 +4,11 @@
 
 package de._0x2b.repositories;
 
+import de._0x2b.database.Database;
+import de._0x2b.exceptions.DuplicateEntityException;
+import de._0x2b.models.Feed;
+import de._0x2b.models.Folder;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -12,11 +17,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import de._0x2b.database.Database;
-import de._0x2b.exceptions.DuplicateEntityException;
-import de._0x2b.models.Feed;
-import de._0x2b.models.Folder;
 
 public class FolderRepository {
 
@@ -47,9 +47,18 @@ public class FolderRepository {
             DELETE FROM folder WHERE id = ?
             """;
 
+    // safe getter that returns null if column missing or SQL NULL
+    private static String safeGetString(ResultSet rs, String column) {
+        try {
+            return rs.getString(column);
+        } catch (SQLException e) {
+            return null;
+        }
+    }
+
     public List<Folder> findAll() {
         try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
+             PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
             try (ResultSet rs = stmt.executeQuery()) {
                 return parseResult(rs);
             }
@@ -61,7 +70,7 @@ public class FolderRepository {
 
     public List<Folder> findByName(String name) {
         try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_ALL_BY_NAME)) {
+             PreparedStatement stmt = conn.prepareStatement(SELECT_ALL_BY_NAME)) {
             stmt.setString(1, name);
             try (ResultSet rs = stmt.executeQuery()) {
                 return parseResult(rs);
@@ -74,7 +83,7 @@ public class FolderRepository {
 
     public int create(Folder folder) {
         try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(INSERT_ONE)) {
+             PreparedStatement stmt = conn.prepareStatement(INSERT_ONE)) {
             stmt.setString(1, folder.getName());
             stmt.setString(2, folder.getColor());
             try (ResultSet rs = stmt.executeQuery()) {
@@ -94,7 +103,7 @@ public class FolderRepository {
 
     public int update(Folder folder) {
         try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(UPDATE)) {
+             PreparedStatement stmt = conn.prepareStatement(UPDATE)) {
 
             stmt.setString(1, folder.getName());
             stmt.setString(2, folder.getColor());
@@ -116,7 +125,7 @@ public class FolderRepository {
 
     public int delete(int id) {
         try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(DELETE)) {
+             PreparedStatement stmt = conn.prepareStatement(DELETE)) {
 
             stmt.setInt(1, id);
             return stmt.executeUpdate();
@@ -177,15 +186,6 @@ public class FolderRepository {
             this.id = id;
             this.name = name;
             this.color = color;
-        }
-    }
-
-    // safe getter that returns null if column missing or SQL NULL
-    private static String safeGetString(ResultSet rs, String column) {
-        try {
-            return rs.getString(column);
-        } catch (SQLException e) {
-            return null;
         }
     }
 }

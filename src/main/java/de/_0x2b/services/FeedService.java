@@ -1,23 +1,27 @@
 package de._0x2b.services;
 
+import com.apptasticsoftware.rssreader.Item;
+import com.apptasticsoftware.rssreader.RssReader;
+import de._0x2b.models.Article;
+import de._0x2b.models.Feed;
+import de._0x2b.repositories.ArticleRepository;
+import de._0x2b.repositories.FeedRepository;
+
 import java.io.IOException;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.apptasticsoftware.rssreader.Item;
-import com.apptasticsoftware.rssreader.RssReader;
-
-import de._0x2b.models.Article;
-import de._0x2b.models.Feed;
-import de._0x2b.repositories.ArticleRepository;
-import de._0x2b.repositories.FeedRepository;
-
 public class FeedService {
-    private final FeedRepository feedRepository = new FeedRepository();
-    private final ArticleRepository articleRepository = new ArticleRepository();
-    private DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'");
+    private final FeedRepository feedRepository;
+    private final ArticleRepository articleRepository;
+    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'");
+
+    public FeedService(FeedRepository feedRepository, ArticleRepository articleRepository) {
+        this.feedRepository = feedRepository;
+        this.articleRepository = articleRepository;
+    }
 
     public int create(Feed feed) {
         return feedRepository.create(feed);
@@ -33,14 +37,12 @@ public class FeedService {
     public void refresh() {
         var feeds = feedRepository.findAll();
 
-        feeds.stream().parallel().forEach(f -> {
-            parseFeed(f);
-        });
+        feeds.parallelStream().forEach(this::parseFeed);
     }
 
     /**
      * Refresh a single feed by its ID
-     * 
+     *
      * @param id
      */
     public void refresh(int id) {
@@ -50,7 +52,7 @@ public class FeedService {
 
     /**
      * Query a feed URL and return the filled feed object
-     * 
+     *
      * @param feed Feed object with feed_url filled
      * @return Feed object with name and url filled
      */

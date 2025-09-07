@@ -1,19 +1,21 @@
 package de._0x2b.feedBox;
 
-import java.util.HashMap;
-import java.util.Map;
-
+import de._0x2b.controllers.*;
+import de._0x2b.database.Database;
+import de._0x2b.repositories.ArticleRepository;
+import de._0x2b.repositories.FeedRepository;
+import de._0x2b.repositories.FolderRepository;
+import de._0x2b.services.ArticleService;
+import de._0x2b.services.FeedService;
+import de._0x2b.services.FolderService;
+import de._0x2b.services.OPMLService;
+import io.javalin.Javalin;
+import io.javalin.http.staticfiles.Location;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import de._0x2b.controllers.ArticleController;
-import de._0x2b.controllers.FeedController;
-import de._0x2b.controllers.FolderController;
-import de._0x2b.controllers.HealthController;
-import de._0x2b.controllers.OPMLController;
-import de._0x2b.database.Database;
-import io.javalin.Javalin;
-import io.javalin.http.staticfiles.Location;
+import java.util.HashMap;
+import java.util.Map;
 
 public class FeedBox {
     private static final Logger logger = LoggerFactory.getLogger(FeedBox.class);
@@ -42,11 +44,20 @@ public class FeedBox {
 
         });
 
-        ArticleController articleController = new ArticleController();
-        OPMLController opmlController = new OPMLController();
-        FolderController folderController = new FolderController();
-        FeedController feedController = new FeedController();
-        HealthController healthController = new HealthController();
+        var articleRepository = new ArticleRepository();
+        var feedRepository = new FeedRepository();
+        var folderRepository = new FolderRepository();
+
+        var articleService = new ArticleService(articleRepository);
+        var feedService = new FeedService(feedRepository, articleRepository);
+        var folderService = new FolderService(folderRepository);
+        var opmlService = new OPMLService(folderService, feedService);
+
+        var articleController = new ArticleController(articleService);
+        var feedController = new FeedController(feedService);
+        var folderController = new FolderController(folderService);
+        var healthController = new HealthController();
+        var opmlController = new OPMLController(opmlService);
 
         articleController.registerRoutes(app);
         opmlController.registerRoutes(app);
@@ -55,10 +66,7 @@ public class FeedBox {
         healthController.registerRoutes(app);
 
         app.start(Integer.parseInt(variables.get("appPort")));
-
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            Database.disconnect();
-        }));
+        Runtime.getRuntime().addShutdownHook(new Thread(Database::disconnect));
     }
 
     private static Map<String, String> getVariables() {

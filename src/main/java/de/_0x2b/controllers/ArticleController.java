@@ -1,14 +1,18 @@
 package de._0x2b.controllers;
 
-import java.util.List;
-
+import de._0x2b.models.Article;
 import de._0x2b.services.ArticleService;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
-import de._0x2b.models.Article;
+
+import java.util.List;
 
 public class ArticleController {
-    private final ArticleService articleService = new ArticleService();
+    private final ArticleService articleService;
+
+    public ArticleController(ArticleService articleService) {
+        this.articleService = articleService;
+    }
 
     public void registerRoutes(Javalin app) {
         app.get("/api/articles", this::getAllArticles);

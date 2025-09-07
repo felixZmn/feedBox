@@ -8,7 +8,11 @@ import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
 
 public class FolderController {
-    private final FolderService folderService = new FolderService();
+    private final FolderService folderService;
+
+    public FolderController(FolderService folderService) {
+        this.folderService = folderService;
+    }
 
     public void registerRoutes(Javalin app) {
         app.get("/api/folders", this::get);

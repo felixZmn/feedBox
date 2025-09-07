@@ -1,14 +1,14 @@
 package de._0x2b.repositories;
 
+import de._0x2b.database.Database;
+import de._0x2b.models.Article;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-
-import de._0x2b.database.Database;
-import de._0x2b.models.Article;
 
 public class ArticleRepository {
 
@@ -70,7 +70,7 @@ public class ArticleRepository {
 
     public List<Article> findAll() {
         try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
+             PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
             try (ResultSet rs = stmt.executeQuery()) {
                 return parseResult(rs);
             }
@@ -82,7 +82,7 @@ public class ArticleRepository {
 
     public List<Article> findAll(int paginationId, String paginationDate) {
         try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_ALL_PAGINATED)) {
+             PreparedStatement stmt = conn.prepareStatement(SELECT_ALL_PAGINATED)) {
 
             stmt.setString(1, paginationDate);
             stmt.setString(2, paginationDate);
@@ -99,7 +99,7 @@ public class ArticleRepository {
 
     public List<Article> findByFeed(int feedId) {
         try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FEED)) {
+             PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FEED)) {
 
             stmt.setObject(1, feedId);
 
@@ -114,7 +114,7 @@ public class ArticleRepository {
 
     public List<Article> findByFeed(int feedId, int paginationId, String paginationDate) {
         try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FEED_PAGINATED)) {
+             PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FEED_PAGINATED)) {
 
             stmt.setInt(1, feedId);
             stmt.setString(2, paginationDate);
@@ -132,7 +132,7 @@ public class ArticleRepository {
 
     public List<Article> findByFolder(int folderId) {
         try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FOLDER)) {
+             PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FOLDER)) {
 
             stmt.setInt(1, folderId);
 
@@ -147,7 +147,7 @@ public class ArticleRepository {
 
     public List<Article> findByFolder(int folderId, int paginationId, String paginationDate) {
         try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FOLDER_PAGINATED)) {
+             PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FOLDER_PAGINATED)) {
 
             stmt.setInt(1, folderId);
             stmt.setString(2, paginationDate);

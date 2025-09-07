@@ -3,6 +3,8 @@ package de._0x2b.models;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Objects;
+
 public class Feed {
     int id;
     int folderId;
@@ -22,6 +24,18 @@ public class Feed {
         this.name = name;
         this.url = url;
         this.feedUrl = feedUrl;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        Feed feed = (Feed) o;
+        return id == feed.id && folderId == feed.folderId && Objects.equals(name, feed.name) && Objects.equals(url, feed.url) && Objects.equals(feedUrl, feed.feedUrl);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, folderId, name, url, feedUrl);
     }
 
     public int getId() {

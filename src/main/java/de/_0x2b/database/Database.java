@@ -1,11 +1,11 @@
 package de._0x2b.database;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
 
 public class Database {
     private static HikariDataSource dataSource;
@@ -47,7 +47,7 @@ public class Database {
                     name VARCHAR(255) UNIQUE NOT NULL,
                     color VARCHAR(255) DEFAULT 'f-base'
                 );
-
+                
                 CREATE TABLE IF NOT EXISTS feed (
                     id SERIAL PRIMARY KEY,
                     folder_id INT NOT NULL,
@@ -56,7 +56,7 @@ public class Database {
                     feed_url VARCHAR(2048) NOT NULL UNIQUE,
                     FOREIGN KEY (folder_id) REFERENCES folder(id) ON DELETE CASCADE
                 );
-
+                
                 CREATE TABLE IF NOT EXISTS article (
                     id SERIAL PRIMARY KEY,
                     feed_id INTEGER NOT NULL,
@@ -70,12 +70,12 @@ public class Database {
                     categories TEXT NULL,
                     FOREIGN KEY (feed_id) REFERENCES feed(id) ON DELETE CASCADE
                 );
-
+                
                 INSERT INTO folder (id, name) VALUES (0,'') ON CONFLICT DO NOTHING;
                 """;
 
         try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(foo)) {
+             PreparedStatement stmt = conn.prepareStatement(foo)) {
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();

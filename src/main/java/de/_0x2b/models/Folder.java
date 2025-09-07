@@ -1,9 +1,10 @@
 package de._0x2b.models;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.List;
+import java.util.Objects;
 
 public class Folder {
     int id;
@@ -55,4 +56,15 @@ public class Folder {
         this.color = color;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        Folder folder = (Folder) o;
+        return id == folder.id && Objects.equals(name, folder.name) && Objects.equals(feeds, folder.feeds) && Objects.equals(color, folder.color);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, name, feeds, color);
+    }
 }

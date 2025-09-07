@@ -1,15 +1,15 @@
 package de._0x2b.repositories;
 
+import de._0x2b.database.Database;
+import de._0x2b.exceptions.DuplicateEntityException;
+import de._0x2b.models.Feed;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-
-import de._0x2b.database.Database;
-import de._0x2b.exceptions.DuplicateEntityException;
-import de._0x2b.models.Feed;
 
 public class FeedRepository {
     private static final String INSERT_ONE = """
@@ -30,7 +30,7 @@ public class FeedRepository {
 
     public int create(Feed feed) {
         try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(INSERT_ONE)) {
+             PreparedStatement stmt = conn.prepareStatement(INSERT_ONE)) {
 
             stmt.setInt(1, feed.getFolderId());
             stmt.setString(2, feed.getName());
@@ -52,7 +52,7 @@ public class FeedRepository {
 
     public int update(Feed feed) {
         try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(UPDATE)) {
+             PreparedStatement stmt = conn.prepareStatement(UPDATE)) {
 
             stmt.setInt(1, feed.getFolderId());
             stmt.setString(2, feed.getName());
@@ -76,7 +76,7 @@ public class FeedRepository {
 
     public List<Feed> findAll() {
         try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
+             PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
             try (var rs = stmt.executeQuery()) {
                 return parseResult(rs);
             }
@@ -88,7 +88,7 @@ public class FeedRepository {
 
     public List<Feed> findOne(int id) {
         try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_ONE)) {
+             PreparedStatement stmt = conn.prepareStatement(SELECT_ONE)) {
 
             stmt.setInt(1, id);
             try (var rs = stmt.executeQuery()) {
@@ -102,7 +102,7 @@ public class FeedRepository {
 
     public int delete(int id) {
         try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(DELETE)) {
+             PreparedStatement stmt = conn.prepareStatement(DELETE)) {
 
             stmt.setInt(1, id);
             return stmt.executeUpdate();
