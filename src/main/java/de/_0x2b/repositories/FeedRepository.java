@@ -61,8 +61,7 @@ public class FeedRepository {
             stmt.setInt(5, feed.getId());
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    int id = rs.getInt("id");
-                    return id;
+                    return rs.getInt("id");
                 }
             }
         } catch (SQLException e) {

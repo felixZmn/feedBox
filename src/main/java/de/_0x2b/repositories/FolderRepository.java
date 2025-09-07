@@ -88,8 +88,7 @@ public class FolderRepository {
             stmt.setString(2, folder.getColor());
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    int id = rs.getInt("id");
-                    return id;
+                    return rs.getInt("id");
                 }
             }
         } catch (SQLException e) {
@@ -110,8 +109,7 @@ public class FolderRepository {
             stmt.setInt(3, folder.getId());
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    int id = rs.getInt("id");
-                    return id;
+                    return rs.getInt("id");
                 }
             }
         } catch (SQLException e) {
@@ -151,9 +149,8 @@ public class FolderRepository {
             }
 
             // feed_id may be NULL
-            int feedIdVal = rs.getInt("feed_id");
+            int feedId = rs.getInt("feed_id");
             if (!rs.wasNull()) {
-                int feedId = feedIdVal;
                 String feedName = rs.getString("feed_name");
                 // prefer "url" column if present, otherwise "feed_url"
                 String url = safeGetString(rs, "url");

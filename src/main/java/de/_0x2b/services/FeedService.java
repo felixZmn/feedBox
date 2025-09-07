@@ -47,7 +47,7 @@ public class FeedService {
      */
     public void refresh(int id) {
         var feed = feedRepository.findOne(id);
-        parseFeed(feed.get(0));
+        parseFeed(feed.getFirst());
     }
 
     /**
@@ -59,7 +59,7 @@ public class FeedService {
     public Feed query(Feed feed) {
         RssReader rssReader = new RssReader();
         try {
-            var channel = rssReader.read(feed.getFeedUrl()).toList().get(0).getChannel();
+            var channel = rssReader.read(feed.getFeedUrl()).toList().getFirst().getChannel();
             feed.setUrl(channel.getLink());
             feed.setName(channel.getTitle());
         } catch (IOException e) {
