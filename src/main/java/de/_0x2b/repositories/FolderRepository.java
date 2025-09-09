@@ -21,14 +21,14 @@ import java.util.Map;
 public class FolderRepository {
 
     private static final String SELECT_ALL = """
-            SELECT folder.id as "folder_id", folder.name as "folder_name", folder.color as "folder_color", feed.id  AS "feed_id", feed.name AS "feed_name", feed.url AS "feed_url"
+            SELECT folder.id as "folder_id", folder.name as "folder_name", folder.color as "folder_color", feed.id  AS "feed_id", feed.name AS "feed_name", feed.feed_url AS "feed_url"
             FROM folder
             LEFT JOIN feed ON folder.id = feed.folder_id
             ORDER BY folder.name, feed.name
             """;
 
     private static final String SELECT_ALL_BY_NAME = """
-            SELECT folder.id as "folder_id", folder.name as "folder_name", folder.color as "folder_color", feed.id  AS "feed_id", feed.name AS "feed_name", feed.url AS "feed_url"
+            SELECT folder.id as "folder_id", folder.name as "folder_name", folder.color as "folder_color", feed.id  AS "feed_id", feed.name AS "feed_name", feed.feed_url AS "feed_url"
             FROM folder
             LEFT JOIN feed ON folder.id = feed.folder_id
             wHERE folder.name = ?
@@ -134,6 +134,7 @@ public class FolderRepository {
         return -1;
     }
 
+    // ToDo: Improve this monstrosity
     private List<Folder> parseResult(ResultSet rs) throws SQLException {
         Map<Integer, FolderBuilder> folders = new LinkedHashMap<>();
 
@@ -155,8 +156,6 @@ public class FolderRepository {
                 // prefer "url" column if present, otherwise "feed_url"
                 String url = safeGetString(rs, "url");
                 String feedUrl = safeGetString(rs, "feed_url");
-                if (url == null)
-                    url = feedUrl;
 
                 Feed feed = new Feed(feedId, folderId, feedName, url, feedUrl);
                 fb.feeds.add(feed);
