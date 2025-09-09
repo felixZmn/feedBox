@@ -1,5 +1,6 @@
 package de._0x2b.services;
 
+import de._0x2b.exceptions.DuplicateEntityException;
 import de._0x2b.models.Feed;
 import de._0x2b.models.Folder;
 
@@ -43,14 +44,23 @@ public class OPMLService {
                 if (type == null) {
                     // folder
                     var name = workingEvent.getAttributeByName(ATTR_TEXT).getValue();
-                    var folderId = folderService.create(new Folder(-1, name, null, "f-base"));
+                    var folderId = 0;
+                    try{
+                        folderId = folderService.create(new Folder(-1, name, null, "f-base"));
+                    } catch (DuplicateEntityException e){
+                        folderId = folderService.findByName(name).getFirst().getId();
+                    }
                     contextStack.push(new OutlineContext("folder", folderId));
                 } else if ("rss".equals(type.getValue())) {
                     // rss feed
                     var name = workingEvent.getAttributeByName(ATTR_TEXT).getValue();
                     var xmlUrl = workingEvent.getAttributeByName(ATTR_XMLURL).getValue();
                     var htmlUrl = workingEvent.getAttributeByName(ATTR_HTMLURL).getValue();
-                    feedService.create(new Feed(-1, contextStack.peek().folderId(), name, htmlUrl, xmlUrl));
+                    try {
+                        feedService.create(new Feed(-1, contextStack.peek().folderId(), name, htmlUrl, xmlUrl));
+                    } catch (DuplicateEntityException e){
+                        // already existing, ignore
+                    }
                     contextStack.push(new OutlineContext("feed", null)); // feeds don't open new folders
                 } else {
                     // not implemented type
