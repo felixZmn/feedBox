@@ -22,7 +22,7 @@ public class FeedController {
 
     private void createFeed(Context ctx) {
         var params = ctx.bodyAsClass(de._0x2b.models.Feed.class);
-        var feed = feedService.query(params);
+        var feed = feedService.getFeedMetadata(params);
 
         if (feed.getName().equals("")) {
             ctx.status(404);

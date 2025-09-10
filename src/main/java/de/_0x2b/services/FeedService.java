@@ -12,6 +12,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
 
 public class FeedService {
     private final FeedRepository feedRepository;
@@ -36,8 +37,7 @@ public class FeedService {
      */
     public void refresh() {
         var feeds = feedRepository.findAll();
-
-        feeds.parallelStream().forEach(this::parseFeed);
+        refresh(feeds);
     }
 
     /**
@@ -46,8 +46,18 @@ public class FeedService {
      * @param id
      */
     public void refresh(int id) {
-        var feed = feedRepository.findOne(id);
-        parseFeed(feed.getFirst());
+        var feeds = feedRepository.findOne(id);
+        refresh(feeds);
+    }
+
+    private void refresh(List<Feed> feeds){
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            feeds.forEach(feed -> {
+                executor.submit(() -> {
+                    parseFeed(feed);
+                });
+            });
+        }
     }
 
     /**
@@ -56,7 +66,7 @@ public class FeedService {
      * @param feed Feed object with feed_url filled
      * @return Feed object with name and url filled
      */
-    public Feed query(Feed feed) {
+    public Feed getFeedMetadata(Feed feed) {
         RssReader rssReader = new RssReader();
         try {
             var channel = rssReader.read(feed.getFeedUrl()).toList().getFirst().getChannel();
