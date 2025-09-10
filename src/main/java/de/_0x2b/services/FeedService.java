@@ -51,6 +51,7 @@ public class FeedService {
     }
 
     private void refresh(List<Feed> feeds){
+        System.out.println("Refreshing Feeds...");
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             feeds.forEach(feed -> {
                 executor.submit(() -> {
@@ -58,6 +59,7 @@ public class FeedService {
                 });
             });
         }
+        System.out.println("Feeds refreshed!");
     }
 
     /**

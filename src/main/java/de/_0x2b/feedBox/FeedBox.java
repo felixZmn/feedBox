@@ -16,21 +16,17 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class FeedBox {
     private static final Logger logger = LoggerFactory.getLogger(FeedBox.class);
 
     public static void main(String[] args) {
         var variables = getVariables();
-        System.out.println("Using database at " + variables.get("dbHost") + ":" + variables.get("dbPort") + "/"
-                + variables.get("dbName")); // ToDo: Logger
 
-        Database.connect(
-                variables.get("dbHost"),
-                variables.get("dbPort"),
-                variables.get("dbName"),
-                variables.get("dbUsername"),
-                variables.get("dbPassword"));
+        logger.info("Using database at {}:{}/{}", variables.get("dbHost"), variables.get("dbPort"), variables.get("dbName"));
+        Database.connect(variables.get("dbHost"), variables.get("dbPort"), variables.get("dbName"), variables.get("dbUsername"), variables.get("dbPassword"));
         Database.migrate();
 
         var app = Javalin.create(config -> {
@@ -39,7 +35,7 @@ public class FeedBox {
             config.requestLogger.http((ctx, ms) -> {
                 // GET http://localhost:8080/style.css HTTP/1.1" from [::1]:44872 - 200 4839B in
                 // 526.042µs
-                logger.info(ctx.contextPath() + "in " + ms);
+                logger.info("{}in {}", ctx.contextPath(), ms);
             });
 
         });
@@ -65,6 +61,14 @@ public class FeedBox {
         feedController.registerRoutes(app);
         healthController.registerRoutes(app);
 
+        // set up periodic refresh; for now only via env var configurable
+        var refreshRate = Integer.parseInt(variables.get("refreshRate"));
+        if (refreshRate > 0) {
+            var scheduler = Executors.newScheduledThreadPool(1);
+            Runnable task = feedService::refresh;
+            scheduler.scheduleAtFixedRate(task, 0, refreshRate, TimeUnit.MINUTES);
+        }
+
         app.start(Integer.parseInt(variables.get("appPort")));
         Runtime.getRuntime().addShutdownHook(new Thread(Database::disconnect));
     }
@@ -76,19 +80,15 @@ public class FeedBox {
         var dbPort = System.getenv("PG_PORT");
         var dbName = System.getenv("PG_DB");
         var appPort = System.getenv("PORT");
+        var refreshRate = System.getenv("REFRESH_RAGE");
 
-        if (dbUsername == null)
-            throw new IllegalStateException("PG_USER not set");
-        if (dbPassword == null)
-            throw new IllegalStateException("PG_PASSWORD not set");
-        if (dbHost == null)
-            throw new IllegalStateException("PG_HOST not set");
-        if (dbPort == null)
-            throw new IllegalStateException("PG_PORT not set");
-        if (dbName == null)
-            throw new IllegalStateException("PG_DB not set");
-        if (appPort == null)
-            appPort = "7070"; // default port
+        if (dbUsername == null) throw new IllegalStateException("PG_USER not set");
+        if (dbPassword == null) throw new IllegalStateException("PG_PASSWORD not set");
+        if (dbHost == null) throw new IllegalStateException("PG_HOST not set");
+        if (dbPort == null) throw new IllegalStateException("PG_PORT not set");
+        if (dbName == null) throw new IllegalStateException("PG_DB not set");
+        if (appPort == null) appPort = "7070"; // default port
+        if (refreshRate == null) refreshRate = "60"; // minutes; ugly; needs parsing
 
         Map<String, String> variables = new HashMap<>();
         variables.put("dbUsername", dbUsername);
@@ -97,6 +97,7 @@ public class FeedBox {
         variables.put("dbPort", dbPort);
         variables.put("dbName", dbName);
         variables.put("appPort", appPort);
+        variables.put("refreshRate", refreshRate);
 
         return variables;
     }
