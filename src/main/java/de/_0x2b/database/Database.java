@@ -2,15 +2,19 @@ package de._0x2b.database;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 public class Database {
+    private static final Logger logger = LoggerFactory.getLogger(Database.class);
     private static HikariDataSource dataSource;
 
     public static void connect(String host, String port, String dbName, String username, String password) {
+        logger.debug("connect");
         if (dataSource != null)
             return; // already connected/started
 
@@ -23,25 +27,27 @@ public class Database {
         config.setConnectionTimeout(30000);
 
         dataSource = new HikariDataSource(config);
-
-        System.out.println("Database pool initialized!"); // ToDo: Logger
+        logger.info("Database pool initialized!");
     }
 
     public static Connection getConnection() throws SQLException {
+        logger.debug("getConnection");
         if (dataSource == null)
             throw new IllegalStateException("Call Database.connect() first!");
         return dataSource.getConnection(); // this gets a pooled connection. Always close it after use!
     }
 
     public static void disconnect() {
+        logger.debug("disconnect");
         if (dataSource != null && !dataSource.isClosed()) {
             dataSource.close();
-            System.out.println("Database pool closed"); // ToDo: Logger
+            logger.info("Database pool closed");
         }
     }
 
-    public static void migrate() {
-        var foo = """
+    public static void migrate() throws SQLException {
+        logger.info("Create database schema...");
+        var sql = """
                 CREATE TABLE IF NOT EXISTS folder (
                     id SERIAL PRIMARY KEY,
                     name VARCHAR(255) UNIQUE NOT NULL,
@@ -75,11 +81,9 @@ public class Database {
                 """;
 
         try (Connection conn = Database.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(foo)) {
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
+            logger.info("... schema migration successful");
         }
-
     }
 }

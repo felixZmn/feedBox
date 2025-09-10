@@ -6,8 +6,11 @@ import de._0x2b.services.FolderService;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FolderController {
+    private static final Logger logger = LoggerFactory.getLogger(FolderController.class);
     private final FolderService folderService;
 
     public FolderController(FolderService folderService) {
@@ -22,10 +25,12 @@ public class FolderController {
     }
 
     private void get(Context ctx) {
+        logger.debug("get");
         ctx.json(folderService.findAll());
     }
 
     private void create(Context ctx) {
+        logger.debug("create");
         int result;
         try {
             result = folderService.create(ctx.bodyAsClass(Folder.class));
@@ -38,6 +43,7 @@ public class FolderController {
     }
 
     private void update(Context ctx) {
+        logger.debug("update");
         var folder = ctx.bodyAsClass(Folder.class);
         folder.setId(Integer.parseInt(ctx.pathParam("id")));
 
@@ -52,6 +58,7 @@ public class FolderController {
     }
 
     private void delete(Context ctx) {
+        logger.debug("delete");
         int folderId = Integer.parseInt(ctx.pathParam("id"));
         var result = folderService.delete(folderId);
         if (result == -1) {

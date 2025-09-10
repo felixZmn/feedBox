@@ -3,6 +3,8 @@ package de._0x2b.repositories;
 import de._0x2b.database.Database;
 import de._0x2b.exceptions.DuplicateEntityException;
 import de._0x2b.models.Feed;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -12,6 +14,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class FeedRepository {
+    private static final Logger logger = LoggerFactory.getLogger(FeedRepository.class);
+
     private static final String INSERT_ONE = """
             INSERT INTO feed (folder_id, name, url, feed_url) VALUES (?, ?, ?, ?) RETURNING id
             """;
@@ -29,6 +33,7 @@ public class FeedRepository {
             """;
 
     public int create(Feed feed) {
+        logger.debug("create");
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(INSERT_ONE)) {
 
@@ -42,15 +47,16 @@ public class FeedRepository {
                 }
             }
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
             if (e.getSQLState().equals("23505")) {
                 throw new DuplicateEntityException("Feed with this URL already exists");
             }
+            logger.error("Error executing SQL statement", e);
         }
         return -1;
     }
 
     public int update(Feed feed) {
+        logger.debug("update");
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(UPDATE)) {
 
@@ -65,27 +71,29 @@ public class FeedRepository {
                 }
             }
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
             if (e.getSQLState().equals("23505")) {
                 throw new DuplicateEntityException("Feed with this URL already exists");
             }
+            logger.error("Error executing SQL statement", e);
         }
         return -1;
     }
 
     public List<Feed> findAll() {
+        logger.debug("findAll");
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
             try (var rs = stmt.executeQuery()) {
                 return parseResult(rs);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error("Error executing SQL statement", e);
         }
         return List.of();
     }
 
     public List<Feed> findOne(int id) {
+        logger.debug("findOne");
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(SELECT_ONE)) {
 
@@ -94,12 +102,13 @@ public class FeedRepository {
                 return parseResult(rs);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error("Error executing SQL statement", e);
         }
         return List.of();
     }
 
     public int delete(int id) {
+        logger.debug("delete");
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(DELETE)) {
 
@@ -107,12 +116,13 @@ public class FeedRepository {
             return stmt.executeUpdate();
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error("Error executing SQL statement", e);
         }
         return -1;
     }
 
     private List<Feed> parseResult(ResultSet rs) throws SQLException {
+        logger.debug("parseResult");
         List<Feed> feeds = new ArrayList<>();
         while (rs.next()) {
             feeds.add(new Feed(rs.getInt("id"), rs.getInt("folder_id"), rs.getString("name"), rs.getString("url"),

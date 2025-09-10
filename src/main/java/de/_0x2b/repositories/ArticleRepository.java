@@ -2,6 +2,8 @@ package de._0x2b.repositories;
 
 import de._0x2b.database.Database;
 import de._0x2b.models.Article;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -11,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ArticleRepository {
+    private static final Logger logger = LoggerFactory.getLogger(ArticleRepository.class);
 
     private static final String SELECT_ALL = """
             SELECT article.id, article.feed_id, feed.name AS publisher, article.title, article.description, article.content, article.link, article.published, article.authors, article.image_url, article.categories
@@ -69,18 +72,20 @@ public class ArticleRepository {
             """;
 
     public List<Article> findAll() {
+        logger.debug("findAll");
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
             try (ResultSet rs = stmt.executeQuery()) {
                 return parseResult(rs);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error("Error executing SQL statement", e);
         }
         return List.of();
     }
 
     public List<Article> findAll(int paginationId, String paginationDate) {
+        logger.debug("findAll");
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(SELECT_ALL_PAGINATED)) {
 
@@ -92,12 +97,13 @@ public class ArticleRepository {
                 return parseResult(rs);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error("Error executing SQL statement", e);
         }
         return List.of();
     }
 
     public List<Article> findByFeed(int feedId) {
+        logger.debug("findByFeed");
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FEED)) {
 
@@ -107,12 +113,13 @@ public class ArticleRepository {
                 return parseResult(rs);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error("Error executing SQL statement", e);
         }
         return List.of();
     }
 
     public List<Article> findByFeed(int feedId, int paginationId, String paginationDate) {
+        logger.debug("findByFeed");
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FEED_PAGINATED)) {
 
@@ -125,12 +132,13 @@ public class ArticleRepository {
                 return parseResult(rs);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error("Error executing SQL statement", e);
         }
         return List.of();
     }
 
     public List<Article> findByFolder(int folderId) {
+        logger.debug("findByFolder");
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FOLDER)) {
 
@@ -140,12 +148,13 @@ public class ArticleRepository {
                 return parseResult(rs);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error("Error executing SQL statement", e);
         }
         return List.of();
     }
 
     public List<Article> findByFolder(int folderId, int paginationId, String paginationDate) {
+        logger.debug("findByFolder");
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FOLDER_PAGINATED)) {
 
@@ -158,12 +167,13 @@ public class ArticleRepository {
                 return parseResult(rs);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error("Error executing SQL statement", e);
         }
         return List.of();
     }
 
     public void create(List<Article> articles) {
+        logger.debug("create");
         if (articles == null || articles.isEmpty()) {
             return;
         }
@@ -192,20 +202,21 @@ public class ArticleRepository {
             } catch (SQLException e) {
                 try {
                     conn.rollback();
-                    e.printStackTrace();
+                    logger.error("Error executing SQL statement", e);
                 } catch (SQLException ex) {
-                    ex.printStackTrace();
+                    logger.error("Error executing SQL statement", ex);
                 }
-                e.printStackTrace();
+                logger.error("Error executing SQL statement", e);
             } finally {
                 conn.setAutoCommit(true);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error("Error executing SQL statement", e);
         }
     }
 
     private List<Article> parseResult(ResultSet rs) throws SQLException {
+        logger.debug("parseResult");
         List<Article> articles = new ArrayList<>();
         while (rs.next()) {
             Article a = new Article(

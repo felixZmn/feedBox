@@ -8,6 +8,8 @@ import de._0x2b.database.Database;
 import de._0x2b.exceptions.DuplicateEntityException;
 import de._0x2b.models.Feed;
 import de._0x2b.models.Folder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -19,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 public class FolderRepository {
+    private static final Logger logger = LoggerFactory.getLogger(FolderRepository.class);
 
     private static final String SELECT_ALL = """
             SELECT folder.id as "folder_id", folder.name as "folder_name", folder.color as "folder_color", feed.id  AS "feed_id", feed.name AS "feed_name", feed.feed_url AS "feed_url"
@@ -49,6 +52,7 @@ public class FolderRepository {
 
     // safe getter that returns null if column missing or SQL NULL
     private static String safeGetString(ResultSet rs, String column) {
+        logger.debug("safeGetString");
         try {
             return rs.getString(column);
         } catch (SQLException e) {
@@ -57,18 +61,20 @@ public class FolderRepository {
     }
 
     public List<Folder> findAll() {
+        logger.debug("findAll");
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
             try (ResultSet rs = stmt.executeQuery()) {
                 return parseResult(rs);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error("Error executing SQL statement", e);
         }
         return List.of();
     }
 
     public List<Folder> findByName(String name) {
+        logger.debug("findByName");
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(SELECT_ALL_BY_NAME)) {
             stmt.setString(1, name);
@@ -76,12 +82,13 @@ public class FolderRepository {
                 return parseResult(rs);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error("Error executing SQL statement", e);
         }
         return List.of();
     }
 
     public int create(Folder folder) {
+        logger.debug("create");
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(INSERT_ONE)) {
             stmt.setString(1, folder.getName());
@@ -92,15 +99,16 @@ public class FolderRepository {
                 }
             }
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
             if (e.getSQLState().equals("23505")) {
                 throw new DuplicateEntityException("Folder with this URL already exists");
             }
+            logger.error("Error executing SQL statement", e);
         }
         return -1;
     }
 
     public int update(Folder folder) {
+        logger.debug("update");
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(UPDATE)) {
 
@@ -113,15 +121,16 @@ public class FolderRepository {
                 }
             }
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
             if (e.getSQLState().equals("23505")) {
                 throw new DuplicateEntityException("Folder with this URL already exists");
             }
+            logger.error("Error executing SQL statement", e);
         }
         return -1;
     }
 
     public int delete(int id) {
+        logger.debug("delete");
         try (Connection conn = Database.getConnection();
              PreparedStatement stmt = conn.prepareStatement(DELETE)) {
 
@@ -129,13 +138,14 @@ public class FolderRepository {
             return stmt.executeUpdate();
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error("Error executing SQL statement", e);
         }
         return -1;
     }
 
     // ToDo: Improve this monstrosity
     private List<Folder> parseResult(ResultSet rs) throws SQLException {
+        logger.debug("parseResult");
         Map<Integer, FolderBuilder> folders = new LinkedHashMap<>();
 
         while (rs.next()) {

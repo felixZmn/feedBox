@@ -3,6 +3,8 @@ package de._0x2b.services;
 import de._0x2b.exceptions.DuplicateEntityException;
 import de._0x2b.models.Feed;
 import de._0x2b.models.Folder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
@@ -15,6 +17,7 @@ record OutlineContext(String type, Integer folderId) {
 }
 
 public class OPMLService {
+    private static final Logger logger = LoggerFactory.getLogger(OPMLService.class);
     private final QName ATTR_TYPE = new QName("type");
     private final QName ATTR_TEXT = new QName("text");
     private final QName ATTR_XMLURL = new QName("xmlUrl");
@@ -29,6 +32,7 @@ public class OPMLService {
     }
 
     public void importOPML(InputStream stream) throws XMLStreamException {
+        logger.debug("importOPML");
         XMLEventReader reader = XMLInputFactory.newInstance().createXMLEventReader(stream);
 
         Stack<OutlineContext> contextStack = new Stack<>();
@@ -65,7 +69,7 @@ public class OPMLService {
                     contextStack.push(new OutlineContext("feed", null)); // feeds don't open new folders
                 } else {
                     // not implemented type
-                    System.out.println("Found not implemented feed type " + type.getValue());
+                    logger.info("Found not implemented feed type {}", type.getValue());
                     contextStack.push(new OutlineContext("feed", null));
                 }
             } else if (event.isEndElement() && "outline".equals(event.asEndElement().getName().getLocalPart())) {

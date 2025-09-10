@@ -65,7 +65,7 @@ public class OPMLServiceTest {
 
 
     @BeforeEach
-    void setUp(){
+    void setUp() {
         folderService = mock(FolderService.class);
         feedService = mock(FeedService.class);
 
@@ -75,7 +75,7 @@ public class OPMLServiceTest {
     @Test
     void importFeedTest() throws XMLStreamException {
         var firstFeed = new Feed(-1, 0, "Deutsche Welle: DW.com Deutsch", "https://rss.dw.com/xml/rss-de-all", "https://rss.dw.com/xml/rss-de-all");
-        var secondFeed = new Feed(-1, 0 ,"WIRED", "https://www.wired.com/feed/rss", "https://www.wired.com/feed/rss");
+        var secondFeed = new Feed(-1, 0, "WIRED", "https://www.wired.com/feed/rss", "https://www.wired.com/feed/rss");
 
         String xml = opmlStart + feeds + opmlEnd;
         InputStream stream = new ByteArrayInputStream(xml.getBytes(Charset.defaultCharset()));
@@ -94,7 +94,7 @@ public class OPMLServiceTest {
     @Test
     void importSingleFolderTest() throws XMLStreamException {
         var firstFeed = new Feed(-1, 1, "Deutsche Welle: DW.com Deutsch", "https://rss.dw.com/xml/rss-de-all", "https://rss.dw.com/xml/rss-de-all");
-        var secondFeed = new Feed(-1, 1 ,"WIRED", "https://www.wired.com/feed/rss", "https://www.wired.com/feed/rss");
+        var secondFeed = new Feed(-1, 1, "WIRED", "https://www.wired.com/feed/rss", "https://www.wired.com/feed/rss");
         var firstFolder = new Folder(-1, "folder1", null, "f-base");
 
         String xml = opmlStart + folder1 + opmlEnd;
@@ -123,9 +123,9 @@ public class OPMLServiceTest {
     @Test
     void importMultipleTest() throws XMLStreamException {
         var firstFeed = new Feed(-1, 1, "Deutsche Welle: DW.com Deutsch", "https://rss.dw.com/xml/rss-de-all", "https://rss.dw.com/xml/rss-de-all");
-        var secondFeed = new Feed(-1, 1 ,"WIRED", "https://www.wired.com/feed/rss", "https://www.wired.com/feed/rss");
-        var thirdFeed = new Feed(-1, 2 ,"https://danluu.com/atom.xml", "https://danluu.com/atom.xml", "https://danluu.com/atom.xml");
-        var fourthFeed = new Feed(-1, 2 ,"IT_Fettchen", "https://it-fettchen.micro.blog/", "https://it-fettchen.de/rss/");
+        var secondFeed = new Feed(-1, 1, "WIRED", "https://www.wired.com/feed/rss", "https://www.wired.com/feed/rss");
+        var thirdFeed = new Feed(-1, 2, "https://danluu.com/atom.xml", "https://danluu.com/atom.xml", "https://danluu.com/atom.xml");
+        var fourthFeed = new Feed(-1, 2, "IT_Fettchen", "https://it-fettchen.micro.blog/", "https://it-fettchen.de/rss/");
         var firstFolder = new Folder(-1, "folder1", null, "f-base");
         var secondFolder = new Folder(-1, "folder2", null, "f-base");
 
@@ -158,9 +158,9 @@ public class OPMLServiceTest {
     @Test
     void importNestedTest() throws XMLStreamException {
         var firstFeed = new Feed(-1, 1, "Deutsche Welle: DW.com Deutsch", "https://rss.dw.com/xml/rss-de-all", "https://rss.dw.com/xml/rss-de-all");
-        var secondFeed = new Feed(-1, 1 ,"WIRED", "https://www.wired.com/feed/rss", "https://www.wired.com/feed/rss");
-        var thirdFeed = new Feed(-1, 2 ,"https://danluu.com/atom.xml", "https://danluu.com/atom.xml", "https://danluu.com/atom.xml");
-        var fourthFeed = new Feed(-1, 2 ,"IT_Fettchen", "https://it-fettchen.micro.blog/", "https://it-fettchen.de/rss/");
+        var secondFeed = new Feed(-1, 1, "WIRED", "https://www.wired.com/feed/rss", "https://www.wired.com/feed/rss");
+        var thirdFeed = new Feed(-1, 2, "https://danluu.com/atom.xml", "https://danluu.com/atom.xml", "https://danluu.com/atom.xml");
+        var fourthFeed = new Feed(-1, 2, "IT_Fettchen", "https://it-fettchen.micro.blog/", "https://it-fettchen.de/rss/");
         var outer = new Folder(-1, "outer", null, "f-base");
         var inner = new Folder(-1, "inner", null, "f-base");
 

@@ -14,6 +14,7 @@ import io.javalin.http.staticfiles.Location;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -22,20 +23,20 @@ import java.util.concurrent.TimeUnit;
 public class FeedBox {
     private static final Logger logger = LoggerFactory.getLogger(FeedBox.class);
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws SQLException {
         var variables = getVariables();
 
         logger.info("Using database at {}:{}/{}", variables.get("dbHost"), variables.get("dbPort"), variables.get("dbName"));
         Database.connect(variables.get("dbHost"), variables.get("dbPort"), variables.get("dbName"), variables.get("dbUsername"), variables.get("dbPassword"));
-        Database.migrate();
+        Database.migrate(); // try/catch not necessary as there is no way of recovering
 
         var app = Javalin.create(config -> {
             config.useVirtualThreads = true;
             config.staticFiles.add("/static", Location.CLASSPATH);
+
             config.requestLogger.http((ctx, ms) -> {
-                // GET http://localhost:8080/style.css HTTP/1.1" from [::1]:44872 - 200 4839B in
-                // 526.042µs
-                logger.info("{}in {}", ctx.contextPath(), ms);
+                // GET http://localhost:8080/style.css HTTP/1.1" from [::1]:44872 - 200 in 526.042µs
+                logger.info("{} {} {} from {}:{} - {} in {}µs", ctx.method(), ctx.url(), ctx.protocol(), ctx.req().getRemoteAddr(), ctx.req().getRemotePort(), ctx.status().getCode(), ms);
             });
 
         });

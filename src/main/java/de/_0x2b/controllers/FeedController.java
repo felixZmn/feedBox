@@ -5,8 +5,11 @@ import de._0x2b.services.FeedService;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FeedController {
+    private static final Logger logger = LoggerFactory.getLogger(FeedController.class);
     private final FeedService feedService;
 
     public FeedController(FeedService feedService) {
@@ -21,10 +24,11 @@ public class FeedController {
     }
 
     private void createFeed(Context ctx) {
+        logger.debug("createFeed");
         var params = ctx.bodyAsClass(de._0x2b.models.Feed.class);
         var feed = feedService.getFeedMetadata(params);
 
-        if (feed.getName().equals("")) {
+        if (feed.getName().isEmpty()) {
             ctx.status(404);
             return;
         }
@@ -43,6 +47,7 @@ public class FeedController {
     }
 
     private void updateFeed(Context ctx) {
+        logger.debug("updateFeed");
         var feed = ctx.bodyAsClass(de._0x2b.models.Feed.class);
         feed.setId(Integer.parseInt(ctx.pathParam("id")));
 
@@ -57,11 +62,13 @@ public class FeedController {
     }
 
     private void refresh(Context ctx) {
+        logger.debug("refresh");
         feedService.refresh();
         ctx.status(HttpStatus.NO_CONTENT);
     }
 
     private void delete(Context ctx) {
+        logger.debug("delete");
         int feedId = Integer.parseInt(ctx.pathParam("id"));
         var result = feedService.deleteFeed(feedId);
         if (result == -1) {
