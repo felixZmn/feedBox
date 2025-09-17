@@ -8,6 +8,7 @@
   --font-size-small: 13px;
   --font-size-large: 30px;
   --default-space: 0.5rem;
+  --column-width: 350px;
 }
 .f-base {
   filter: brightness(0) saturate(100%);
@@ -83,7 +84,7 @@ button {
 
 .layout {
   display: grid;
-  grid-template-columns: 300px 300px 2fr;
+  grid-template-columns: var(--column-width) var(--column-width) 2fr;
   gap: 0;
   height: 100vh;
 }
@@ -116,7 +117,7 @@ button {
 
 .feeds,
 .articlesList {
-  width: 300px;
+  width: var(--column-width);
 }
 
 .column {
@@ -208,7 +209,6 @@ summary::marker {
 .articlesList .column {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--default-space) * 2);
   padding-right: calc(var(--default-space) * 2);
 }
 
@@ -231,6 +231,15 @@ summary::marker {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.articlesList .article {
+  padding: var(--default-space);
+}
+
+.articlesList .article:hover {
+  background-color: var(--font-color-highlight);
+  border-radius: 2px;
 }
 
 .item-spacer {
