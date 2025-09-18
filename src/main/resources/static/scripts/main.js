@@ -1,9 +1,4 @@
-import {
-  showView,
-  navigateToArticlesList,
-  navigateToReader,
-  navigateToFeeds,
-} from "./nav.js";
+import { Navigator, columns } from "./nav.js";
 import { buildUrlParams, fetchJson } from "./util.js";
 import {
   renderFoldersList,
@@ -42,9 +37,11 @@ var lastClickedFeedItem = {
   type: articleLoadType.ALL,
   obj: null,
 };
+var selectedArticle = null;
+
+const navigator = new Navigator();
 
 window.addEventListener("DOMContentLoaded", async () => {
-  showView("feeds");
   loadFolders();
   loadArticles(articleLoadType.ALL);
   document.querySelector(".modal-close").onclick = () => {
@@ -62,13 +59,28 @@ document.getElementById("trigger-edit").addEventListener("click", (e) => {
   editFeedFolderClick();
 });
 document.getElementById("trigger-previous").addEventListener("click", (e) => {
-  dummy();
+  for (var i = articles.length - 1; i >= 0; i--) {
+    if (articles[i].id == selectedArticle.id) {
+      if (i - 1 >= 0) {
+        loadArticle(articles[i - 1]);
+      }
+      break;
+    }
+  }
 });
+
 document.getElementById("trigger-next").addEventListener("click", (e) => {
-  dummy();
+  for (var i = 0; i < articles.length; i++) {
+    if (articles[i].id == selectedArticle.id) {
+      if (i + 1 < articles.length) {
+        loadArticle(articles[i + 1]);
+      }
+      break;
+    }
+  }
 });
 document.getElementById("trigger-close").addEventListener("click", (e) => {
-  dummy();
+  navigator.navigateTo(columns.ARTICLES);
 });
 document.getElementById("trigger-refresh").addEventListener("click", (e) => {
   refreshFeeds();
@@ -116,10 +128,6 @@ function deleteElementClick() {
   }
 }
 
-function dummy() {
-  console.log("Click!");
-}
-
 async function loadArticles(type, object) {
   var url = "./api/articles";
   var params = new Map();
@@ -158,6 +166,12 @@ async function loadArticles(type, object) {
   renderArticlesList(articles);
 }
 
+/**
+ * seraches the selected article by id in the global articles array and renders it
+ * ToDo: add lazy loading of missing articles - currently not an issue
+ * @param {Article} article
+ * @returns
+ */
 export function loadArticle(article) {
   // article should be stored in global articles array
   const result = articles.find((a) => a.id === article.id);
@@ -165,6 +179,7 @@ export function loadArticle(article) {
     console.error("Article not found:", article);
     return;
   }
+  selectedArticle = result;
   renderReaderView(result);
 }
 
@@ -210,19 +225,6 @@ export function scrollObserver() {
   );
 }
 
-/**
- * listener to handle back and forth clicks - used for mobile view
- */
-window.addEventListener("popstate", (e) => {
-  const state = e.state;
-  if (!state) {
-    // default landing
-    showView("feeds");
-  } else {
-    showView(state.view);
-  }
-});
-
 // pre-defined clicklisteners
 
 /**
@@ -230,7 +232,7 @@ window.addEventListener("popstate", (e) => {
  */
 export function allFeedsClickListener() {
   // ToDo: Reset Navigation
-  navigateToArticlesList();
+  navigator.navigateTo(columns.ARTICLES);
   resetPagination();
   clearArticlesList();
   loadArticles(articleLoadType.ALL);
@@ -241,7 +243,7 @@ export function allFeedsClickListener() {
  * @param {Feed} feed the clicked feed
  */
 export function feedClickListener(feed) {
-  navigateToArticlesList();
+  navigator.navigateTo(columns.ARTICLES);
   resetPagination();
   clearArticlesList();
   loadArticles(articleLoadType.FEED, feed);
@@ -252,7 +254,7 @@ export function feedClickListener(feed) {
  * @param {Folder} folder id of the clicked folder
  */
 export function folderClickListener(folder) {
-  navigateToArticlesList();
+  navigator.navigateTo(columns.ARTICLES);
   resetPagination();
   clearArticlesList();
   loadArticles(articleLoadType.FOLDER, folder);
@@ -264,7 +266,7 @@ export function folderClickListener(folder) {
  */
 export function articleClickListener(article) {
   loadArticle(article);
-  navigateToReader();
+  navigator.navigateTo(columns.READER);
 }
 
 // DOING STUFF
@@ -406,7 +408,7 @@ async function deleteFeed(feed) {
     loadFolders();
     articles = articles.filter((a) => a.feedId !== feed.id);
     renderArticlesList(articles);
-    navigateToFeeds();
+    navigator.navigateTo(columns.FEEDS);
     clearReaderView();
     hideDialog();
   } else {
