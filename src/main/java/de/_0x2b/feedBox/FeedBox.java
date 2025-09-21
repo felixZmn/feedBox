@@ -33,6 +33,7 @@ public class FeedBox {
         var app = Javalin.create(config -> {
             config.useVirtualThreads = true;
             config.staticFiles.add("/static", Location.CLASSPATH);
+            config.jetty.defaultHost = "0.0.0.0";
 
             config.requestLogger.http((ctx, ms) -> {
                 // GET http://localhost:8080/style.css HTTP/1.1" from [::1]:44872 - 200 in 526.042µs
