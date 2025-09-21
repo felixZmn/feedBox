@@ -1,51 +1,4 @@
-database:
-  existingSecret: "newsfeed-pguser-newsfeed"
-  usernameKey: user
-  passwordKey: password
-  hostKey: host
-  portKey: port
-  dbKey: dbname
-
-oauth2Proxy:
-  existingSecret: "newsfeed-oauth2proxy"
-  clientIdKey: client_id
-  clientSecretKey: client_secret
-  cookieSecretKey: cookie_secret
-  redirect_uri: https://news.0x2b.de/oauth2/callback
-  issuer_url: https://authentik.0x2b.de/application/o/newsfeed/
-  upstream: http://newsfeed-feedbox.newsfeed.svc.cluster.local:7070
-  
-  image:
-    repository: "quay.io/oauth2-proxy"
-    name: "oauth2-proxy"
-    tag: "v7.12.0-alpine"
-    imagePullPolicy: ""
-  
-  securityContext: 
-    capabilities:
-      drop:
-      - ALL
-    readOnlyRootFilesystem: true
-    runAsNonRoot: true
-    runAsUser: 1000
-
-  resources: {}
-
-  service:
-    type: ClusterIP
-    port: 4180
-
 replicaCount: 1
-
-imagePullSecrets: 
-- name: regcred
-nameOverride: ""
-fullnameOverride: ""
-podAnnotations: {}
-podLabels: {}
-nodeSelector: {}
-tolerations: []
-affinity: {}
 
 image:
   repository: ghcr.io/felixzmn/docker
@@ -53,49 +6,89 @@ image:
   tag: "latest"
   pullPolicy: Always
 
-podSecurityContext: 
-  fsGroup: 1000
+imagePullSecrets: 
+- name: regcred
 
-securityContext: 
-  capabilities:
-    drop:
-    - ALL
-  readOnlyRootFilesystem: true
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+
+podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+  readOnlyRootFilesystem: true
 
 service:
   type: ClusterIP
   port: 7070
 
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "250m"
+
+config:
+  # Non-secret app configs, key/value pairs
+  exampleKey: exampleValue
+
+dbSecretName: newsfeed-pguser-newsfeed
+database:
+  userKey: user
+  passwordKey: password
+  hostKey: host
+  portKey: port
+  dbNameKey: dbname
+
 ingress:
   enabled: true
-  className: "nginx"
-  annotations: 
-    cert-manager.io/cluster-issuer: letsencrypt-production
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
   hosts:
-    - host: news.0x2b.de
+    - host: news.example.com
       paths:
         - path: /
-          pathType: ImplementationSpecific
+          pathType: Prefix
   tls:
-  - secretName: feedbox
-    hosts:
-      - news.0x2b.de
+    - secretName: feedbox-tls
+      hosts:
+        - news.example.com
 
-resources:
-  limits:
-    cpu: 500m
-    memory: 350Mi
-  requests:
-    cpu: 250m
-    memory: 150Mi
+oauth2Proxy:
+  enabled: true
+  image:
+    repository: "quay.io/oauth2-proxy"
+    name: "oauth2-proxy"
+    tag: "v7.12.0-alpine"
+    pullPolicy: IfNotPresent
+  service:
+    port: 4180
+  secretName: feedbox-oauth2-proxy-secret
+  config:
+    provider: oidc
+    # Issuer URL for OIDC
+    oidcIssuerUrl: https://auth.example.com/application/o/feedbox/
+    clientId: feedbox
+    clientSecretKey: client_secret
+    cookieSecretKey: cookie_secret
+    emailDomains: ["*"]
+    cookieSecure: true
+    redirectUri: https://news.example.com/oauth2/callback
+    upstream: http://newsfeed-feedbox.newsfeed.svc.cluster.local:7070
 
-livenessProbe:
-  httpGet:
-    path: /healthz
-    port: http
-readinessProbe:
-  httpGet:
-    path: /healthz
-    port: http
+nodeSelector: {}
+tolerations: []
+affinity: {}  

@@ -7,9 +7,9 @@ metadata:
 spec:
   type: {{ .Values.service.type }}
   ports:
-    - port: {{ .Values.oauth2Proxy.service.port }}
-      targetPort: {{ .Values.oauth2Proxy.service.port }}
+    - port: {{ .Values.service.port }}
+      targetPort: http
       protocol: TCP
-      name: oauth2-proxy
+      name: http
   selector:
     {{- include "feedbox.selectorLabels" . | nindent 4 }}

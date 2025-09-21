@@ -1,0 +1,17 @@
+{{- if .Values.oauth2Proxy.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "feedbox.fullname" . }}-oauth2-proxy
+  labels:
+    {{- include "feedbox.labels" . | nindent 4 }}
+    app.kubernetes.io/component: oauth2-proxy
+spec:
+  ports:
+    - port: {{ .Values.oauth2Proxy.service.port }}
+      targetPort: proxy
+      name: proxy
+  selector:
+    app.kubernetes.io/name: {{ include "feedbox.name" . }}-oauth2-proxy
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

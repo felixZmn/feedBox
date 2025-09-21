@@ -1,0 +1,4 @@
+Feedbox is deployed!
+
+- Access via: https://{{ (index .Values.ingress.hosts 0).host }}
+- OIDC Proxy enabled: {{ .Values.oauth2Proxy.enabled }}

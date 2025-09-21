@@ -11,16 +11,10 @@ spec:
       {{- include "feedbox.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       labels:
-        {{- include "feedbox.labels" . | nindent 8 }}
-        {{- with .Values.podLabels }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
+        {{- include "feedbox.selectorLabels" . | nindent 8 }}
     spec:
+      serviceAccountName: {{ include "feedbox.serviceAccountName" . }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -30,104 +24,59 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-        - name: oauth2-proxy
-          {{- with .Values.oauth2Proxy.image }} 
-          image: {{ .repository }}/{{ .name }}:{{ .tag }}
-          imagePullPolicy: {{ .imagePullPolicy }}
-          {{- end }}
-          {{- with .Values.oauth2Proxy.securityContext }}
-          securityContext:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.oauth2Proxy.service }}
-          ports:
-          - containerPort: {{ .port }}
-          {{- end }}
-          {{- with .Values.oauth2Proxy.resources }}
-          resources:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          command: ["/bin/sh"]
-          args:
-            - -c
-            - |
-              /bin/oauth2-proxy \
-              --provider=keycloak-oidc \
-              --client-id=$(cat /etc/secrets/client_id) \
-              --client-secret=$(cat /etc/secrets/client_secret) \
-              --email-domain=* \
-              --redirect-url={{ .Values.oauth2Proxy.redirect_uri }} \
-              --oidc-issuer-url={{ .Values.oauth2Proxy.issuer_url }} \
-              --cookie-secret=$(cat /etc/secrets/cookie_secret) \
-              --upstream={{ include "feedbox.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }} \
-              --code-challenge-method=S256 \
-              --http-address=0.0.0.0:4180 \
-              --skip-provider-button=true
-          volumeMounts:
-          - name: secrets
-            mountPath: /etc/secrets
-            readOnly: true
-
-        - name: {{ .Chart.Name }}
-          {{- with .Values.securityContext }}
-          securityContext:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+        - name: feedbox
           image: "{{ .Values.image.repository }}/{{ .Values.image.name }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
-              protocol: TCP
           env:
           - name: PG_USER
             valueFrom:
               secretKeyRef:
-                name: {{ .Values.database.existingSecret }}
-                key: {{ .Values.database.usernameKey }}
+                name: {{ .Values.dbSecretName }}
+                key: {{ .Values.database.userKey }}
           - name: PG_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: {{ .Values.database.existingSecret }}
+                name: {{ .Values.dbSecretName }}
                 key: {{ .Values.database.passwordKey }}
           - name: PG_HOST
             valueFrom:
               secretKeyRef:
-                name: {{ .Values.database.existingSecret }}
+                name: {{ .Values.dbSecretName }}
                 key: {{ .Values.database.hostKey }}
           - name: PG_PORT
             valueFrom:
               secretKeyRef:
-                name: {{ .Values.database.existingSecret }}
+                name: {{ .Values.dbSecretName }}
                 key: {{ .Values.database.portKey }}
           - name: PG_DB
             valueFrom:
               secretKeyRef:
-                name: {{ .Values.database.existingSecret }}
-                key: {{ .Values.database.dbKey }}
-          {{- with .Values.livenessProbe }}
-          livenessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.readinessProbe }}
-          readinessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.resources }}
+                name: {{ .Values.dbSecretName }}
+                key: {{ .Values.database.dbNameKey }}
+          envFrom:
+          - configMapRef:
+              name: {{ include "feedbox.fullname" . }}
           resources:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-      volumes:
-      - name: secrets
-        secret:
-          secretName: {{ .Values.oauth2Proxy.existingSecret }}
-          items:
-            - key: {{ .Values.oauth2Proxy.clientIdKey }}
-              path: client_id
-            - key: {{ .Values.oauth2Proxy.clientSecretKey }}
-              path: client_secret
-            - key: {{ .Values.oauth2Proxy.cookieSecretKey }}
-              path: cookie_secret
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          # readinessProbe:
+          #   httpGet:
+          #     path: /healthz
+          #     port: http
+          #   initialDelaySeconds: 10
+          #   periodSeconds: 10
+          #   timeoutSeconds: 5
+          # livenessProbe:
+          #   httpGet:
+          #     path: /healthz
+          #     port: http
+          #   initialDelaySeconds: 30
+          #   periodSeconds: 20
+          #   failureThreshold: 3
       
       {{- with .Values.nodeSelector }}
       nodeSelector:
