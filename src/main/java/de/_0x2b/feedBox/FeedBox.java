@@ -26,8 +26,10 @@ public class FeedBox {
     public static void main(String[] args) throws SQLException {
         var variables = getVariables();
 
-        logger.info("Using database at {}:{}/{}", variables.get("dbHost"), variables.get("dbPort"), variables.get("dbName"));
-        Database.connect(variables.get("dbHost"), variables.get("dbPort"), variables.get("dbName"), variables.get("dbUsername"), variables.get("dbPassword"));
+        logger.info("Using database at {}:{}/{}", variables.get("dbHost"), variables.get("dbPort"),
+                variables.get("dbName"));
+        Database.connect(variables.get("dbHost"), variables.get("dbPort"), variables.get("dbName"),
+                variables.get("dbUsername"), variables.get("dbPassword"));
         Database.migrate(); // try/catch not necessary as there is no way of recovering
 
         var app = Javalin.create(config -> {
@@ -36,8 +38,10 @@ public class FeedBox {
             config.jetty.defaultHost = "0.0.0.0";
 
             config.requestLogger.http((ctx, ms) -> {
-                // GET http://localhost:8080/style.css HTTP/1.1" from [::1]:44872 - 200 in 526.042µs
-                logger.info("{} {} {} from {}:{} - {} in {}µs", ctx.method(), ctx.url(), ctx.protocol(), ctx.req().getRemoteAddr(), ctx.req().getRemotePort(), ctx.status().getCode(), ms);
+                // GET http://localhost:8080/style.css HTTP/1.1" from [::1]:44872 - 200 in
+                // 526.042µs
+                logger.info("{} {} {} from {}:{} - {} in {}µs", ctx.method(), ctx.url(), ctx.protocol(),
+                        ctx.req().getRemoteAddr(), ctx.req().getRemotePort(), ctx.status().getCode(), ms);
             });
 
         });
@@ -82,7 +86,7 @@ public class FeedBox {
         var dbPort = System.getenv("PG_PORT");
         var dbName = System.getenv("PG_DB");
         var appPort = System.getenv("PORT");
-        var refreshRate = System.getenv("REFRESH_RAGE");
+        var refreshRate = System.getenv("REFRESH_RATE");
 
         if (dbUsername == null) throw new IllegalStateException("PG_USER not set");
         if (dbPassword == null) throw new IllegalStateException("PG_PASSWORD not set");
