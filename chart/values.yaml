@@ -55,17 +55,13 @@ database:
 ingress:
   enabled: true
   className: nginx
-  annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-production"
+  annotations: {}
   hosts:
     - host: news.example.com
       paths:
         - path: /
           pathType: Prefix
-  tls:
-    - secretName: feedbox-tls
-      hosts:
-        - news.example.com
+  tls: []
 
 oauth2Proxy:
   enabled: true
@@ -87,7 +83,6 @@ oauth2Proxy:
     emailDomains: ["*"]
     cookieSecure: true
     redirectUri: https://news.example.com/oauth2/callback
-    upstream: http://newsfeed-feedbox.newsfeed.svc.cluster.local:7070
 
 nodeSelector: {}
 tolerations: []
