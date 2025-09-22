@@ -15,11 +15,11 @@
     <img src="https://img.shields.io/github/v/release/felixzmn/feedbox?logo=github" alt="Latest Release"/>
   </a>
   <!-- Docker Image -->
-  <a href="https://ghcr.io/felixzmn/feedbox">
+  <a href="https://ghcr.io/felixzmn/docker/feedbox">
     <img src="https://img.shields.io/badge/docker-ghcr.io%2Ffeedbox-blue?logo=docker" alt="Docker Image"/>
   </a>
   <!-- Helm Chart -->
-  <a href="https://ghcr.io/felixzmn/helm">
+  <a href="https://ghcr.io/felixzmn/helm/feedbox">
     <img src="https://img.shields.io/badge/helm-chart-blue?logo=helm" alt="Helm Chart"/>
   </a>
   <!-- License -->
@@ -76,8 +76,10 @@ java -jar target/feedBox.jar
 Build and push Docker image:
 
 ```bash
-docker build -t ghcr.io/felixzmn/docker/feedbox:latest .
-docker push ghcr.io/felixzmn/docker/feedbox:latest
+VERSION=$(grep -m1 '<version>' pom.xml | sed -E 's/.*<version>([^<]+)<\/version>.*/\1/')
+
+docker build -t ghcr.io/felixzmn/docker/feedbox:$VERSION .
+docker push ghcr.io/felixzmn/docker/feedbox:$VERSION
 ```
 
 Running with Docker

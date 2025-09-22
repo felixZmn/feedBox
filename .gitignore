@@ -17,3 +17,6 @@ buildNumber.properties
 .classpath
 
 .idea
+
+# helm build artefacts
+*.tgz
