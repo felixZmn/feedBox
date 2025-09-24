@@ -6,15 +6,15 @@ WORKDIR /app
 
 COPY ./src ./src
 COPY pom.xml .
-RUN mvn clean install
+RUN mvn --no-transfer-progress clean install
 
-FROM eclipse-temurin:21-alpine 
+FROM eclipse-temurin:21-alpine
 LABEL org.opencontainers.image.source=https://github.com/felixZmn/feedBox
 
 WORKDIR /app
 
 COPY --from=builder /app/target/feedBox.jar ./feedBox.jar
 
-EXPOSE 7000 
+EXPOSE 7000
 
 ENTRYPOINT ["java", "-jar", "/app/feedBox.jar"]
