@@ -36,20 +36,27 @@ export class Navigator {
 
   #renderColumn(column) {
     [this.feedsEl, this.articlesEl, this.readerEl].forEach((el) =>
-      el.classList.remove("active")
+      el.classList.remove("active", "primary")
     );
 
     switch (column) {
-      case columns.ARTICLES:
-        this.articlesEl.classList.add("active");
-        this.articlesEl.focus();
-        break;
       case columns.FEEDS:
-        this.feedsEl.classList.add("active");
+        // Feeds+articles mode, feeds is primary
+        this.feedsEl.classList.add("active", "primary");
+        this.articlesEl.classList.add("active");
         this.feedsEl.focus();
         break;
+
+      case columns.ARTICLES:
+        // Feeds+articles mode, articles is primary
+        this.feedsEl.classList.add("active");
+        this.articlesEl.classList.add("active", "primary");
+        this.articlesEl.focus();
+        break;
+
       case columns.READER:
-        this.readerEl.classList.add("active");
+        // Reader mode
+        this.readerEl.classList.add("active", "primary");
         this.readerEl.focus();
         break;
     }
