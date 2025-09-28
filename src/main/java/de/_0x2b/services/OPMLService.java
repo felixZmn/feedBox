@@ -5,12 +5,25 @@ import de._0x2b.models.Feed;
 import de._0x2b.models.Folder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
 import javax.xml.namespace.QName;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import java.io.InputStream;
+import java.io.StringWriter;
+import java.util.List;
 import java.util.Stack;
 
 record OutlineContext(String type, Integer folderId) {
@@ -76,5 +89,84 @@ public class OPMLService {
                 contextStack.pop();
             }
         }
+    }
+
+    public String exportOpml(){
+        var result = folderService.findAll();
+        Document doc = null;
+        try {
+            doc = createOPML(result);
+            return documentToString(doc);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public Document createOPML(List<Folder> folders) throws ParserConfigurationException {
+        DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
+
+        // root elements
+        Document doc = docBuilder.newDocument();
+        Element opml = doc.createElement("opml");
+        opml.setAttribute("version", "2.0");
+        doc.appendChild(opml);
+
+        // head
+        Element head = doc.createElement("head");
+        Element title = doc.createElement("title");
+        title.appendChild(doc.createTextNode("My Feeds"));
+        head.appendChild(title);
+        opml.appendChild(head);
+
+        // body
+        Element body = doc.createElement("body");
+        opml.appendChild(body);
+
+        for (Folder folder : folders) {
+            if (folder.getId() == 0) {
+                // Add all feeds directly under <body> without folder element
+                for (Feed feed : folder.getFeeds()) {
+                    Element feedOutline = createFeedElement(doc, feed);
+                    body.appendChild(feedOutline);
+                }
+            } else {
+                // Normal case: add folder as outline with feeds inside
+                Element folderOutline = createFolderElement(doc, folder);
+                body.appendChild(folderOutline);
+                for (Feed feed : folder.getFeeds()) {
+                    Element feedOutline = createFeedElement(doc, feed);
+                    folderOutline.appendChild(feedOutline);
+                }
+            }
+        }
+
+        return doc;
+    }
+
+    private Element createFolderElement(Document doc, Folder folder){
+        var el = doc.createElement("outline");
+        el.setAttribute("text", folder.getName());
+        return el;
+    }
+
+    private Element createFeedElement(Document doc, Feed feed){
+        var el = doc.createElement("outline");
+        el.setAttribute("text", feed.getName());
+        el.setAttribute("type", "rss");
+        el.setAttribute("xmlUrl", feed.getFeedUrl());
+        el.setAttribute("htmlUrl", feed.getUrl());
+        return el;
+    }
+
+    public static String documentToString(Document document) throws TransformerException {
+        TransformerFactory transformerFactory = TransformerFactory.newInstance();
+        Transformer transformer = transformerFactory.newTransformer();
+
+        StringWriter stringWriter = new StringWriter();
+        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+        transformer.transform(new DOMSource(document), new StreamResult(stringWriter));
+        return stringWriter.toString();
     }
 }

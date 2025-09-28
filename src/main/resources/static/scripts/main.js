@@ -110,10 +110,6 @@ document.getElementById("trigger-import").addEventListener("click", (e) => {
   importFeeds();
 });
 
-document.getElementById("trigger-export").addEventListener("click", (e) => {
-   exportFeeds();
- });
-
 function editFeedFolderClick() {
   if (lastClickedFeedItem.type == articleLoadType.FEED) {
     showEditFeedDialog(lastClickedFeedItem.obj, editFeed);
@@ -453,10 +449,4 @@ async function importFeeds() {
   });
 
   fileInput.click();
-}
-
-async function exportFeeds(){
-  const response = await fetch("./api/opml", {
-    method: "GET",
-  });
 }

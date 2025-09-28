@@ -24,14 +24,14 @@ public class FolderRepository {
     private static final Logger logger = LoggerFactory.getLogger(FolderRepository.class);
 
     private static final String SELECT_ALL = """
-            SELECT folder.id as "folder_id", folder.name as "folder_name", folder.color as "folder_color", feed.id  AS "feed_id", feed.name AS "feed_name", feed.feed_url AS "feed_url"
+            SELECT folder.id as "folder_id", folder.name as "folder_name", folder.color as "folder_color", feed.id  AS "feed_id", feed.name AS "feed_name", feed.url as "url", feed.feed_url AS "feed_url"
             FROM folder
             LEFT JOIN feed ON folder.id = feed.folder_id
             ORDER BY folder.name, feed.name
             """;
 
     private static final String SELECT_ALL_BY_NAME = """
-            SELECT folder.id as "folder_id", folder.name as "folder_name", folder.color as "folder_color", feed.id  AS "feed_id", feed.name AS "feed_name", feed.feed_url AS "feed_url"
+            SELECT folder.id as "folder_id", folder.name as "folder_name", folder.color as "folder_color", feed.id  AS "feed_id", feed.name AS "feed_name", feed.url as "url", feed.feed_url AS "feed_url"
             FROM folder
             LEFT JOIN feed ON folder.id = feed.folder_id
             wHERE folder.name = ?
@@ -143,55 +143,39 @@ public class FolderRepository {
         return -1;
     }
 
-    // ToDo: Improve this monstrosity
-    private List<Folder> parseResult(ResultSet rs) throws SQLException {
+    private ArrayList<Folder> parseResult(ResultSet rs) throws SQLException {
         logger.debug("parseResult");
-        Map<Integer, FolderBuilder> folders = new LinkedHashMap<>();
+        Map<Integer, Folder> folders = new LinkedHashMap<>();
 
         while (rs.next()) {
             int folderId = rs.getInt("folder_id");
-            String folderName = rs.getString("folder_name");
-            String folderColor = rs.getString("folder_color");
-
-            FolderBuilder fb = folders.get(folderId);
-            if (fb == null) {
-                fb = new FolderBuilder(folderId, folderName, folderColor);
-                folders.put(folderId, fb);
-            }
-
-            // feed_id may be NULL
+            Folder folder = folders.computeIfAbsent(
+                    folderId,
+                    id -> {
+                        try {
+                            return new Folder(
+                                    id,
+                                    rs.getString("folder_name"),
+                                    new ArrayList<>(),
+                                    rs.getString("folder_color")
+                            );
+                        } catch (SQLException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+            );
             int feedId = rs.getInt("feed_id");
             if (!rs.wasNull()) {
-                String feedName = rs.getString("feed_name");
-                // prefer "url" column if present, otherwise "feed_url"
-                String url = safeGetString(rs, "url");
-                String feedUrl = safeGetString(rs, "feed_url");
-
-                Feed feed = new Feed(feedId, folderId, feedName, url, feedUrl);
-                fb.feeds.add(feed);
+                Feed feed = new Feed(
+                        feedId,
+                        folderId,
+                        rs.getString("feed_name"),
+                        rs.getString("url"),
+                        rs.getString("feed_url")
+                );
+                folder.getFeeds().add(feed);
             }
         }
-
-        List<Folder> result = new ArrayList<>(folders.size());
-        for (FolderBuilder fb : folders.values()) {
-            // you can wrap with Collections.unmodifiableList(...) if you want immutability
-            Folder folder = new Folder(fb.id, fb.name, fb.feeds, fb.color);
-            result.add(folder);
-        }
-        return result;
-    }
-
-    // small helper to hold folder interim data
-    private static class FolderBuilder {
-        final int id;
-        final String name;
-        final String color;
-        final List<Feed> feeds = new ArrayList<>();
-
-        FolderBuilder(int id, String name, String color) {
-            this.id = id;
-            this.name = name;
-            this.color = color;
-        }
+        return new ArrayList<>(folders.values());
     }
 }

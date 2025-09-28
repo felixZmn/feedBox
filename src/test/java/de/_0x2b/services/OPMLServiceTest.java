@@ -6,10 +6,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.stream.XMLStreamException;
+import javax.xml.transform.TransformerException;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -58,6 +61,26 @@ public class OPMLServiceTest {
                   </outline>
                   <outline type="rss" text="WIRED" xmlUrl="https://www.wired.com/feed/rss" htmlUrl="https://www.wired.com/feed/rss" />
                 </outline>
+            """;
+
+    private final static String opmlExport = """
+            <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+            <opml version="2.0">
+              <head>
+                <title>My Feeds</title>
+              </head>
+              <body>
+                <outline htmlUrl="https://www.dw.com/de" text="Deutsche Welle: DW.com Deutsch" type="rss" xmlUrl="https://feed.dw.com/de"/>
+                <outline text="tech">
+                  <outline htmlUrl="https://arstechnica.com" text="Arstechnica" type="rss" xmlUrl="https://feed.arstechnica.com"/>
+                  <outline htmlUrl="https://hackaday.com" text="Hackaday" type="rss" xmlUrl="https://feed.hackaday.com"/>
+                </outline>
+                <outline text="sports">
+                  <outline htmlUrl="https://www.theguardian.com/sport" text="NFL | The Guardian" type="rss" xmlUrl="https://feed.theguardian.com/sport"/>
+                  <outline htmlUrl="https://www.espn.com/nfl" text="www.espn.com - NFL" type="rss" xmlUrl="https://feed.espn.com/nfl"/>
+                </outline>
+              </body>
+            </opml>
             """;
     private OPMLService service;
     private FolderService folderService;
@@ -188,5 +211,25 @@ public class OPMLServiceTest {
         assertTrue(capturedFeeds.contains(fourthFeed), "FeedService should have been called with fourthFeed");
         assertTrue(capturedFolders.contains(outer), "FolderService should have been called with firstFolder");
         assertTrue(capturedFolders.contains(inner), "FolderService should have been called with secondFolder");
+    }
+
+    @Test
+    void exportFeedTest() throws ParserConfigurationException, TransformerException {
+        List<Feed> techFeeds = new ArrayList<>();
+        List<Feed> sportsFeeds = new ArrayList<>();
+        List<Feed> rootFeeds = new ArrayList<>();
+        List<Folder> folders = new ArrayList<>();
+
+        rootFeeds.add(new Feed(1, 0, "Deutsche Welle: DW.com Deutsch", "https://www.dw.com/de", "https://feed.dw.com/de"));
+        techFeeds.add(new Feed(2, 1, "Arstechnica", "https://arstechnica.com", "https://feed.arstechnica.com"));
+        techFeeds.add(new Feed(3, 1, "Hackaday", "https://hackaday.com", "https://feed.hackaday.com"));
+        sportsFeeds.add(new Feed(4, 2, "NFL | The Guardian", "https://www.theguardian.com/sport", "https://feed.theguardian.com/sport"));
+        sportsFeeds.add(new Feed(5, 2, "www.espn.com - NFL", "https://www.espn.com/nfl", "https://feed.espn.com/nfl"));
+
+        folders.add(new Folder(0, "", rootFeeds, "f-base"));
+        folders.add(new Folder(1, "tech", techFeeds, "f-base"));
+        folders.add(new Folder(2, "sports", sportsFeeds, "f-base"));
+
+        assertEquals(opmlExport, OPMLService.documentToString(service.createOPML(folders)));
     }
 }

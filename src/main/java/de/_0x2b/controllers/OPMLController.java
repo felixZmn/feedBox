@@ -35,6 +35,8 @@ public class OPMLController {
 
     private void exportOPML(Context ctx) {
         logger.debug("exportOPML");
-        // not implemented
+        ctx.contentType("text/x-opml; charset=UTF-8");
+        ctx.header("Content-Disposition", "attachment; filename=\"feed-export.opml\"");
+        ctx.result(opmlService.exportOpml());
     }
 }
