@@ -84,7 +84,7 @@ button {
 
 .layout {
   display: grid;
-  grid-template-columns: var(--column-width) var(--column-width) 2fr;
+  grid-template-columns: var(--column-width) var(--column-width) minmax(0, 1fr);
   gap: 0;
   height: 100vh;
 }
@@ -340,8 +340,19 @@ summary::marker {
   line-height: 1.3;
 }
 
+.reader .content * {
+    max-width: 100% !important;
+    box-sizing: border-box;
+}
+
+/* Exceptions */
 .reader .content img {
-  max-width: 100%;
+  height: auto !important;
+}
+
+.reader .content iframe {
+  aspect-ratio: 16 / 9;
+  width: 100% !important;
   height: auto;
 }
 
