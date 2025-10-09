@@ -11,6 +11,7 @@ import de._0x2b.models.Folder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -170,8 +171,8 @@ public class FolderRepository {
                         feedId,
                         folderId,
                         rs.getString("feed_name"),
-                        rs.getString("url"),
-                        rs.getString("feed_url")
+                        URI.create(rs.getString("url")),
+                        URI.create(rs.getString("feed_url"))
                 );
                 folder.getFeeds().add(feed);
             }

@@ -23,8 +23,14 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 record OutlineContext(String type, Integer folderId) {
 }
@@ -44,9 +50,12 @@ public class OPMLService {
         this.feedService = feedService;
     }
 
-    public void importOPML(InputStream stream) throws XMLStreamException {
+    public void importOPML(InputStream stream) throws XMLStreamException, InterruptedException {
         logger.debug("importOPML");
         XMLEventReader reader = XMLInputFactory.newInstance().createXMLEventReader(stream);
+
+        ExecutorService pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2);
+        List<Future<?>> futures = new ArrayList<>();
 
         Stack<OutlineContext> contextStack = new Stack<>();
         contextStack.push(new OutlineContext("root", 0));
@@ -72,13 +81,18 @@ public class OPMLService {
                 } else if ("rss".equals(type.getValue())) {
                     // rss feed
                     var name = workingEvent.getAttributeByName(ATTR_TEXT).getValue();
-                    var xmlUrl = workingEvent.getAttributeByName(ATTR_XMLURL).getValue();
-                    var htmlUrl = workingEvent.getAttributeByName(ATTR_HTMLURL).getValue();
-                    try {
-                        feedService.create(new Feed(-1, contextStack.peek().folderId(), name, htmlUrl, xmlUrl));
-                    } catch (DuplicateEntityException e){
-                        // ignore
-                    }
+                    var xmlUrl = URI.create(workingEvent.getAttributeByName(ATTR_XMLURL).getValue());
+                    var htmlUrl = URI.create(workingEvent.getAttributeByName(ATTR_HTMLURL).getValue());
+                    final Integer parentFolderId = contextStack.peek().folderId();
+
+                    Future<?> f = pool.submit(() -> {
+                        try {
+                            feedService.create(new Feed(-1, parentFolderId, name, htmlUrl, xmlUrl));
+                        } catch (DuplicateEntityException e){
+                            // ignore
+                        }
+                    });
+                    futures.add(f);
                     contextStack.push(new OutlineContext("feed", null)); // feeds don't open new folders
                 } else {
                     // not implemented type
@@ -89,6 +103,8 @@ public class OPMLService {
                 contextStack.pop();
             }
         }
+        pool.shutdown();
+        pool.awaitTermination(60, TimeUnit.SECONDS); // wait for completion
     }
 
     public String exportOpml(){
@@ -154,8 +170,8 @@ public class OPMLService {
         var el = doc.createElement("outline");
         el.setAttribute("text", feed.getName());
         el.setAttribute("type", "rss");
-        el.setAttribute("xmlUrl", feed.getFeedUrl());
-        el.setAttribute("htmlUrl", feed.getUrl());
+        el.setAttribute("xmlUrl", feed.getFeedURI().toString());
+        el.setAttribute("htmlUrl", feed.getURI().toString());
         return el;
     }
 

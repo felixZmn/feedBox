@@ -26,7 +26,8 @@ public class FolderController {
 
     private void get(Context ctx) {
         logger.debug("get");
-        ctx.json(folderService.findAll());
+        var foo = folderService.findAll();
+        ctx.json(foo);
     }
 
     private void create(Context ctx) {
