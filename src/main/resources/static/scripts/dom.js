@@ -85,7 +85,7 @@ export function clearReaderView() {
 function createFeedElement(feed) {
   const li = document.createElement("li");
   const icon = document.createElement("img");
-  icon.src = "./icons/rss.svg"; // ToDo: replace with actual icon
+  icon.src = "./api/icons/" + feed.id; // ToDo: replace with actual icon
   icon.className = "feed-icon";
 
   li.appendChild(icon);
