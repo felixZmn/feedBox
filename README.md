@@ -120,7 +120,7 @@ helm install feedbox oci://ghcr.io/felixzmn/helm/feedbox --version <VERSION>
 # Configuration
 
 | Variable       | Required | Description           | Default |
-| -------------- | -------- | --------------------- | ------- |
+|----------------|----------|-----------------------|---------|
 | `PG_USER`      | yes      | Database user         |         |
 | `PG_PASSWORD`  | yes      | Database password     |         |
 | `PG_HOST`      | yes      | Database host         |         |

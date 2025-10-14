@@ -66,7 +66,6 @@ public class IconService {
         var contentType = response.headers().firstValue("Content-Type").orElse("");
         var charset = getCharsetFromContentType(contentType);
         var iconUrl = parseHtml(new String(response.body(), charset));
-
         var url = "";
         if (iconUrl.getHost() != null){
             url = iconUrl.toString();
@@ -74,12 +73,8 @@ public class IconService {
             url = response.uri().getScheme() + "://"+ response.uri().getHost() + (iconUrl.getPath().startsWith("/") ? "" : "/")+ iconUrl.getPath();
         }
 
-        var icondata = fetchFavicon(url);
-
-        if (icondata.length > 0){
-            var icon = new Icon(-1, feed.getId(), icondata, "", "", "");
-            create(icon);
-        }
+        var icon = fetchFavicon(new Icon(-1, feed.getId(), null, "", "", url));
+        create(icon);
     }
 
     private URI parseHtml(String content){
@@ -89,7 +84,9 @@ public class IconService {
 
         try {
             Document doc = Jsoup.parse(content);
-            // select link elements whose rel contains "icon" (case-insensitive)
+            for (Element link : doc.select("link")) {
+                System.out.println("rel=" + link.attr("rel") + " href=" + link.attr("href"));
+            }
             Element link = doc.selectFirst("link[rel~=icon]");
             if (link != null) {
                 String href = link.attr("href");
@@ -105,23 +102,25 @@ public class IconService {
         return URI.create("/favicon.ico");
     }
 
-    public byte[] fetchFavicon(String faviconUrl)  {
+    public Icon fetchFavicon(Icon icon)  {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(faviconUrl))
+                .uri(URI.create(icon.getUrl()))
                 .GET()
                 .build();
         try {
             HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                return response.body();
+                icon.setImage(response.body());
+                icon.setMimeType(response.headers().map().get("content-type").getFirst());
+                return icon;
             } else {
                 logger.error("Failed to fetch favicon: HTTP {}", response.statusCode());
-                return new byte[0];
+                return null;
             }
         } catch (IOException | InterruptedException e) {
             logger.error("Error fetching favicon {}", e.getMessage());
         }
-        return new byte[0];
+        return null;
     }
 
     public void create(Icon icon){

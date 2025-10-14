@@ -52,59 +52,97 @@ public class OPMLService {
 
     public void importOPML(InputStream stream) throws XMLStreamException, InterruptedException {
         logger.debug("importOPML");
+
         XMLEventReader reader = XMLInputFactory.newInstance().createXMLEventReader(stream);
 
-        ExecutorService pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2);
-        List<Future<?>> futures = new ArrayList<>();
+        try (ExecutorService pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2)) {
+            List<Future<?>> futures = new ArrayList<>();
+            Stack<OutlineContext> contextStack = new Stack<>();
+            contextStack.push(new OutlineContext("root", 0));
 
-        Stack<OutlineContext> contextStack = new Stack<>();
-        contextStack.push(new OutlineContext("root", 0));
+            while (reader.hasNext()) {
+                var event = reader.nextEvent();
 
-        while (reader.hasNext()) {
-            var event = reader.nextEvent();
+                if (event.isStartElement() && "outline".equals(event.asStartElement().getName().getLocalPart())) {
+                    var startElement = event.asStartElement();
+                    var typeAttr = startElement.getAttributeByName(ATTR_TYPE);
 
-            if (event.isStartElement() && "outline".equals(event.asStartElement().getName().getLocalPart())) {
-                var workingEvent = event.asStartElement();
-
-                var type = workingEvent.getAttributeByName(ATTR_TYPE);
-                if (type == null) {
-                    // folder
-                    int folderId;
-                    var name = workingEvent.getAttributeByName(ATTR_TEXT).getValue();
-                    try {
-                        folderId = folderService.create(new Folder(-1, name, null, "f-base"));
-                    } catch (DuplicateEntityException e){
-                        // ignore & query id
-                        folderId = folderService.findByName(name).getFirst().getId();
-                    }
-                    contextStack.push(new OutlineContext("folder", folderId));
-                } else if ("rss".equals(type.getValue())) {
-                    // rss feed
-                    var name = workingEvent.getAttributeByName(ATTR_TEXT).getValue();
-                    var xmlUrl = URI.create(workingEvent.getAttributeByName(ATTR_XMLURL).getValue());
-                    var htmlUrl = URI.create(workingEvent.getAttributeByName(ATTR_HTMLURL).getValue());
-                    final Integer parentFolderId = contextStack.peek().folderId();
-
-                    Future<?> f = pool.submit(() -> {
-                        try {
-                            feedService.create(new Feed(-1, parentFolderId, name, htmlUrl, xmlUrl));
-                        } catch (DuplicateEntityException e){
-                            // ignore
+                    if (typeAttr == null) {
+                        // Folder
+                        var textAttr = startElement.getAttributeByName(ATTR_TEXT);
+                        if (textAttr == null) {
+                            logger.warn("Folder outline missing 'text' attribute; skipping this outline.");
+                            continue;
                         }
-                    });
-                    futures.add(f);
-                    contextStack.push(new OutlineContext("feed", null)); // feeds don't open new folders
-                } else {
-                    // not implemented type
-                    logger.info("Found not implemented feed type {}", type.getValue());
-                    contextStack.push(new OutlineContext("feed", null));
+                        var name = textAttr.getValue();
+                        int folderId;
+
+                        try {
+                            folderId = folderService.create(new Folder(-1, name, null, "f-base"));
+                        } catch (DuplicateEntityException e) {
+                            logger.debug("Folder '{}' already exists; querying existing ID.", name);
+                            var optFolder = folderService.findByName(name).stream().findFirst();
+                            if (optFolder.isPresent()) {
+                                folderId = optFolder.get().getId();
+                            } else {
+                                logger.error("Folder '{}' not found after DuplicateEntityException; skipping.", name);
+                                continue;
+                            }
+                        }
+                        contextStack.push(new OutlineContext("folder", folderId));
+                    } else if ("rss".equals(typeAttr.getValue())) {
+                        // rss feed
+                        var textAttr = startElement.getAttributeByName(ATTR_TEXT);
+                        var xmlUrlAttr = startElement.getAttributeByName(ATTR_XMLURL);
+                        var htmlUrlAttr = startElement.getAttributeByName(ATTR_HTMLURL);
+
+                        if (textAttr == null || xmlUrlAttr == null || htmlUrlAttr == null) {
+                            logger.warn("RSS feed outline missing one of 'text', 'xmlUrl' or 'htmlUrl'; skipping.");
+                            continue;
+                        }
+
+                        String name = textAttr.getValue();
+                        URI xmlUrl = URI.create(xmlUrlAttr.getValue());
+                        URI htmlUrl = URI.create(htmlUrlAttr.getValue());
+                        Integer parentFolderId = contextStack.peek().folderId();
+
+                        futures.add(pool.submit(() -> {
+                            try {
+                                feedService.create(new Feed(-1, parentFolderId, name, htmlUrl, xmlUrl));
+                            } catch (DuplicateEntityException e) {
+                                logger.debug("Feed '{}' already exists; ignoring duplicate.", name);
+                            } catch (Exception ex) {
+                                logger.error("Exception creating feed '{}': {}", name, ex.getMessage(), ex);
+                            }
+                        }));
+                        // Feeds do NOT open new folder context, so no push.
+                        contextStack.push(new OutlineContext("feed", null)); // feeds don't open new folders
+                    } else {
+                        logger.info("Found not implemented feed type '{}'; skipping.", typeAttr.getValue());
+                        // No stack push for unimplemented types either
+                        contextStack.push(new OutlineContext("feed", null));
+                    }
+                } else if (event.isEndElement() && "outline".equals(event.asEndElement().getName().getLocalPart())) {
+                    if (!contextStack.isEmpty()) {
+                        contextStack.pop();
+                    } else {
+                        logger.warn("Outline end element encountered but context stack was empty.");
+                    }
                 }
-            } else if (event.isEndElement() && "outline".equals(event.asEndElement().getName().getLocalPart())) {
-                contextStack.pop();
+            }
+
+            pool.shutdown();
+            if (!pool.awaitTermination(60, TimeUnit.SECONDS)) {
+                logger.warn("Timeout waiting for feed creation tasks, cancelling remaining tasks");
+                pool.shutdownNow();
             }
         }
-        pool.shutdown();
-        pool.awaitTermination(60, TimeUnit.SECONDS); // wait for completion
+        catch (XMLStreamException | InterruptedException e) {
+            logger.error("Exception during OPML import: {}", e.getMessage(), e);
+            throw e;
+        } finally {
+            reader.close();
+        }
     }
 
     public String exportOpml(){
