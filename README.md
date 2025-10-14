@@ -61,7 +61,6 @@ It allows you to manage all your feeds in one place—without ads, tracking, AI,
 ```bash
 mvn clean install
 ```
-<<<<<<< HEAD
 
 Run the application:
 
@@ -83,29 +82,6 @@ docker build -t ghcr.io/felixzmn/docker/feedbox:$VERSION .
 docker push ghcr.io/felixzmn/docker/feedbox:$VERSION
 ```
 
-=======
-
-Run the application:
-
-```bash
-PG_USER=user \
-PG_PASSWORD=password \
-PG_HOST=127.0.0.1 \
-PG_PORT=5432 \
-PG_DB=postgres \
-java -jar target/feedBox.jar
-```
-
-Build and push Docker image:
-
-```bash
-VERSION=$(grep -m1 '<version>' pom.xml | sed -E 's/.*<version>([^<]+)<\/version>.*/\1/')
-
-docker build -t ghcr.io/felixzmn/docker/feedbox:$VERSION .
-docker push ghcr.io/felixzmn/docker/feedbox:$VERSION
-```
-
->>>>>>> e08e430 (docs: README)
 Running with Docker
 
 ```bash
@@ -144,7 +120,7 @@ helm install feedbox oci://ghcr.io/felixzmn/helm/feedbox --version <VERSION>
 # Configuration
 
 | Variable       | Required | Description           | Default |
-| -------------- | -------- | --------------------- | ------- |
+|----------------|----------|-----------------------|---------|
 | `PG_USER`      | yes      | Database user         |         |
 | `PG_PASSWORD`  | yes      | Database password     |         |
 | `PG_HOST`      | yes      | Database host         |         |
