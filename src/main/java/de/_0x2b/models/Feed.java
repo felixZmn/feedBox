@@ -12,8 +12,10 @@ public class Feed {
     int id;
     int folderId;
     String name;
-    @JsonSerialize(using = ToStringSerializer.class) URI url;
-    @JsonSerialize(using = ToStringSerializer.class) URI feedUrl;
+    @JsonSerialize(using = ToStringSerializer.class)
+    URI url;
+    @JsonSerialize(using = ToStringSerializer.class)
+    URI feedUrl;
     Icon icon;
 
     @JsonCreator

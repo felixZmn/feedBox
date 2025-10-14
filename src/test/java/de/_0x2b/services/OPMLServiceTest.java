@@ -97,7 +97,7 @@ public class OPMLServiceTest {
     }
 
     @Test
-    void importFeedTest() throws XMLStreamException {
+    void importFeedTest() throws XMLStreamException, InterruptedException {
         var firstFeed = new Feed(-1, 0, "Deutsche Welle: DW.com Deutsch", URI.create("https://rss.dw.com/xml/rss-de-all"), URI.create("https://rss.dw.com/xml/rss-de-all"));
         var secondFeed = new Feed(-1, 0, "WIRED", URI.create("https://www.wired.com/feed/rss"), URI.create("https://www.wired.com/feed/rss"));
 
@@ -116,7 +116,7 @@ public class OPMLServiceTest {
     }
 
     @Test
-    void importSingleFolderTest() throws XMLStreamException {
+    void importSingleFolderTest() throws XMLStreamException, InterruptedException {
         var firstFeed = new Feed(-1, 1, "Deutsche Welle: DW.com Deutsch", URI.create("https://rss.dw.com/xml/rss-de-all"), URI.create("https://rss.dw.com/xml/rss-de-all"));
         var secondFeed = new Feed(-1, 1, "WIRED", URI.create("https://www.wired.com/feed/rss"), URI.create("https://www.wired.com/feed/rss"));
         var firstFolder = new Folder(-1, "folder1", null, "f-base");
@@ -145,7 +145,7 @@ public class OPMLServiceTest {
     }
 
     @Test
-    void importMultipleTest() throws XMLStreamException {
+    void importMultipleTest() throws XMLStreamException, InterruptedException {
         var firstFeed = new Feed(-1, 1, "Deutsche Welle: DW.com Deutsch", URI.create("https://rss.dw.com/xml/rss-de-all"), URI.create("https://rss.dw.com/xml/rss-de-all"));
         var secondFeed = new Feed(-1, 1, "WIRED", URI.create("https://www.wired.com/feed/rss"), URI.create("https://www.wired.com/feed/rss"));
         var thirdFeed = new Feed(-1, 2, "https://danluu.com/atom.xml", URI.create("https://danluu.com/atom.xml"), URI.create("https://danluu.com/atom.xml"));
@@ -180,7 +180,7 @@ public class OPMLServiceTest {
     }
 
     @Test
-    void importNestedTest() throws XMLStreamException {
+    void importNestedTest() throws XMLStreamException, InterruptedException {
         var firstFeed = new Feed(-1, 1, "Deutsche Welle: DW.com Deutsch", URI.create("https://rss.dw.com/xml/rss-de-all"), URI.create("https://rss.dw.com/xml/rss-de-all"));
         var secondFeed = new Feed(-1, 1, "WIRED", URI.create("https://www.wired.com/feed/rss"), URI.create("https://www.wired.com/feed/rss"));
         var thirdFeed = new Feed(-1, 2, "https://danluu.com/atom.xml", URI.create("https://danluu.com/atom.xml"), URI.create("https://danluu.com/atom.xml"));

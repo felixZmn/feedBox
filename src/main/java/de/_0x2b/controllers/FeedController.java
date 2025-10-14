@@ -9,8 +9,6 @@ import io.javalin.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.FileNotFoundException;
-
 public class FeedController {
     private static final Logger logger = LoggerFactory.getLogger(FeedController.class);
     private final FeedService feedService;
@@ -36,7 +34,7 @@ public class FeedController {
         } catch (DuplicateEntityException e) {
             ctx.status(409).result("Feed with this URL already exists");
             return;
-        } catch (NotFoundException e){
+        } catch (NotFoundException e) {
             ctx.status(404).result("Feed with this URL not found");
             return;
         }

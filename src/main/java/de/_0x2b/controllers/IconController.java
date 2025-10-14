@@ -22,7 +22,7 @@ public class IconController {
         int feedId = Integer.parseInt(ctx.pathParam("id"));
         var foo = iconService.findOneByFeed(feedId);
 
-        if (foo.isEmpty()){
+        if (foo.isEmpty()) {
             ctx.status(404);
             return;
         }

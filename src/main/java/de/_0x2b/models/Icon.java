@@ -60,11 +60,11 @@ public class Icon {
         this.fileName = fileName;
     }
 
-    public String getUrl(){
+    public String getUrl() {
         return this.url;
     }
 
-    public void setUrl(String url){
+    public void setUrl(String url) {
         this.url = url;
     }
 

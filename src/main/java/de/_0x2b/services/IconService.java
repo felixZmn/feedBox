@@ -12,130 +12,18 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
 public class IconService {
     private static final Logger logger = LoggerFactory.getLogger(IconService.class);
     private final IconRepository iconRepository;
-    HttpClient client;
 
     public IconService(IconRepository iconRepository) {
         this.iconRepository = iconRepository;
-
-        client = HttpClient.newBuilder()
-                .followRedirects(HttpClient.Redirect.ALWAYS)
-                .connectTimeout(Duration.ofSeconds(30))
-                .build();
-    }
-
-    public List<Icon> findOneByFeed(int id){
-        logger.debug("findOne");
-        var icon = iconRepository.findOneByFeed(id);
-        if (icon.isEmpty()){
-            return getDefaultIcon();
-        }
-        return icon;
-    }
-
-    public void findIcon(Feed feed){
-        var baseURL = feed.getFeedURI().getScheme() + "://"+ feed.getFeedURI().getHost();
-
-        HttpRequest request = HttpRequest.newBuilder(URI.create(baseURL))
-                .GET()
-                .timeout(Duration.ofSeconds(30))
-                .build();
-        HttpResponse<byte[]> response = null;
-        try {
-            response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
-        } catch (IOException | InterruptedException e) {
-            System.out.println("oh shit!");
-            return;
-        }
-
-        if (response.statusCode() >= 400) {
-            logger.warn("cannot fetch {}", baseURL);
-            return;
-        }
-        var contentType = response.headers().firstValue("Content-Type").orElse("");
-        var charset = getCharsetFromContentType(contentType);
-        var iconUrl = parseHtml(new String(response.body(), charset));
-        var url = "";
-        if (iconUrl.getHost() != null){
-            url = iconUrl.toString();
-        } else {
-            url = response.uri().getScheme() + "://"+ response.uri().getHost() + (iconUrl.getPath().startsWith("/") ? "" : "/")+ iconUrl.getPath();
-        }
-
-        var icon = fetchFavicon(new Icon(-1, feed.getId(), null, "", "", url));
-        create(icon);
-    }
-
-    private URI parseHtml(String content){
-        if (content == null || content.isBlank()) {
-            return URI.create("/favicon.ico");
-        }
-
-        try {
-            Document doc = Jsoup.parse(content);
-            for (Element link : doc.select("link")) {
-                System.out.println("rel=" + link.attr("rel") + " href=" + link.attr("href"));
-            }
-            Element link = doc.selectFirst("link[rel~=icon]");
-            if (link != null) {
-                String href = link.attr("href");
-                if (!href.isBlank()) {
-                    return URI.create(href.trim());
-                }
-            }
-        } catch (Exception e) {
-            // do something
-            System.out.println("oh no!");
-        }
-
-        return URI.create("/favicon.ico");
-    }
-
-    public Icon fetchFavicon(Icon icon)  {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(icon.getUrl()))
-                .GET()
-                .build();
-        try {
-            HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
-            if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                icon.setImage(response.body());
-                icon.setMimeType(response.headers().map().get("content-type").getFirst());
-                return icon;
-            } else {
-                logger.error("Failed to fetch favicon: HTTP {}", response.statusCode());
-                return null;
-            }
-        } catch (IOException | InterruptedException e) {
-            logger.error("Error fetching favicon {}", e.getMessage());
-        }
-        return null;
-    }
-
-    public void create(Icon icon){
-        logger.debug("insert");
-        iconRepository.create(icon);
-    }
-
-    public List<Icon> getDefaultIcon()  {
-        ArrayList<Icon> icons = new ArrayList<>();
-        try(InputStream is = getClass().getResourceAsStream("/static/icons/rss.svg")){
-            icons.add(new Icon(-1, -1, is.readAllBytes(), "image/svg+xml", "icon.svg", ""));
-        } catch (IOException e){
-            logger.error("Error reading default feed icon");
-        }
-        return icons;
     }
 
     /**
@@ -172,5 +60,114 @@ public class IconService {
 
         // If no charset param found, return default charset
         return StandardCharsets.UTF_8;
+    }
+
+    public List<Icon> findOneByFeed(int id) {
+        logger.debug("findOne");
+        var icon = iconRepository.findOneByFeed(id);
+        if (icon.isEmpty()) {
+            return getDefaultIcon();
+        }
+        return icon;
+    }
+
+    public void findIcon(Feed feed) {
+        var urls = constructHtmlUris(feed);
+
+        for (URI uri : urls) {
+            var response = HTTPSService.getInstance().fetchURI(uri);
+            if (response == null) {
+                continue; // try next url
+            }
+            var charset = getCharsetFromContentType(response.headers().firstValue("Content-Type").orElse(""));
+            var iconUrl = parseHtml(new String(response.body(), charset));
+
+            var url = "";
+            if (iconUrl.getHost() != null) {
+                url = iconUrl.toString();
+            } else {
+                url = response.uri().getScheme() + "://" + response.uri().getHost() + (iconUrl.getPath().startsWith("/") ? "" : "/") + iconUrl.getPath();
+            }
+            var icon = fetchFavicon(new Icon(-1, feed.getId(), null, "", "", url));
+
+            if (icon.getImage() != null) {
+                create(icon);
+                return; // icon stored; break
+            }
+        }
+    }
+
+    /**
+     * Helper method to construct a list of urls to check for a reference to a favicon
+     *
+     * @param feed feed to use as a base
+     * @return list of uris to use to search a favicon
+     */
+    private List<URI> constructHtmlUris(Feed feed) {
+        var iconUris = new ArrayList<URI>();
+        iconUris.add(URI.create(feed.getFeedURI().getScheme() + "://" + feed.getFeedURI().getHost()));
+        return iconUris;
+    }
+
+    /**
+     * Helper method to filter favicon links from a given html page
+     *
+     * @param content html to search
+     * @return first found favicon url
+     */
+    private URI parseHtml(String content) {
+        if (content == null || content.isBlank()) {
+            return URI.create("/favicon.ico");
+        }
+
+        try {
+            Document doc = Jsoup.parse(content);
+            Element link = doc.selectFirst("link[rel~=icon]");
+            if (link != null) {
+                String href = link.attr("href");
+                if (!href.isBlank()) {
+                    return URI.create(href.trim());
+                }
+            }
+        } catch (Exception e) {
+            // do something
+            System.out.println("oh no!");
+        }
+
+        return URI.create("/favicon.ico");
+    }
+
+    /**
+     * Method to fetch a favicon from a given url
+     *
+     * @param icon Icon object that contains the url - other fields are not relevant
+     * @return Icon object that, in case of success is filled with icon data
+     */
+    public Icon fetchFavicon(Icon icon) {
+        HttpResponse<byte[]> response = HTTPSService.getInstance().fetchURI(URI.create(icon.getUrl()));
+
+        if (response == null) {
+            logger.error("Failed to fetch favicon");
+            return icon;
+        }
+
+        icon.setImage(response.body());
+        icon.setMimeType(response.headers().map().get("content-type").getFirst());
+        return icon;
+    }
+
+    public void create(Icon icon) {
+        logger.debug("insert");
+        iconRepository.create(icon);
+    }
+
+    public List<Icon> getDefaultIcon() {
+        ArrayList<Icon> icons = new ArrayList<>();
+        try (InputStream is = getClass().getResourceAsStream("/static/icons/rss.svg")) {
+            icons.add(new Icon(-1, -1, is.readAllBytes(), "image/svg+xml", "icon.svg", ""));
+        } catch (IOException e) {
+            logger.error("Error reading default feed icon");
+        }
+        return icons;
     }
 }

@@ -50,6 +50,17 @@ public class OPMLService {
         this.feedService = feedService;
     }
 
+    public static String documentToString(Document document) throws TransformerException {
+        TransformerFactory transformerFactory = TransformerFactory.newInstance();
+        Transformer transformer = transformerFactory.newTransformer();
+
+        StringWriter stringWriter = new StringWriter();
+        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+        transformer.transform(new DOMSource(document), new StreamResult(stringWriter));
+        return stringWriter.toString();
+    }
+
     public void importOPML(InputStream stream) throws XMLStreamException, InterruptedException {
         logger.debug("importOPML");
 
@@ -136,8 +147,7 @@ public class OPMLService {
                 logger.warn("Timeout waiting for feed creation tasks, cancelling remaining tasks");
                 pool.shutdownNow();
             }
-        }
-        catch (XMLStreamException | InterruptedException e) {
+        } catch (XMLStreamException | InterruptedException e) {
             logger.error("Exception during OPML import: {}", e.getMessage(), e);
             throw e;
         } finally {
@@ -145,7 +155,7 @@ public class OPMLService {
         }
     }
 
-    public String exportOpml(){
+    public String exportOpml() {
         var result = folderService.findAll();
         Document doc = null;
         try {
@@ -198,29 +208,18 @@ public class OPMLService {
         return doc;
     }
 
-    private Element createFolderElement(Document doc, Folder folder){
+    private Element createFolderElement(Document doc, Folder folder) {
         var el = doc.createElement("outline");
         el.setAttribute("text", folder.getName());
         return el;
     }
 
-    private Element createFeedElement(Document doc, Feed feed){
+    private Element createFeedElement(Document doc, Feed feed) {
         var el = doc.createElement("outline");
         el.setAttribute("text", feed.getName());
         el.setAttribute("type", "rss");
         el.setAttribute("xmlUrl", feed.getFeedURI().toString());
         el.setAttribute("htmlUrl", feed.getURI().toString());
         return el;
-    }
-
-    public static String documentToString(Document document) throws TransformerException {
-        TransformerFactory transformerFactory = TransformerFactory.newInstance();
-        Transformer transformer = transformerFactory.newTransformer();
-
-        StringWriter stringWriter = new StringWriter();
-        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
-        transformer.transform(new DOMSource(document), new StreamResult(stringWriter));
-        return stringWriter.toString();
     }
 }

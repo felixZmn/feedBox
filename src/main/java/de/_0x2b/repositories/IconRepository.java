@@ -23,7 +23,7 @@ public class IconRepository {
             INSERT INTO icon (feed_id, mime_type, file_name, image) VALUES (?, ?, ?, ?) RETURNING id
             """;
 
-    public List<Icon> findOneByFeed(int id){
+    public List<Icon> findOneByFeed(int id) {
         logger.debug("findOneByFeed");
 
         try (Connection conn = Database.getConnection();
@@ -39,10 +39,10 @@ public class IconRepository {
         return List.of();
     }
 
-    public int create(Icon icon){
+    public int create(Icon icon) {
         logger.debug("create");
-        try(Connection conn = Database.getConnection();
-            PreparedStatement stmt = conn.prepareStatement(INSERT_ONE)) {
+        try (Connection conn = Database.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(INSERT_ONE)) {
 
             stmt.setInt(1, icon.getFeedId());
             stmt.setString(2, icon.getMimeType());
