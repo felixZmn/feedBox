@@ -20,15 +20,16 @@ public class IconController {
 
     private void getIconByFeedId(Context ctx) {
         int feedId = Integer.parseInt(ctx.pathParam("id"));
-        var foo = iconService.findOneByFeed(feedId);
+        var icon = iconService.findOneByFeed(feedId);
 
-        if (foo.isEmpty()) {
+        if (icon.isEmpty()) {
             ctx.status(404);
             return;
         }
 
-        ctx.header("Content-Type", foo.getFirst().getMimeType());
-        ctx.result(foo.getFirst().getImage());
+        ctx.header("Content-Type", icon.getFirst().getMimeType());
+        ctx.header("Cache-Control", "max-age: public, max-age=86400");
+        ctx.result(icon.getFirst().getImage());
         ctx.status(200);
     }
 }

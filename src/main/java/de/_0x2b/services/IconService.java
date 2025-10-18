@@ -105,7 +105,16 @@ public class IconService {
      */
     private List<URI> constructHtmlUris(Feed feed) {
         var iconUris = new ArrayList<URI>();
-        iconUris.add(URI.create(feed.getFeedURI().getScheme() + "://" + feed.getFeedURI().getHost()));
+
+        var scheme = feed.getURI().getScheme();
+        if (scheme == null) {
+            scheme = "https";
+        }
+
+        var host = feed.getURI().getHost();
+        var path = feed.getURI().getPath();
+
+        iconUris.add(URI.create(scheme + "://" + host + path ));
         return iconUris;
     }
 
@@ -129,9 +138,12 @@ public class IconService {
                     return URI.create(href.trim());
                 }
             }
+
+            // try <icon></icon>
+            return URI.create(doc.selectFirst("icon").childNode(0).toString());
         } catch (Exception e) {
             // do something
-            System.out.println("oh no!");
+            System.out.println("Error while searching html for icon url");
         }
 
         return URI.create("/favicon.ico");

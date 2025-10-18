@@ -44,7 +44,7 @@ public class HTTPSService {
         }
 
         if (response.statusCode() >= 400) {
-            logger.error("cannot fetch {}", uri);
+            logger.error("cannot fetch {}; status code {}", uri, response.statusCode());
             return null;
         }
         return response;
