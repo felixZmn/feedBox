@@ -23,8 +23,14 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 record OutlineContext(String type, Integer folderId) {
 }
@@ -44,54 +50,112 @@ public class OPMLService {
         this.feedService = feedService;
     }
 
-    public void importOPML(InputStream stream) throws XMLStreamException {
+    public static String documentToString(Document document) throws TransformerException {
+        TransformerFactory transformerFactory = TransformerFactory.newInstance();
+        Transformer transformer = transformerFactory.newTransformer();
+
+        StringWriter stringWriter = new StringWriter();
+        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+        transformer.transform(new DOMSource(document), new StreamResult(stringWriter));
+        return stringWriter.toString();
+    }
+
+    public void importOPML(InputStream stream) throws XMLStreamException, InterruptedException {
         logger.debug("importOPML");
+
         XMLEventReader reader = XMLInputFactory.newInstance().createXMLEventReader(stream);
 
-        Stack<OutlineContext> contextStack = new Stack<>();
-        contextStack.push(new OutlineContext("root", 0));
+        try (ExecutorService pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2)) {
+            List<Future<?>> futures = new ArrayList<>();
+            Stack<OutlineContext> contextStack = new Stack<>();
+            contextStack.push(new OutlineContext("root", 0));
 
-        while (reader.hasNext()) {
-            var event = reader.nextEvent();
+            while (reader.hasNext()) {
+                var event = reader.nextEvent();
 
-            if (event.isStartElement() && "outline".equals(event.asStartElement().getName().getLocalPart())) {
-                var workingEvent = event.asStartElement();
+                if (event.isStartElement() && "outline".equals(event.asStartElement().getName().getLocalPart())) {
+                    var startElement = event.asStartElement();
+                    var typeAttr = startElement.getAttributeByName(ATTR_TYPE);
 
-                var type = workingEvent.getAttributeByName(ATTR_TYPE);
-                if (type == null) {
-                    // folder
-                    int folderId;
-                    var name = workingEvent.getAttributeByName(ATTR_TEXT).getValue();
-                    try {
-                        folderId = folderService.create(new Folder(-1, name, null, "f-base"));
-                    } catch (DuplicateEntityException e){
-                        // ignore & query id
-                        folderId = folderService.findByName(name).getFirst().getId();
+                    if (typeAttr == null) {
+                        // Folder
+                        var textAttr = startElement.getAttributeByName(ATTR_TEXT);
+                        if (textAttr == null) {
+                            logger.warn("Folder outline missing 'text' attribute; skipping this outline.");
+                            continue;
+                        }
+                        var name = textAttr.getValue();
+                        int folderId;
+
+                        try {
+                            folderId = folderService.create(new Folder(-1, name, null, "f-base"));
+                        } catch (DuplicateEntityException e) {
+                            logger.debug("Folder '{}' already exists; querying existing ID.", name);
+                            var optFolder = folderService.findByName(name).stream().findFirst();
+                            if (optFolder.isPresent()) {
+                                folderId = optFolder.get().getId();
+                            } else {
+                                logger.error("Folder '{}' not found after DuplicateEntityException; skipping.", name);
+                                continue;
+                            }
+                        }
+                        contextStack.push(new OutlineContext("folder", folderId));
+                    } else if ("rss".equals(typeAttr.getValue())) {
+                        // rss feed
+                        var textAttr = startElement.getAttributeByName(ATTR_TEXT);
+                        var xmlUrlAttr = startElement.getAttributeByName(ATTR_XMLURL);
+                        var htmlUrlAttr = startElement.getAttributeByName(ATTR_HTMLURL);
+
+                        if (textAttr == null || xmlUrlAttr == null || htmlUrlAttr == null) {
+                            logger.warn("RSS feed outline missing one of 'text', 'xmlUrl' or 'htmlUrl'; skipping.");
+                            continue;
+                        }
+
+                        String name = textAttr.getValue();
+                        URI xmlUrl = URI.create(xmlUrlAttr.getValue());
+                        URI htmlUrl = URI.create(htmlUrlAttr.getValue());
+                        Integer parentFolderId = contextStack.peek().folderId();
+
+                        futures.add(pool.submit(() -> {
+                            try {
+                                feedService.create(new Feed(-1, parentFolderId, name, htmlUrl, xmlUrl));
+                            } catch (DuplicateEntityException e) {
+                                logger.debug("Feed '{}' already exists; ignoring duplicate.", name);
+                            } catch (Exception ex) {
+                                logger.error("Exception creating feed '{}': {}", name, ex.getMessage(), ex);
+                            }
+                        }));
+                        // Feeds do NOT open new folder context, so no push.
+                        contextStack.push(new OutlineContext("feed", null)); // feeds don't open new folders
+                    } else {
+                        logger.info("Found not implemented feed type '{}'; skipping.", typeAttr.getValue());
+                        // No stack push for unimplemented types either
+                        contextStack.push(new OutlineContext("feed", null));
                     }
-                    contextStack.push(new OutlineContext("folder", folderId));
-                } else if ("rss".equals(type.getValue())) {
-                    // rss feed
-                    var name = workingEvent.getAttributeByName(ATTR_TEXT).getValue();
-                    var xmlUrl = workingEvent.getAttributeByName(ATTR_XMLURL).getValue();
-                    var htmlUrl = workingEvent.getAttributeByName(ATTR_HTMLURL).getValue();
-                    try {
-                        feedService.create(new Feed(-1, contextStack.peek().folderId(), name, htmlUrl, xmlUrl));
-                    } catch (DuplicateEntityException e){
-                        // ignore
+                } else if (event.isEndElement() && "outline".equals(event.asEndElement().getName().getLocalPart())) {
+                    if (!contextStack.isEmpty()) {
+                        contextStack.pop();
+                    } else {
+                        logger.warn("Outline end element encountered but context stack was empty.");
                     }
-                    contextStack.push(new OutlineContext("feed", null)); // feeds don't open new folders
-                } else {
-                    // not implemented type
-                    logger.info("Found not implemented feed type {}", type.getValue());
-                    contextStack.push(new OutlineContext("feed", null));
                 }
-            } else if (event.isEndElement() && "outline".equals(event.asEndElement().getName().getLocalPart())) {
-                contextStack.pop();
             }
+
+            pool.shutdown();
+            if (!pool.awaitTermination(60, TimeUnit.SECONDS)) {
+                logger.warn("Timeout waiting for feed creation tasks, cancelling remaining tasks");
+                pool.shutdownNow();
+            }
+        } catch (XMLStreamException | InterruptedException e) {
+            logger.error("Exception during OPML import: {}", e.getMessage(), e);
+            throw e;
+        } finally {
+            reader.close();
         }
     }
 
-    public String exportOpml(){
+    public String exportOpml() {
         var result = folderService.findAll();
         Document doc = null;
         try {
@@ -144,29 +208,18 @@ public class OPMLService {
         return doc;
     }
 
-    private Element createFolderElement(Document doc, Folder folder){
+    private Element createFolderElement(Document doc, Folder folder) {
         var el = doc.createElement("outline");
         el.setAttribute("text", folder.getName());
         return el;
     }
 
-    private Element createFeedElement(Document doc, Feed feed){
+    private Element createFeedElement(Document doc, Feed feed) {
         var el = doc.createElement("outline");
         el.setAttribute("text", feed.getName());
         el.setAttribute("type", "rss");
-        el.setAttribute("xmlUrl", feed.getFeedUrl());
-        el.setAttribute("htmlUrl", feed.getUrl());
+        el.setAttribute("xmlUrl", feed.getFeedURI().toString());
+        el.setAttribute("htmlUrl", feed.getURI().toString());
         return el;
-    }
-
-    public static String documentToString(Document document) throws TransformerException {
-        TransformerFactory transformerFactory = TransformerFactory.newInstance();
-        Transformer transformer = transformerFactory.newTransformer();
-
-        StringWriter stringWriter = new StringWriter();
-        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
-        transformer.transform(new DOMSource(document), new StreamResult(stringWriter));
-        return stringWriter.toString();
     }
 }

@@ -11,6 +11,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.transform.TransformerException;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
@@ -96,9 +97,9 @@ public class OPMLServiceTest {
     }
 
     @Test
-    void importFeedTest() throws XMLStreamException {
-        var firstFeed = new Feed(-1, 0, "Deutsche Welle: DW.com Deutsch", "https://rss.dw.com/xml/rss-de-all", "https://rss.dw.com/xml/rss-de-all");
-        var secondFeed = new Feed(-1, 0, "WIRED", "https://www.wired.com/feed/rss", "https://www.wired.com/feed/rss");
+    void importFeedTest() throws XMLStreamException, InterruptedException {
+        var firstFeed = new Feed(-1, 0, "Deutsche Welle: DW.com Deutsch", URI.create("https://rss.dw.com/xml/rss-de-all"), URI.create("https://rss.dw.com/xml/rss-de-all"));
+        var secondFeed = new Feed(-1, 0, "WIRED", URI.create("https://www.wired.com/feed/rss"), URI.create("https://www.wired.com/feed/rss"));
 
         String xml = opmlStart + feeds + opmlEnd;
         InputStream stream = new ByteArrayInputStream(xml.getBytes(Charset.defaultCharset()));
@@ -115,9 +116,9 @@ public class OPMLServiceTest {
     }
 
     @Test
-    void importSingleFolderTest() throws XMLStreamException {
-        var firstFeed = new Feed(-1, 1, "Deutsche Welle: DW.com Deutsch", "https://rss.dw.com/xml/rss-de-all", "https://rss.dw.com/xml/rss-de-all");
-        var secondFeed = new Feed(-1, 1, "WIRED", "https://www.wired.com/feed/rss", "https://www.wired.com/feed/rss");
+    void importSingleFolderTest() throws XMLStreamException, InterruptedException {
+        var firstFeed = new Feed(-1, 1, "Deutsche Welle: DW.com Deutsch", URI.create("https://rss.dw.com/xml/rss-de-all"), URI.create("https://rss.dw.com/xml/rss-de-all"));
+        var secondFeed = new Feed(-1, 1, "WIRED", URI.create("https://www.wired.com/feed/rss"), URI.create("https://www.wired.com/feed/rss"));
         var firstFolder = new Folder(-1, "folder1", null, "f-base");
 
         String xml = opmlStart + folder1 + opmlEnd;
@@ -144,11 +145,11 @@ public class OPMLServiceTest {
     }
 
     @Test
-    void importMultipleTest() throws XMLStreamException {
-        var firstFeed = new Feed(-1, 1, "Deutsche Welle: DW.com Deutsch", "https://rss.dw.com/xml/rss-de-all", "https://rss.dw.com/xml/rss-de-all");
-        var secondFeed = new Feed(-1, 1, "WIRED", "https://www.wired.com/feed/rss", "https://www.wired.com/feed/rss");
-        var thirdFeed = new Feed(-1, 2, "https://danluu.com/atom.xml", "https://danluu.com/atom.xml", "https://danluu.com/atom.xml");
-        var fourthFeed = new Feed(-1, 2, "IT_Fettchen", "https://it-fettchen.micro.blog/", "https://it-fettchen.de/rss/");
+    void importMultipleTest() throws XMLStreamException, InterruptedException {
+        var firstFeed = new Feed(-1, 1, "Deutsche Welle: DW.com Deutsch", URI.create("https://rss.dw.com/xml/rss-de-all"), URI.create("https://rss.dw.com/xml/rss-de-all"));
+        var secondFeed = new Feed(-1, 1, "WIRED", URI.create("https://www.wired.com/feed/rss"), URI.create("https://www.wired.com/feed/rss"));
+        var thirdFeed = new Feed(-1, 2, "https://danluu.com/atom.xml", URI.create("https://danluu.com/atom.xml"), URI.create("https://danluu.com/atom.xml"));
+        var fourthFeed = new Feed(-1, 2, "IT_Fettchen", URI.create("https://it-fettchen.micro.blog/"), URI.create("https://it-fettchen.de/rss/"));
         var firstFolder = new Folder(-1, "folder1", null, "f-base");
         var secondFolder = new Folder(-1, "folder2", null, "f-base");
 
@@ -179,11 +180,11 @@ public class OPMLServiceTest {
     }
 
     @Test
-    void importNestedTest() throws XMLStreamException {
-        var firstFeed = new Feed(-1, 1, "Deutsche Welle: DW.com Deutsch", "https://rss.dw.com/xml/rss-de-all", "https://rss.dw.com/xml/rss-de-all");
-        var secondFeed = new Feed(-1, 1, "WIRED", "https://www.wired.com/feed/rss", "https://www.wired.com/feed/rss");
-        var thirdFeed = new Feed(-1, 2, "https://danluu.com/atom.xml", "https://danluu.com/atom.xml", "https://danluu.com/atom.xml");
-        var fourthFeed = new Feed(-1, 2, "IT_Fettchen", "https://it-fettchen.micro.blog/", "https://it-fettchen.de/rss/");
+    void importNestedTest() throws XMLStreamException, InterruptedException {
+        var firstFeed = new Feed(-1, 1, "Deutsche Welle: DW.com Deutsch", URI.create("https://rss.dw.com/xml/rss-de-all"), URI.create("https://rss.dw.com/xml/rss-de-all"));
+        var secondFeed = new Feed(-1, 1, "WIRED", URI.create("https://www.wired.com/feed/rss"), URI.create("https://www.wired.com/feed/rss"));
+        var thirdFeed = new Feed(-1, 2, "https://danluu.com/atom.xml", URI.create("https://danluu.com/atom.xml"), URI.create("https://danluu.com/atom.xml"));
+        var fourthFeed = new Feed(-1, 2, "IT_Fettchen", URI.create("https://it-fettchen.micro.blog/"), URI.create("https://it-fettchen.de/rss/"));
         var outer = new Folder(-1, "outer", null, "f-base");
         var inner = new Folder(-1, "inner", null, "f-base");
 
@@ -220,11 +221,11 @@ public class OPMLServiceTest {
         List<Feed> rootFeeds = new ArrayList<>();
         List<Folder> folders = new ArrayList<>();
 
-        rootFeeds.add(new Feed(1, 0, "Deutsche Welle: DW.com Deutsch", "https://www.dw.com/de", "https://feed.dw.com/de"));
-        techFeeds.add(new Feed(2, 1, "Arstechnica", "https://arstechnica.com", "https://feed.arstechnica.com"));
-        techFeeds.add(new Feed(3, 1, "Hackaday", "https://hackaday.com", "https://feed.hackaday.com"));
-        sportsFeeds.add(new Feed(4, 2, "NFL | The Guardian", "https://www.theguardian.com/sport", "https://feed.theguardian.com/sport"));
-        sportsFeeds.add(new Feed(5, 2, "www.espn.com - NFL", "https://www.espn.com/nfl", "https://feed.espn.com/nfl"));
+        rootFeeds.add(new Feed(1, 0, "Deutsche Welle: DW.com Deutsch", URI.create("https://www.dw.com/de"), URI.create("https://feed.dw.com/de")));
+        techFeeds.add(new Feed(2, 1, "Arstechnica", URI.create("https://arstechnica.com"), URI.create("https://feed.arstechnica.com")));
+        techFeeds.add(new Feed(3, 1, "Hackaday", URI.create("https://hackaday.com"), URI.create("https://feed.hackaday.com")));
+        sportsFeeds.add(new Feed(4, 2, "NFL | The Guardian", URI.create("https://www.theguardian.com/sport"), URI.create("https://feed.theguardian.com/sport")));
+        sportsFeeds.add(new Feed(5, 2, "www.espn.com - NFL", URI.create("https://www.espn.com/nfl"), URI.create("https://feed.espn.com/nfl")));
 
         folders.add(new Folder(0, "", rootFeeds, "f-base"));
         folders.add(new Folder(1, "tech", techFeeds, "f-base"));

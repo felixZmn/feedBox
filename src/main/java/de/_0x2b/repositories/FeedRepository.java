@@ -6,6 +6,7 @@ import de._0x2b.models.Feed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -39,8 +40,8 @@ public class FeedRepository {
 
             stmt.setInt(1, feed.getFolderId());
             stmt.setString(2, feed.getName());
-            stmt.setString(3, feed.getUrl());
-            stmt.setString(4, feed.getFeedUrl());
+            stmt.setString(3, feed.getURI().toString());
+            stmt.setString(4, feed.getFeedURI().toString());
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     return rs.getInt("id");
@@ -62,8 +63,8 @@ public class FeedRepository {
 
             stmt.setInt(1, feed.getFolderId());
             stmt.setString(2, feed.getName());
-            stmt.setString(3, feed.getUrl());
-            stmt.setString(4, feed.getFeedUrl());
+            stmt.setString(3, feed.getURI().toString());
+            stmt.setString(4, feed.getFeedURI().toString());
             stmt.setInt(5, feed.getId());
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -125,8 +126,8 @@ public class FeedRepository {
         logger.debug("parseResult");
         List<Feed> feeds = new ArrayList<>();
         while (rs.next()) {
-            feeds.add(new Feed(rs.getInt("id"), rs.getInt("folder_id"), rs.getString("name"), rs.getString("url"),
-                    rs.getString("feed_url")));
+            feeds.add(new Feed(rs.getInt("id"), rs.getInt("folder_id"), rs.getString("name"), URI.create(rs.getString("url")),
+                    URI.create(rs.getString("feed_url"))));
         }
         return feeds;
     }
