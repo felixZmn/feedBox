@@ -41,20 +41,20 @@ public class IconService {
         // Split the header into parts separated by ';'
         String[] parts = contentType.split(";");
         for (String part : parts) {
-            part = part.trim();
+            part = part.trim().toLowerCase();
             // Check if part starts with "charset="
-            if (part.toLowerCase().startsWith("charset=")) {
-                String charsetName = part.substring("charset=".length()).trim();
-                // Remove quotes if present
-                if (charsetName.startsWith("\"") && charsetName.endsWith("\"") && charsetName.length() > 1) {
-                    charsetName = charsetName.substring(1, charsetName.length() - 1);
-                }
-                try {
-                    return Charset.forName(charsetName);
-                } catch (Exception e) {
-                    // Unsupported charset, fallback to default
-                    return StandardCharsets.UTF_8;
-                }
+            if (!part.toLowerCase().startsWith("charset=")){
+                continue;
+            }
+            String charsetName = part.substring("charset=".length()).trim();
+            // Remove quotes if present
+            charsetName = charsetName.startsWith("\"") ? charsetName.substring(1) : charsetName;
+            charsetName = charsetName.endsWith("\"") ? charsetName.substring(0, charsetName.length() - 1) : charsetName;
+            try {
+                return Charset.forName(charsetName);
+            } catch (Exception e) {
+                // Unsupported charset, fallback to default
+                return StandardCharsets.UTF_8;
             }
         }
 
