@@ -5,10 +5,8 @@ import de._0x2b.database.Database;
 import de._0x2b.repositories.ArticleRepository;
 import de._0x2b.repositories.FeedRepository;
 import de._0x2b.repositories.FolderRepository;
-import de._0x2b.services.ArticleService;
-import de._0x2b.services.FeedService;
-import de._0x2b.services.FolderService;
-import de._0x2b.services.OPMLService;
+import de._0x2b.repositories.IconRepository;
+import de._0x2b.services.*;
 import io.javalin.Javalin;
 import io.javalin.http.staticfiles.Location;
 import org.slf4j.Logger;
@@ -25,6 +23,8 @@ public class FeedBox {
 
     public static void main(String[] args) throws SQLException {
         var variables = getVariables();
+        System.setProperty("jdk.xml.totalEntitySizeLimit", "500000");
+        System.setProperty("jdk.xml.maxGeneralEntitySizeLimit", "500000");
 
         logger.info("Using database at {}:{}/{}", variables.get("dbHost"), variables.get("dbPort"),
                 variables.get("dbName"));
@@ -49,10 +49,12 @@ public class FeedBox {
         var articleRepository = new ArticleRepository();
         var feedRepository = new FeedRepository();
         var folderRepository = new FolderRepository();
+        var iconRepository = new IconRepository();
 
         var articleService = new ArticleService(articleRepository);
-        var feedService = new FeedService(feedRepository, articleRepository);
         var folderService = new FolderService(folderRepository);
+        var iconService = new IconService(iconRepository);
+        var feedService = new FeedService(iconService, feedRepository, articleRepository);
         var opmlService = new OPMLService(folderService, feedService);
 
         var articleController = new ArticleController(articleService);
@@ -60,12 +62,14 @@ public class FeedBox {
         var folderController = new FolderController(folderService);
         var healthController = new HealthController();
         var opmlController = new OPMLController(opmlService);
+        var iconController = new IconController(iconService);
 
         articleController.registerRoutes(app);
         opmlController.registerRoutes(app);
         folderController.registerRoutes(app);
         feedController.registerRoutes(app);
         healthController.registerRoutes(app);
+        iconController.registerRoutes(app);
 
         // set up periodic refresh; for now only via env var configurable
         var refreshRate = Integer.parseInt(variables.get("refreshRate"));

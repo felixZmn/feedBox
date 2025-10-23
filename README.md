@@ -78,8 +78,9 @@ Build and push Docker image:
 ```bash
 VERSION=$(grep -m1 '<version>' pom.xml | sed -E 's/.*<version>([^<]+)<\/version>.*/\1/')
 
-docker build -t ghcr.io/felixzmn/docker/feedbox:$VERSION .
+docker build -t ghcr.io/felixzmn/docker/feedbox:$VERSION -t ghcr.io/felixzmn/docker/feedbox:latest .
 docker push ghcr.io/felixzmn/docker/feedbox:$VERSION
+docker push ghcr.io/felixzmn/docker/feedbox:latest
 ```
 
 Running with Docker

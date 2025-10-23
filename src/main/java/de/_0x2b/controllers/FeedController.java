@@ -1,6 +1,7 @@
 package de._0x2b.controllers;
 
 import de._0x2b.exceptions.DuplicateEntityException;
+import de._0x2b.exceptions.NotFoundException;
 import de._0x2b.services.FeedService;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
@@ -26,24 +27,19 @@ public class FeedController {
     private void createFeed(Context ctx) {
         logger.debug("createFeed");
         var params = ctx.bodyAsClass(de._0x2b.models.Feed.class);
-        var feed = feedService.getFeedMetadata(params);
-
-        if (feed.getName().isEmpty()) {
-            ctx.status(404);
-            return;
-        }
 
         int id;
         try {
-            id = feedService.create(feed);
+            id = feedService.create(params);
         } catch (DuplicateEntityException e) {
             ctx.status(409).result("Feed with this URL already exists");
             return;
+        } catch (NotFoundException e) {
+            ctx.status(404).result("Feed with this URL not found");
+            return;
         }
-        feed.setId(id);
-        feedService.refresh(feed.getId());
-
-        ctx.status(201).json(feed);
+        feedService.refresh(id);
+        ctx.status(201);
     }
 
     private void updateFeed(Context ctx) {

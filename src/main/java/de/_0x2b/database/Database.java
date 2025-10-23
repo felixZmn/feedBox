@@ -54,6 +54,14 @@ public class Database {
                     color VARCHAR(255) DEFAULT 'f-base'
                 );
                 
+                CREATE TABLE IF NOT EXISTS icon (
+                    id SERIAL PRIMARY KEY,
+                    feed_id integer,
+                    image BYTEA NOT NULL,
+                    mime_type VARCHAR(255) NOT NULL,
+                    file_name VARCHAR(255) NOT NULL
+                );
+                
                 CREATE TABLE IF NOT EXISTS feed (
                     id SERIAL PRIMARY KEY,
                     folder_id INT NOT NULL,
