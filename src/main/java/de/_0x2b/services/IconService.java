@@ -143,7 +143,7 @@ public class IconService {
             return URI.create(doc.selectFirst("icon").childNode(0).toString());
         } catch (Exception e) {
             // do something
-            System.out.println("Error while searching html for icon url");
+            logger.error("Error while searching html for icon url, error: {}", e.getMessage());
         }
 
         return URI.create("/favicon.ico");
@@ -178,7 +178,7 @@ public class IconService {
         try (InputStream is = getClass().getResourceAsStream("/static/icons/rss.svg")) {
             icons.add(new Icon(-1, -1, is.readAllBytes(), "image/svg+xml", "icon.svg", ""));
         } catch (IOException e) {
-            logger.error("Error reading default feed icon");
+            logger.error("Error reading default feed icon, Error: {}", e.getMessage());
         }
         return icons;
     }
