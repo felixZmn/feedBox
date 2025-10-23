@@ -66,7 +66,7 @@ public class OPMLService {
 
         XMLEventReader reader = XMLInputFactory.newInstance().createXMLEventReader(stream);
 
-        try (ExecutorService pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2)) {
+        try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
             List<Future<?>> futures = new ArrayList<>();
             Stack<OutlineContext> contextStack = new Stack<>();
             contextStack.push(new OutlineContext("root", 0));

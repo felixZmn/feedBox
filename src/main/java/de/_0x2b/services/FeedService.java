@@ -69,11 +69,7 @@ public class FeedService {
     private void refresh(List<Feed> feeds) {
         logger.info("Refreshing Feeds...");
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            feeds.forEach(feed -> {
-                executor.submit(() -> {
-                    parseFeed(feed);
-                });
-            });
+            feeds.forEach(feed -> executor.submit(() -> parseFeed(feed)));
         }
         logger.info("Feeds refreshed!");
     }

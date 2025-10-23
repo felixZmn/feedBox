@@ -54,14 +54,6 @@ public class Database {
                     color VARCHAR(255) DEFAULT 'f-base'
                 );
                 
-                CREATE TABLE IF NOT EXISTS icon (
-                    id SERIAL PRIMARY KEY,
-                    feed_id integer,
-                    image BYTEA NOT NULL,
-                    mime_type VARCHAR(255) NOT NULL,
-                    file_name VARCHAR(255) NOT NULL
-                );
-                
                 CREATE TABLE IF NOT EXISTS feed (
                     id SERIAL PRIMARY KEY,
                     folder_id INT NOT NULL,
@@ -69,6 +61,15 @@ public class Database {
                     url VARCHAR(2048) NOT NULL UNIQUE,
                     feed_url VARCHAR(2048) NOT NULL UNIQUE,
                     FOREIGN KEY (folder_id) REFERENCES folder(id) ON DELETE CASCADE
+                );
+                
+                CREATE TABLE IF NOT EXISTS icon (
+                    id SERIAL PRIMARY KEY,
+                    feed_id integer,
+                    image BYTEA NOT NULL,
+                    mime_type VARCHAR(255) NOT NULL,
+                    file_name VARCHAR(255) NOT NULL,
+                    FOREIGN KEY (feed_id) REFERENCES feed(id) ON DELETE SET NULL
                 );
                 
                 CREATE TABLE IF NOT EXISTS article (
@@ -85,7 +86,7 @@ public class Database {
                     FOREIGN KEY (feed_id) REFERENCES feed(id) ON DELETE CASCADE
                 );
                 
-                INSERT INTO folder (id, name) VALUES (0,'') ON CONFLICT DO NOTHING;
+                INSERT INTO folder (id, name) VALUES (0,'root') ON CONFLICT DO NOTHING;
                 """;
 
         try (Connection conn = Database.getConnection();
