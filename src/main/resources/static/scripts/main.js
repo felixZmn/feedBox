@@ -59,9 +59,6 @@ document.addEventListener("click", (e) => {
   menu.style.display = "none";
 });
 
-document.getElementById("trigger-edit").addEventListener("click", (e) => {
-  editFeedFolderClick();
-});
 document.getElementById("trigger-previous").addEventListener("click", (e) => {
   for (var i = articles.length - 1; i >= 0; i--) {
     if (articles[i].id == selectedArticle.id) {
