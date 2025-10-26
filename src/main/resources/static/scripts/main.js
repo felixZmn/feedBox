@@ -129,6 +129,11 @@ document.getElementById("trigger-import").addEventListener("click", (e) => {
   importFeeds();
 });
 
+document.getElementById("search-input").addEventListener("input", (e) => {
+  console.log("Search input:", e.target.value);
+  // ToDo: implement filtering
+});
+
 async function loadArticles(type, object) {
   var url = "./api/articles";
   var params = new Map();

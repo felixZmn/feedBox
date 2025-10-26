@@ -503,3 +503,23 @@ li:hover,
 .context-menu-item {
   display: none;
 }
+
+/* ######################### */
+/* search box */
+.search-container {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--default-space);
+}
+
+.search-container input[type="text"] {
+  border: none;
+  outline: none;
+  /*
+   *   column-widht 
+   * - 20px for the icon
+   * - 4 * default-space for the gaps and paddings 
+   */
+  width: calc(var(--column-width) - 20px - var(--default-space) * 4);
+}

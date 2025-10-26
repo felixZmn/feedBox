@@ -1,8 +1,8 @@
 <!--
-tags: [direction, east]
-category: Arrows
-version: "1.81"
-unicode: "f2bc"
+tags: [save, transfer, input]
+category: Document
+version: "1.15"
+unicode: "ec91"
 -->
 <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -15,7 +15,6 @@ unicode: "f2bc"
     stroke-linecap="round"
     stroke-linejoin="round"
 >
-    <path d="M11 12h10" />
-    <path d="M18 9l3 3l-3 3" />
-    <path d="M7 12a2 2 0 1 1 -4 0a2 2 0 0 1 4 0z" />
+    <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
+    <path d="M21 21l-6 -6" />
 </svg>
