@@ -15,6 +15,29 @@
     />
   </head>
   <body>
+    <ul class="context-menu" id="context-menu">
+      <li class="context-menu-item context-add" id="trigger-feed-add">
+        Add feed
+      </li>
+      <li class="context-menu-item context-add" id="trigger-folder-add">
+        Add folder
+      </li>
+
+      <li class="context-menu-item context-feed" id="trigger-feed-edit">
+        Edit feed
+      </li>
+      <li class="context-menu-item context-feed" id="trigger-feed-delete">
+        Delete feed
+      </li>
+
+      <li class="context-menu-item context-folder" id="trigger-folder-edit">
+        Edit folder
+      </li>
+      <li class="context-menu-item context-folder" id="trigger-folder-delete">
+        Delete folder
+      </li>
+    </ul>
+
     <div class="layout">
       <div id="modal" class="modal">
         <div class="modal-content">
@@ -120,9 +143,6 @@
                 src="icons/refresh.svg"
                 alt="Open"
             /></a>
-            <a class="item-spacer" id="trigger-add-folder"
-              ><img class="icon f-base" src="icons/folder_add.svg" alt="Open"
-            /></a>
           </div>
         </div>
         <div class="column" id="feeds-col">
@@ -156,19 +176,8 @@
 
       <main id="articlesList" class="articlesList border-right">
         <div class="column-header">
-          <div class="left">
-            <a class="item-spacer" id="trigger-delete"
-              ><img class="icon f-red" src="icons/trash.svg" alt="Open"
-            /></a>
-          </div>
-          <div class="right">
-            <a class="item-spacer" id="trigger-add-feed"
-              ><img class="icon f-base" src="icons/feed_add.svg" alt="Open"
-            /></a>
-            <a class="item-spacer" id="trigger-edit"
-              ><img class="icon f-base" src="icons/edit.svg" alt="Open"
-            /></a>
-          </div>
+          <div class="left"></div>
+          <div class="right"></div>
         </div>
         <div class="column">
           <!-- <div class="article" onclick="showView('reader')">

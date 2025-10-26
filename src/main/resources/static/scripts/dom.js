@@ -5,6 +5,9 @@ import {
   scrollObserver,
   articleClickListener,
   allFeedsClickListener,
+  openAddContextMenu,
+  folderContextMenu,
+  feedContextMenu,
 } from "./main.js";
 
 export function renderArticlesList(articles) {
@@ -93,6 +96,10 @@ function createFeedElement(feed) {
   li.addEventListener("click", (e) => {
     feedClickListener(feed);
   });
+  li.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    feedContextMenu(e.pageX, e.pageY, feed);
+  });
   return li;
 }
 
@@ -133,6 +140,8 @@ export function renderFoldersList(folders) {
     container.appendChild(details);
     container.appendChild(noFolderFeeds);
   });
+
+  container.appendChild(addElement());
 }
 
 function createFolderElement(folder) {
@@ -147,13 +156,17 @@ function createFolderElement(folder) {
   nameSpan.addEventListener("click", (e) => {
     folderClickListener(folder);
   });
+  nameSpan.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    folderContextMenu(e.pageX, e.pageY, folder);
+  });
 
   summary.appendChild(img);
   summary.appendChild(nameSpan);
   return summary;
 }
 
-// Creates the "All Feeds" Element
+// Creates the "(view) All Feeds" Element
 function viewAllFeedsElement() {
   const img = document.createElement("img");
   img.src = "icons/package.svg";
@@ -176,6 +189,40 @@ function viewAllFeedsElement() {
   return details;
 }
 
+/**
+ * Creates the "Add Feed/Folder" "Button"
+ * @returns
+ */
+function addElement() {
+  const img = document.createElement("img");
+  img.src = "icons/feed_add.svg";
+  img.classList.add("icon", "f-grey");
+
+  const span = document.createElement("span");
+  span.textContent = "Add";
+  span.className = "folder-name";
+
+  const details = document.createElement("div");
+  details.classList.add("space-top", "details");
+  details.addEventListener("click", (e) => {
+    e.stopPropagation();
+    openAddContextMenu(e.pageX, e.pageY);
+  });
+  const summary = document.createElement("div");
+  summary.className = "summary";
+  summary.appendChild(img);
+  summary.appendChild(span);
+  details.appendChild(summary);
+  return details;
+}
+
+/**
+ * this method gets called after the folder list is recieved from the backend
+ * to populate the folder dropdown in the "add feed" dialog
+ *
+ * ToDo: this method could only store the folders in a global state
+ * and the dropdown could use this as source of data
+ */
 export function folderDropdownOptions(folders) {
   const select = document.getElementById("feed-folder");
   select.innerHTML = '<option value="0">No Folder</option>'; // Reset options

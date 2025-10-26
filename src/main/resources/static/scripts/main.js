@@ -53,6 +53,10 @@ document.addEventListener("click", (e) => {
   if (e.target === document.getElementById("modal")) {
     hideDialog();
   }
+
+  // close context menu on outside click
+  const menu = document.getElementById("context-menu");
+  menu.style.display = "none";
 });
 
 document.getElementById("trigger-edit").addEventListener("click", (e) => {
@@ -79,54 +83,54 @@ document.getElementById("trigger-next").addEventListener("click", (e) => {
     }
   }
 });
+
 document.getElementById("trigger-close").addEventListener("click", (e) => {
   navigator.navigateTo(columns.ARTICLES);
 });
+
 document.getElementById("trigger-refresh").addEventListener("click", (e) => {
   refreshFeeds();
 });
-document.getElementById("trigger-add-folder").addEventListener("click", (e) => {
-  showAddFolderDialog(createFolder);
-});
-document.getElementById("trigger-add-feed").addEventListener("click", (e) => {
-  showAddFeedDialog(createFeed);
+
+document.getElementById("trigger-folder-add").addEventListener("click", (e) => {
+  showAddFolderDialog(() => createFolder());
 });
 
-document.getElementById("trigger-delete").addEventListener("click", (e) => {
-  var message = "";
-  if (lastClickedFeedItem.type == articleLoadType.FOLDER) {
-    message = `Are you sure you want to delete the folder "${lastClickedFeedItem.obj.name}"? All contained feeds will be deleted".`;
-  }
-  if (lastClickedFeedItem.type == articleLoadType.FEED) {
-    message = `Are you sure you want to delete the feed "${lastClickedFeedItem.obj.name}"?`;
-  }
-  if (message == "") {
-    return;
-  }
-
-  showConfirmDialog("Delete", message, deleteElementClick);
+document.getElementById("trigger-feed-add").addEventListener("click", (e) => {
+  showAddFeedDialog(() => createFeed());
 });
+
+document.getElementById("trigger-feed-edit").addEventListener("click", (e) => {
+  showEditFeedDialog(lastClickedFeedItem.obj, () => editFeed());
+});
+
+document
+  .getElementById("trigger-feed-delete")
+  .addEventListener("click", (e) => {
+    let message = `Are you sure you want to delete the feed "${lastClickedFeedItem.obj.name}"?`;
+    showConfirmDialog("Delete", message, () =>
+      deleteFeed(lastClickedFeedItem.obj)
+    );
+  });
+
+document
+  .getElementById("trigger-folder-edit")
+  .addEventListener("click", (e) => {
+    showEditFolderDialog(lastClickedFeedItem.obj, () => editFolder());
+  });
+
+document
+  .getElementById("trigger-folder-delete")
+  .addEventListener("click", (e) => {
+    let message = `Are you sure you want to delete the folder "${lastClickedFeedItem.obj.name}"? All contained feeds will be deleted".`;
+    showConfirmDialog("Delete", message, () => {
+      deleteFolder(lastClickedFeedItem.obj);
+    });
+  });
+
 document.getElementById("trigger-import").addEventListener("click", (e) => {
   importFeeds();
 });
-
-function editFeedFolderClick() {
-  if (lastClickedFeedItem.type == articleLoadType.FEED) {
-    showEditFeedDialog(lastClickedFeedItem.obj, editFeed);
-  }
-  if (lastClickedFeedItem.type == articleLoadType.FOLDER) {
-    showEditFolderDialog(lastClickedFeedItem.obj, editFolder);
-  }
-}
-
-function deleteElementClick() {
-  if (lastClickedFeedItem.type == articleLoadType.FOLDER) {
-    deleteFolder(lastClickedFeedItem.obj);
-  }
-  if (lastClickedFeedItem.type == articleLoadType.FEED) {
-    deleteFeed(lastClickedFeedItem.obj);
-  }
-}
 
 async function loadArticles(type, object) {
   var url = "./api/articles";
@@ -236,6 +240,55 @@ export function allFeedsClickListener() {
   resetPagination();
   clearArticlesList();
   loadArticles(articleLoadType.ALL);
+}
+
+/**
+ * Click listener for the "Add"-Element
+ */
+export function openAddContextMenu(x, y) {
+  // hide all items first, then show the add menu items
+  document.querySelectorAll(".context-menu-item").forEach((element) => {
+    element.style.display = "none";
+  });
+  document.querySelectorAll(".context-add").forEach((element) => {
+    element.style.display = "block";
+  });
+  openContextMenu(x, y);
+}
+
+export function feedContextMenu(x, y, feed) {
+  lastClickedFeedItem.type = articleLoadType.FEED;
+  lastClickedFeedItem.obj = feed;
+  // hide all items first, then show the feed menu items
+  document.querySelectorAll(".context-menu-item").forEach((element) => {
+    element.style.display = "none";
+  });
+  document.querySelectorAll(".context-feed").forEach((element) => {
+    element.style.display = "block";
+  });
+  openContextMenu(x, y);
+}
+
+export function folderContextMenu(x, y, folder) {
+  lastClickedFeedItem.type = articleLoadType.FOLDER;
+  lastClickedFeedItem.obj = folder;
+  // hide all items first, then show the folder menu items
+  document.querySelectorAll(".context-menu-item").forEach((element) => {
+    element.style.display = "none";
+  });
+  document.querySelectorAll(".context-folder").forEach((element) => {
+    element.style.display = "block";
+  });
+  openContextMenu(x, y);
+}
+
+function openContextMenu(x, y) {
+  const menu = document.getElementById("context-menu");
+  menu.style.display = "block";
+  const { innerWidth, innerHeight } = window;
+  const menuRect = menu.getBoundingClientRect();
+  menu.style.left = `${Math.min(x, innerWidth - menuRect.width)}px`;
+  menu.style.top = `${Math.min(y, innerHeight - menuRect.height)}px`;
 }
 
 /**
