@@ -1,10 +1,8 @@
 import { Navigator, columns } from "./nav.js";
-import { buildUrlParams, fetchJson } from "./util.js";
 import {
   renderFoldersList,
   renderArticlesList,
   renderReaderView,
-  clearReaderView,
   folderDropdownOptions,
 } from "./dom.js";
 import {
@@ -15,6 +13,7 @@ import {
   showConfirmDialog,
   showAddFeedDialog,
 } from "./dialog.js";
+import { dataService } from "./data.js";
 
 const articleLoadType = Object.freeze({
   ALL: "",
@@ -33,7 +32,7 @@ var articles = null;
 var paginationId = null;
 var paginationPublished = null;
 var isRefreshing = false;
-var lastClickedFeedItem = {
+var lastClickedItem = {
   type: articleLoadType.ALL,
   obj: null,
 };
@@ -43,7 +42,7 @@ const navigator = new Navigator();
 
 window.addEventListener("DOMContentLoaded", async () => {
   loadFolders();
-  loadArticles(articleLoadType.ALL);
+  loadArticles();
   document.querySelector(".modal-close").onclick = () => {
     hideDialog();
   };
@@ -98,30 +97,28 @@ document.getElementById("trigger-feed-add").addEventListener("click", (e) => {
 });
 
 document.getElementById("trigger-feed-edit").addEventListener("click", (e) => {
-  showEditFeedDialog(lastClickedFeedItem.obj, () => editFeed());
+  showEditFeedDialog(lastClickedItem.obj, () => editFeed());
 });
 
 document
   .getElementById("trigger-feed-delete")
   .addEventListener("click", (e) => {
-    let message = `Are you sure you want to delete the feed "${lastClickedFeedItem.obj.name}"?`;
-    showConfirmDialog("Delete", message, () =>
-      deleteFeed(lastClickedFeedItem.obj)
-    );
+    let message = `Are you sure you want to delete the feed "${lastClickedItem.obj.name}"?`;
+    showConfirmDialog("Delete", message, () => deleteFeed(lastClickedItem.obj));
   });
 
 document
   .getElementById("trigger-folder-edit")
   .addEventListener("click", (e) => {
-    showEditFolderDialog(lastClickedFeedItem.obj, () => editFolder());
+    showEditFolderDialog(lastClickedItem.obj, () => editFolder());
   });
 
 document
   .getElementById("trigger-folder-delete")
   .addEventListener("click", (e) => {
-    let message = `Are you sure you want to delete the folder "${lastClickedFeedItem.obj.name}"? All contained feeds will be deleted".`;
+    let message = `Are you sure you want to delete the folder "${lastClickedItem.obj.name}"? All contained feeds will be deleted".`;
     showConfirmDialog("Delete", message, () => {
-      deleteFolder(lastClickedFeedItem.obj);
+      deleteFolder(lastClickedItem.obj);
     });
   });
 
@@ -133,44 +130,6 @@ document.getElementById("search-input").addEventListener("input", (e) => {
   console.log("Search input:", e.target.value);
   // ToDo: implement filtering
 });
-
-async function loadArticles(type, object) {
-  var url = "./api/articles";
-  var params = new Map();
-
-  lastClickedFeedItem.type = type;
-  if (object != null) {
-    lastClickedFeedItem.obj = object;
-  }
-
-  params.set(lastClickedFeedItem.type, lastClickedFeedItem.obj?.id);
-  if (paginationPublished != null && paginationId != null) {
-    params.set("pagination_id", paginationId);
-    params.set("pagination_date", paginationPublished);
-  }
-
-  var newArticles = await fetchJson(url + buildUrlParams(params));
-  if (newArticles.length == 0) {
-    return;
-  }
-
-  if (articles == null) {
-    articles = newArticles;
-  } else {
-    articles = articles.concat(newArticles);
-  }
-
-  const last = articles[articles.length - 1];
-  // check if last is something new
-  if (paginationPublished == last.published && paginationId == last.id) {
-    // no new content
-    return;
-  }
-
-  paginationPublished = last.published;
-  paginationId = last.id;
-  renderArticlesList(articles);
-}
 
 /**
  * seraches the selected article by id in the global articles array and renders it
@@ -218,7 +177,7 @@ export function scrollObserver() {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           obs.disconnect();
-          loadArticles(lastClickedFeedItem.type, null);
+          loadArticles();
         }
       });
     },
@@ -231,8 +190,6 @@ export function scrollObserver() {
   );
 }
 
-// pre-defined clicklisteners
-
 /**
  * Click listener for an click on the "All Feeds"-Element
  */
@@ -241,7 +198,9 @@ export function allFeedsClickListener() {
   navigator.navigateTo(columns.ARTICLES);
   resetPagination();
   clearArticlesList();
-  loadArticles(articleLoadType.ALL);
+  lastClickedItem.type = articleLoadType.ALL;
+  lastClickedItem.obj = null;
+  loadArticles();
 }
 
 /**
@@ -259,8 +218,8 @@ export function openAddContextMenu(x, y) {
 }
 
 export function feedContextMenu(x, y, feed) {
-  lastClickedFeedItem.type = articleLoadType.FEED;
-  lastClickedFeedItem.obj = feed;
+  lastClickedItem.type = articleLoadType.FEED;
+  lastClickedItem.obj = feed;
   // hide all items first, then show the feed menu items
   document.querySelectorAll(".context-menu-item").forEach((element) => {
     element.style.display = "none";
@@ -272,8 +231,8 @@ export function feedContextMenu(x, y, feed) {
 }
 
 export function folderContextMenu(x, y, folder) {
-  lastClickedFeedItem.type = articleLoadType.FOLDER;
-  lastClickedFeedItem.obj = folder;
+  lastClickedItem.type = articleLoadType.FOLDER;
+  lastClickedItem.obj = folder;
   // hide all items first, then show the folder menu items
   document.querySelectorAll(".context-menu-item").forEach((element) => {
     element.style.display = "none";
@@ -301,7 +260,9 @@ export function feedClickListener(feed) {
   navigator.navigateTo(columns.ARTICLES);
   resetPagination();
   clearArticlesList();
-  loadArticles(articleLoadType.FEED, feed);
+  lastClickedItem.type = articleLoadType.FEED;
+  lastClickedItem.obj = feed;
+  loadArticles();
 }
 
 /**
@@ -312,7 +273,9 @@ export function folderClickListener(folder) {
   navigator.navigateTo(columns.ARTICLES);
   resetPagination();
   clearArticlesList();
-  loadArticles(articleLoadType.FOLDER, folder);
+  lastClickedItem.type = articleLoadType.FOLDER;
+  lastClickedItem.obj = folder;
+  loadArticles();
 }
 
 /**
@@ -322,15 +285,6 @@ export function folderClickListener(folder) {
 export function articleClickListener(article) {
   loadArticle(article);
   navigator.navigateTo(columns.READER);
-}
-
-// DOING STUFF
-
-async function loadFolders() {
-  var foldersWithFeeds = await fetchJson("./api/folders");
-  renderFoldersList(foldersWithFeeds);
-  folderDropdownOptions(foldersWithFeeds);
-  addFolderEvents();
 }
 
 function clearArticlesList() {
@@ -343,132 +297,105 @@ function resetPagination() {
   paginationPublished = null;
 }
 
-async function refreshFeeds() {
-  if (isRefreshing) {
-    return;
-  }
-
-  isRefreshing = true;
-  document.getElementById("refresh-spinner").classList.add("spinner");
-  await fetchJson("./api/feeds/refresh");
-  document.getElementById("refresh-spinner").classList.remove("spinner");
-  allFeedsClickListener();
-  isRefreshing = false;
+async function loadFolders() {
+  dataService.getFolders().then(async function (foldersWithFeeds) {
+    renderFoldersList(foldersWithFeeds);
+    folderDropdownOptions(foldersWithFeeds);
+    addFolderEvents();
+  });
 }
 
 async function createFolder() {
-  var name = document.getElementById("folder-name").value;
-  var color = document.getElementById("folder-color").value;
+  var folder = {};
+  folder.name = document.getElementById("folder-name").value;
+  folder.color = document.getElementById("folder-color").value;
 
-  const response = await fetch("./api/folders", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ name: name, color: color }),
-  });
-
-  if (response.ok) {
-    loadFolders();
-    hideDialog();
-  } else {
-    alert("Error saving folder: " + response.statusText);
-  }
+  dataService
+    .createFolder(folder)
+    .then(() => {
+      loadFolders();
+      hideDialog();
+    })
+    .catch((error) => {
+      alert("Error saving folder: " + error.message);
+    });
 }
 
 async function editFolder() {
-  var name = document.getElementById("folder-name").value;
-  var color = document.getElementById("folder-color").value;
+  var folder = {};
+  folder.name = document.getElementById("folder-name").value;
+  folder.color = document.getElementById("folder-color").value;
+  folder.id = lastClickedItem.obj.id;
 
-  const response = await fetch(`./api/folders/${lastClickedFeedItem.obj.id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ name: name, color: color }),
-  });
-
-  if (response.ok) {
-    loadFolders();
-    hideDialog();
-    lastClickedFeedItem.obj.name = name;
-    lastClickedFeedItem.obj.color = color;
-  } else {
-    alert("Error updating folder: " + response.statusText);
-  }
+  dataService
+    .updateFolder(folder)
+    .then(() => {
+      loadFolders();
+      hideDialog();
+      lastClickedItem.obj.name = folder.name;
+      lastClickedItem.obj.color = folder.color;
+    })
+    .catch((error) => {
+      alert("Error updating folder: " + error.message);
+    });
 }
 
 async function deleteFolder(folder) {
-  const response = await fetch(`./api/folders/${folder.id}`, {
-    method: "DELETE",
-  });
-
-  if (response.ok) {
-    loadFolders();
-    hideDialog();
-  } else {
-    alert("Error deleting folder: " + response.statusText);
-  }
+  dataService
+    .deleteFolder(folder.id)
+    .then(() => {
+      loadFolders();
+      hideDialog();
+    })
+    .catch((error) => {
+      alert("Error deleting folder: " + error.message);
+    });
 }
 
 async function createFeed() {
-  var url = document.getElementById("feed-url").value;
-  var folder = document.getElementById("feed-folder").value;
-
-  const response = await fetch("./api/feeds", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ feedUrl: url, folderId: folder }),
-  });
-
-  if (response.ok) {
-    loadFolders();
-    hideDialog();
-  } else {
-    alert("Error saving feed: " + response.statusText);
-  }
-}
-
-async function editFeed() {
-  var feed = lastClickedFeedItem.obj;
+  var feed = {};
   feed.feedUrl = document.getElementById("feed-url").value;
   feed.folderId = document.getElementById("feed-folder").value;
 
-  const response = await fetch(`./api/feeds/${feed.id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(feed),
-  });
+  dataService
+    .createFeed(feed)
+    .then(() => {
+      loadFolders();
+      hideDialog();
+    })
+    .catch((error) => {
+      alert("Error saving feed: " + error.message);
+    });
+}
 
-  if (response.ok) {
-    loadFolders();
-    hideDialog();
-    lastClickedFeedItem.obj.url = feed.feedUrl;
-    lastClickedFeedItem.obj.folderId = feed.folderId;
-  } else {
-    alert("Error updating feed: " + response.statusText);
-  }
+async function editFeed() {
+  var feed = lastClickedItem.obj;
+  feed.feedUrl = document.getElementById("feed-url").value;
+  feed.folderId = document.getElementById("feed-folder").value;
+
+  dataService
+    .updateFeed(feed)
+    .then(() => {
+      loadFolders();
+      hideDialog();
+      lastClickedItem.obj.url = feed.feedUrl;
+      lastClickedItem.obj.folderId = feed.folderId;
+    })
+    .catch((error) => {
+      alert("Error updating feed: " + error.message);
+    });
 }
 
 async function deleteFeed(feed) {
-  const response = await fetch(`./api/feeds/${feed.id}`, {
-    method: "DELETE",
-  });
-
-  if (response.ok) {
-    loadFolders();
-    articles = articles.filter((a) => a.feedId !== feed.id);
-    renderArticlesList(articles);
-    navigator.navigateTo(columns.FEEDS);
-    clearReaderView();
-    hideDialog();
-  } else {
-    alert("Error deleting feed: " + response.statusText);
-  }
+  dataService
+    .deleteFeed(feed.id)
+    .then(() => {
+      loadFolders();
+      hideDialog();
+    })
+    .catch((error) => {
+      alert("Error deleting feed: " + error.message);
+    });
 }
 
 async function importFeeds() {
@@ -504,4 +431,56 @@ async function importFeeds() {
   });
 
   fileInput.click();
+}
+
+async function refreshFeeds() {
+  if (isRefreshing) {
+    return;
+  }
+
+  isRefreshing = true;
+  document.getElementById("refresh-spinner").classList.add("spinner");
+  dataService.refreshFeeds().then(() => {
+    document.getElementById("refresh-spinner").classList.remove("spinner");
+    allFeedsClickListener();
+    isRefreshing = false;
+  });
+}
+
+async function loadArticles() {
+  var params = {};
+  switch (lastClickedItem.type) {
+    case articleLoadType.FEED:
+      if (!lastClickedItem.obj) return;
+      params.feed = lastClickedItem.obj.id;
+      break;
+    case articleLoadType.FOLDER:
+      if (!lastClickedItem.obj) return;
+      params.folder = lastClickedItem.obj.id;
+      break;
+    case articleLoadType.ALL:
+    // no additional param
+    default:
+      // no additional param
+      break;
+  }
+  if (paginationId != null) {
+    params.pagination_id = paginationId;
+  }
+  if (paginationPublished != null) {
+    params.pagination_date = paginationPublished;
+  }
+
+  const newArticles = await dataService.getArticles(params);
+  if (!newArticles || newArticles.length === 0) return;
+
+  if (!articles) articles = [];
+  articles = articles.concat(newArticles);
+
+  // update pagination
+  const lastArticle = newArticles[newArticles.length - 1];
+  paginationId = lastArticle.id;
+  paginationPublished = lastArticle.published;
+
+  renderArticlesList(articles);
 }
