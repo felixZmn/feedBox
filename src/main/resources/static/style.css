@@ -497,7 +497,7 @@ li:hover,
 }
 
 .context-menu li:hover {
-  background: #eee;
+  background: var(--font-color-highlight);
 }
 
 .context-menu-item {
@@ -522,4 +522,6 @@ li:hover,
    * - 4 * default-space for the gaps and paddings 
    */
   width: calc(var(--column-width) - 20px - var(--default-space) * 4);
+  background-color: var(--background-color);
+  color: var(--font-color);
 }
