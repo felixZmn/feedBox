@@ -6,7 +6,7 @@
 
 class DataService {
   constructor() {
-    this.cache = new Map();
+    this.cache = [];
   }
 
   async getFolders() {
@@ -41,10 +41,20 @@ class DataService {
     return await this._getRequest("./api/feeds/refresh");
   }
 
-  async getArticles(params) {
+  getArticles() {
+    return this.cache;
+  }
+
+  clearArticles() {
+    this.cache = [];
+  }
+
+  async loadArticles(params) {
     const queryString = new URLSearchParams(params).toString();
     const url = `./api/articles?${queryString}`;
-    return await this._getRequest(url);
+    return await this._getRequest(url).then((data) => {
+      this.cache = this.cache.concat(data);
+    });
   }
 
   async _getRequest(url) {

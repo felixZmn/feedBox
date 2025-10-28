@@ -28,10 +28,12 @@ export const dialogType = Object.freeze({
   EDIT_FEED: "edit-feed",
 });
 
-var articles = null;
+var articles = [];
 var paginationId = null;
 var paginationPublished = null;
 var isRefreshing = false;
+var isFilterActive = false;
+var lastSearchTerm = "";
 var lastClickedItem = {
   type: articleLoadType.ALL,
   obj: null,
@@ -127,8 +129,27 @@ document.getElementById("trigger-import").addEventListener("click", (e) => {
 });
 
 document.getElementById("search-input").addEventListener("input", (e) => {
-  console.log("Search input:", e.target.value);
-  // ToDo: implement filtering
+  let searchTerm = e.target.value.trim().toLowerCase();
+
+  // filter empty -> reset
+  if (searchTerm === "") {
+    isFilterActive = false;
+    lastSearchTerm = "";
+    articles = dataService.getArticles();
+    renderArticlesList(articles);
+    return;
+  }
+
+  if (!searchTerm.startsWith(lastSearchTerm)) {
+    articles = dataService.getArticles();
+  }
+
+  lastSearchTerm = searchTerm;
+  articles = articles.filter((article) =>
+    article.title.toLowerCase().includes(searchTerm)
+  );
+  isFilterActive = true;
+  renderArticlesList(articles);
 });
 
 /**
@@ -175,7 +196,7 @@ export function scrollObserver() {
   return new IntersectionObserver(
     (entries, obs) => {
       entries.forEach((entry) => {
-        if (entry.isIntersecting) {
+        if (entry.isIntersecting && !isFilterActive) {
           obs.disconnect();
           loadArticles();
         }
@@ -288,7 +309,8 @@ export function articleClickListener(article) {
 }
 
 function clearArticlesList() {
-  articles = null;
+  articles = [];
+  dataService.clearArticles();
   document.querySelector("#articlesList .column").innerHTML = "";
 }
 
@@ -471,16 +493,17 @@ async function loadArticles() {
     params.pagination_date = paginationPublished;
   }
 
-  const newArticles = await dataService.getArticles(params);
-  if (!newArticles || newArticles.length === 0) return;
+  dataService.loadArticles(params).then(() => {
+    const newArticles = dataService.getArticles();
+    if (!newArticles || newArticles.length === 0) return;
 
-  if (!articles) articles = [];
-  articles = articles.concat(newArticles);
+    articles = newArticles;
 
-  // update pagination
-  const lastArticle = newArticles[newArticles.length - 1];
-  paginationId = lastArticle.id;
-  paginationPublished = lastArticle.published;
+    // update pagination
+    const lastArticle = newArticles[newArticles.length - 1];
+    paginationId = lastArticle.id;
+    paginationPublished = lastArticle.published;
 
-  renderArticlesList(articles);
+    renderArticlesList(articles);
+  });
 }
