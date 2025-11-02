@@ -71,10 +71,14 @@ public class ArticleRepository {
             INSERT INTO article (feed_id, title, description, content, link, published, authors, image_url, categories) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (link) DO NOTHING
             """;
 
+    private static final String DELETE_BY_FEED = """
+            DELETE FROM article WHERE feed_id = ?
+            """;
+
     public List<Article> findAll() {
         logger.debug("findAll");
         try (Connection conn = Database.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
+                PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
             try (ResultSet rs = stmt.executeQuery()) {
                 return parseResult(rs);
             }
@@ -87,7 +91,7 @@ public class ArticleRepository {
     public List<Article> findAll(int paginationId, String paginationDate) {
         logger.debug("findAll");
         try (Connection conn = Database.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(SELECT_ALL_PAGINATED)) {
+                PreparedStatement stmt = conn.prepareStatement(SELECT_ALL_PAGINATED)) {
 
             stmt.setString(1, paginationDate);
             stmt.setString(2, paginationDate);
@@ -105,7 +109,7 @@ public class ArticleRepository {
     public List<Article> findByFeed(int feedId) {
         logger.debug("findByFeed");
         try (Connection conn = Database.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FEED)) {
+                PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FEED)) {
 
             stmt.setObject(1, feedId);
 
@@ -121,7 +125,7 @@ public class ArticleRepository {
     public List<Article> findByFeed(int feedId, int paginationId, String paginationDate) {
         logger.debug("findByFeed");
         try (Connection conn = Database.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FEED_PAGINATED)) {
+                PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FEED_PAGINATED)) {
 
             stmt.setInt(1, feedId);
             stmt.setString(2, paginationDate);
@@ -140,7 +144,7 @@ public class ArticleRepository {
     public List<Article> findByFolder(int folderId) {
         logger.debug("findByFolder");
         try (Connection conn = Database.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FOLDER)) {
+                PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FOLDER)) {
 
             stmt.setInt(1, folderId);
 
@@ -156,7 +160,7 @@ public class ArticleRepository {
     public List<Article> findByFolder(int folderId, int paginationId, String paginationDate) {
         logger.debug("findByFolder");
         try (Connection conn = Database.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FOLDER_PAGINATED)) {
+                PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FOLDER_PAGINATED)) {
 
             stmt.setInt(1, folderId);
             stmt.setString(2, paginationDate);
@@ -210,6 +214,19 @@ public class ArticleRepository {
             } finally {
                 conn.setAutoCommit(true);
             }
+        } catch (SQLException e) {
+            logger.error("Error executing SQL statement", e);
+        }
+    }
+
+    public void deleteByFeed(int feedId) {
+        logger.debug("deleteByFeed");
+        try (Connection conn = Database.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(DELETE_BY_FEED)) {
+
+            stmt.setInt(1, feedId);
+            stmt.executeUpdate();
+
         } catch (SQLException e) {
             logger.error("Error executing SQL statement", e);
         }

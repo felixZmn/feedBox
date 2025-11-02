@@ -5,6 +5,7 @@ import {
   renderReaderView,
   folderDropdownOptions,
   clearReaderView,
+  removeFeedElement,
 } from "./dom.js";
 import {
   hideDialog,
@@ -46,6 +47,8 @@ const navigator = new Navigator();
 window.addEventListener("DOMContentLoaded", async () => {
   loadFolders();
   loadArticles();
+  setupScrollObserver();
+
   document.querySelector(".modal-close").onclick = () => {
     hideDialog();
   };
@@ -194,23 +197,29 @@ function addFolderEvents() {
   }
 }
 
-export function scrollObserver() {
-  return new IntersectionObserver(
+/**
+ * Sets up the scroll observer for infinite scrolling in the articles list
+ */
+function setupScrollObserver() {
+  const sentinel = document.getElementById("articles-sentinel");
+
+  const observer = new IntersectionObserver(
     (entries, obs) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting && !isFilterActive) {
-          obs.disconnect();
-          loadArticles();
-        }
-      });
+      const entry = entries[0];
+      if (!entry) return;
+      if (entry.isIntersecting && !isFilterActive) {
+        loadArticles();
+      }
     },
     {
-      root: document.querySelector("#articlesList .container"),
+      root: document.querySelector("#articles-list .container"),
       rootMargin: "0px",
-      scrollMargin: "0px",
+      scrollMargin: "200px",
       threshold: 0.1,
     }
   );
+
+  observer.observe(sentinel);
 }
 
 /**
@@ -313,7 +322,7 @@ export function articleClickListener(article) {
 function clearArticlesList() {
   articles = [];
   dataService.clearArticles();
-  document.querySelector("#articlesList .column").innerHTML = "";
+  document.querySelector("#articles-list #articles-container").innerHTML = "";
 }
 
 function resetPagination() {
@@ -414,7 +423,9 @@ async function deleteFeed(feed) {
   dataService
     .deleteFeed(feed.id)
     .then(() => {
-      loadFolders();
+      removeFeedElement(feed.id);
+      articles = articles.filter((article) => article.feedId !== feed.id);
+      renderArticlesList(articles);
       hideDialog();
     })
     .catch((error) => {

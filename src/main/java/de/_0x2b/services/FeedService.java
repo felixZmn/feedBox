@@ -132,6 +132,7 @@ public class FeedService {
 
     public int deleteFeed(int feedId) {
         logger.debug("deleteFeed");
+        articleRepository.deleteByFeed(feedId);
         return feedRepository.delete(feedId);
     }
 }

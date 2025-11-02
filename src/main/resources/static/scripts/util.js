@@ -1,3 +1,9 @@
+/**
+ * Transforms a date string into a relative time format, e.g. "5m", "2h", "3d".
+ * If the date is in the future, prefixes with a '-'.
+ * @param {*} dateStr the date string to transform
+ * @returns {string|null} the relative time string or null if invalid date
+ */
 export function getRelativeTime(dateStr) {
   const date = new Date(dateStr);
   if (isNaN(date)) return null;

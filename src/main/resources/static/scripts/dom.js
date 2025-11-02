@@ -2,7 +2,6 @@ import { getRelativeTime, parseDate } from "./util.js";
 import {
   feedClickListener,
   folderClickListener,
-  scrollObserver,
   articleClickListener,
   allFeedsClickListener,
   openAddContextMenu,
@@ -11,7 +10,9 @@ import {
 } from "./main.js";
 
 export function renderArticlesList(articles) {
-  const container = document.querySelector("#articlesList .column");
+  const container = document.querySelector(
+    "#articles-list #articles-container"
+  );
   container.innerHTML = ""; // Clear previous content
 
   for (let i = 0; i < articles.length; i++) {
@@ -23,7 +24,7 @@ export function renderArticlesList(articles) {
     const ageSpan = document.createElement("span");
 
     articleDiv.className = "article";
-    headerDiv.className = "articleHeader";
+    headerDiv.className = "article-header";
     titleDiv.className = "title";
     sourceSpan.className = "source";
     ageSpan.className = "age";
@@ -41,11 +42,6 @@ export function renderArticlesList(articles) {
     articleDiv.addEventListener("click", () => {
       articleClickListener(article);
     });
-
-    if (i == articles.length - 1) {
-      var observer = scrollObserver();
-      observer.observe(articleDiv);
-    }
 
     container.appendChild(articleDiv);
   }
@@ -85,6 +81,11 @@ export function clearReaderView() {
   externalLink.classList.add("d-none");
 }
 
+/**
+ * helper to create a feed element for the feed list
+ * @param {*} feed
+ * @returns
+ */
 function createFeedElement(feed) {
   const li = document.createElement("li");
   const icon = document.createElement("img");
@@ -100,9 +101,25 @@ function createFeedElement(feed) {
     e.preventDefault();
     feedContextMenu(e.pageX, e.pageY, feed);
   });
+  li.dataset.feedId = feed.id;
   return li;
 }
 
+/**
+ * removes a feed element from the list of feeds
+ * @param {number} feedId
+ */
+export function removeFeedElement(feedId) {
+  const feedElement = document.querySelector(`li[data-feed-id='${feedId}']`);
+  if (feedElement) {
+    feedElement.remove();
+  }
+}
+
+/**
+ * renders the folder and feed list in the feeds column on the left
+ * @param {*} folders
+ */
 export function renderFoldersList(folders) {
   const container = document.getElementById("feeds-col");
   const noFolderFeeds = document.createElement("ul");
@@ -123,7 +140,7 @@ export function renderFoldersList(folders) {
     details.appendChild(createFolderElement(folder));
 
     const feedsContainer = document.createElement("div");
-    feedsContainer.className = "folderContainer";
+    feedsContainer.className = "folder-container";
 
     const ul = document.createElement("ul");
     ul.className = "feeds-ul";
@@ -166,7 +183,10 @@ function createFolderElement(folder) {
   return summary;
 }
 
-// Creates the "(view) All Feeds" Element
+/**
+ * Creates the "(view) All Feeds" Element
+ * @returns
+ */
 function viewAllFeedsElement() {
   const img = document.createElement("img");
   img.src = "icons/package.svg";

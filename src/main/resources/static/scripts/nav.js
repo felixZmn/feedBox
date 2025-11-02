@@ -1,6 +1,6 @@
 export const columns = Object.freeze({
   FEEDS: "feeds",
-  ARTICLES: "articlesList",
+  ARTICLES: "articles-list",
   READER: "reader",
 });
 
@@ -8,7 +8,7 @@ export class Navigator {
   constructor() {
     this.currentState = { column: columns.FEEDS };
     this.feedsEl = document.getElementById("feeds");
-    this.articlesEl = document.getElementById("articlesList");
+    this.articlesEl = document.getElementById("articles-list");
     this.readerEl = document.getElementById("reader");
 
     this.#renderColumn(this.currentState.column);

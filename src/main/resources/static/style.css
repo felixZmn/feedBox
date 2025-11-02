@@ -100,7 +100,7 @@ button {
   }
 
   #feeds,
-  #articlesList,
+  #articles-list,
   #reader {
     display: none;
     height: 100vh;
@@ -109,7 +109,7 @@ button {
 
   /* On mobile: show only the primary column */
   #feeds.primary,
-  #articlesList.primary,
+  #articles-list.primary,
   #reader.primary {
     display: block;
   }
@@ -125,14 +125,14 @@ button {
 
   /* Hide everything by default */
   #feeds,
-  #articlesList,
+  #articles-list,
   #reader {
     display: none;
   }
 
   /* Feeds + Articles view */
   #feeds.active,
-  #articlesList.active {
+  #articles-list.active {
     display: block;
   }
 
@@ -144,14 +144,14 @@ button {
 }
 
 .feeds,
-.articlesList,
+.articles-list,
 .reader {
   padding: 0;
   height: 100vh;
 }
 
 .feeds,
-.articlesList {
+.articles-list {
   min-width: var(--column-width);
 }
 
@@ -228,7 +228,7 @@ summary::marker {
   padding: var(--default-space) var(--default-space);
 }
 
-.folderContainer {
+.folder-container {
   margin: 0 0 0 18px;
 }
 
@@ -241,13 +241,13 @@ summary::marker {
 }
 
 /* articles list */
-.articlesList .column {
+.articles-list .column {
   display: flex;
   flex-direction: column;
   padding-right: calc(var(--default-space) * 2);
 }
 
-.articlesList .articleHeader {
+.articles-list .article-header {
   display: flex;
   justify-content: space-between;
   color: var(--font-color-muted);
@@ -255,24 +255,24 @@ summary::marker {
   gap: var(--default-space);
 }
 
-.articlesList .source {
+.articles-list .source {
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
 }
 
 .feeds .header,
-.articlesList .header {
+.articles-list .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.articlesList .article {
+.articles-list .article {
   padding: var(--default-space);
 }
 
-.articlesList .article:hover {
+.articles-list .article:hover {
   background-color: var(--font-color-highlight);
   border-radius: 2px;
 }
