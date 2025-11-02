@@ -214,7 +214,7 @@ function setupScrollObserver() {
     {
       root: document.querySelector("#articles-list .container"),
       rootMargin: "0px",
-      scrollMargin: "200px",
+      scrollMargin: "325px", // 5 articles with about 65px height each
       threshold: 0.1,
     }
   );
