@@ -4,6 +4,7 @@ import {
   renderArticlesList,
   renderReaderView,
   folderDropdownOptions,
+  clearReaderView,
 } from "./dom.js";
 import {
   hideDialog,
@@ -83,6 +84,7 @@ document.getElementById("trigger-next").addEventListener("click", (e) => {
 });
 
 document.getElementById("trigger-close").addEventListener("click", (e) => {
+  clearReaderView();
   navigator.navigateTo(columns.ARTICLES);
 });
 
