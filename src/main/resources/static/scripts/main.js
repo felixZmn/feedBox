@@ -45,14 +45,14 @@ var selectedArticle = null;
 const navigator = new Navigator();
 
 window.addEventListener("DOMContentLoaded", async () => {
-  loadFolders();
-  loadArticles();
+  await loadFolders();
+  await loadArticles();
   setupScrollObserver();
-
-  document.querySelector(".modal-close").onclick = () => {
-    hideDialog();
-  };
 });
+
+document.querySelector(".modal-close").onclick = () => {
+  hideDialog();
+};
 
 document.addEventListener("click", (e) => {
   if (e.target === document.getElementById("modal")) {
@@ -331,11 +331,11 @@ function resetPagination() {
 }
 
 async function loadFolders() {
-  dataService.getFolders().then(async function (foldersWithFeeds) {
-    renderFoldersList(foldersWithFeeds);
-    folderDropdownOptions(foldersWithFeeds);
-    addFolderEvents();
-  });
+  const foldersWithFeeds = await dataService.getFolders();
+  renderFoldersList(foldersWithFeeds);
+  folderDropdownOptions(foldersWithFeeds);
+  addFolderEvents();
+  return foldersWithFeeds;
 }
 
 async function createFolder() {
@@ -483,7 +483,7 @@ async function refreshFeeds() {
 }
 
 async function loadArticles() {
-  var params = {};
+  const params = {};
   switch (lastClickedItem.type) {
     case articleLoadType.FEED:
       if (!lastClickedItem.obj) return;
@@ -506,17 +506,17 @@ async function loadArticles() {
     params.pagination_date = paginationPublished;
   }
 
-  dataService.loadArticles(params).then(() => {
-    const newArticles = dataService.getArticles();
-    if (!newArticles || newArticles.length === 0) return;
+  await dataService.loadArticles(params);
 
-    articles = newArticles;
+  const newArticles = dataService.getArticles();
+  if (!newArticles || newArticles.length === 0) return;
 
-    // update pagination
-    const lastArticle = newArticles[newArticles.length - 1];
-    paginationId = lastArticle.id;
-    paginationPublished = lastArticle.published;
+  articles = newArticles;
 
-    renderArticlesList(articles);
-  });
+  // update pagination
+  const lastArticle = newArticles[newArticles.length - 1];
+  paginationId = lastArticle.id;
+  paginationPublished = lastArticle.published;
+
+  renderArticlesList(articles);
 }
