@@ -113,6 +113,11 @@ button {
   #reader.primary {
     display: block;
   }
+
+  .icon {
+    width: 24px !important;
+    height: 24px !important;
+  }
 }
 
 /* medium devices: feeds+articles OR reader */
@@ -140,6 +145,11 @@ button {
   #reader.active {
     grid-column: 1 / span 2; /* take full width */
     display: block;
+  }
+
+  .icon {
+    width: 24px !important;
+    height: 24px !important;
   }
 }
 
