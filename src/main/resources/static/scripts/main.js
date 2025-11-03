@@ -33,6 +33,7 @@ export const dialogType = Object.freeze({
 var articles = [];
 var paginationId = null;
 var paginationPublished = null;
+var lazyLoadObserver = null;
 var isRefreshing = false;
 var isFilterActive = false;
 var lastSearchTerm = "";
@@ -47,7 +48,7 @@ const navigator = new Navigator();
 window.addEventListener("DOMContentLoaded", async () => {
   await loadFolders();
   await loadArticles();
-  setupScrollObserver();
+  lazyLoadObserver = setupScrollObserver();
 });
 
 document.querySelector(".modal-close").onclick = () => {
@@ -218,21 +219,11 @@ function setupScrollObserver() {
       threshold: 0.1,
     }
   );
-
   observer.observe(sentinel);
-}
-
-/**
- * Click listener for an click on the "All Feeds"-Element
- */
-export function allFeedsClickListener() {
-  // ToDo: Reset Navigation
-  navigator.navigateTo(columns.ARTICLES);
-  resetPagination();
-  clearArticlesList();
-  lastClickedItem.type = articleLoadType.ALL;
-  lastClickedItem.obj = null;
-  loadArticles();
+  return {
+    pause: () => observer.disconnect(),
+    resume: () => observer.observe(sentinel),
+  };
 }
 
 /**
@@ -285,29 +276,47 @@ function openContextMenu(x, y) {
 }
 
 /**
+ * Click listener for an click on the "All Feeds"-Element
+ */
+export async function allFeedsClickListener() {
+  navigator.navigateTo(columns.ARTICLES);
+  resetPagination();
+  lastClickedItem.type = articleLoadType.ALL;
+  lastClickedItem.obj = null;
+  lazyLoadObserver.pause();
+  clearArticlesList();
+  await loadArticles();
+  lazyLoadObserver.resume();
+}
+
+/**
  * Click listener for an click on a single feed in the left-side list
  * @param {Feed} feed the clicked feed
  */
-export function feedClickListener(feed) {
+export async function feedClickListener(feed) {
   navigator.navigateTo(columns.ARTICLES);
   resetPagination();
-  clearArticlesList();
   lastClickedItem.type = articleLoadType.FEED;
   lastClickedItem.obj = feed;
-  loadArticles();
+  lazyLoadObserver.pause();
+  clearArticlesList();
+  await loadArticles();
+  lazyLoadObserver.resume();
 }
 
 /**
  * Click listener for an click on a single folder in the left-side list
  * @param {Folder} folder id of the clicked folder
  */
-export function folderClickListener(folder) {
+export async function folderClickListener(folder) {
   navigator.navigateTo(columns.ARTICLES);
   resetPagination();
-  clearArticlesList();
   lastClickedItem.type = articleLoadType.FOLDER;
   lastClickedItem.obj = folder;
-  loadArticles();
+  lazyLoadObserver.pause();
+  clearArticlesList();
+  await loadArticles();
+  lazyLoadObserver.resume();
 }
 
 /**
