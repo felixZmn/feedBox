@@ -102,7 +102,7 @@ button {
   display: grid;
   grid-template-columns: var(--column-width) var(--column-width) minmax(0, 1fr);
   gap: 0;
-  height: 100vh;
+  height: 100dvh;
 }
 
 /* mobile: show only the active pane (one at a time) */
@@ -115,7 +115,7 @@ button {
   #articles-list,
   #reader {
     display: none;
-    height: 100vh;
+    height: 100dvh;
     width: 100%;
   }
 
@@ -137,7 +137,7 @@ button {
   .layout {
     display: grid;
     grid-template-columns: 2fr 2fr;
-    height: 100vh;
+    height: 100dvh;
   }
 
   /* Hide everything by default */
@@ -169,7 +169,7 @@ button {
 .articles-list,
 .reader {
   padding: 0;
-  height: 100vh;
+  height: 100dvh;
 }
 
 .feeds,
@@ -179,7 +179,7 @@ button {
 
 .column {
   overflow-y: auto;
-  height: calc(100vh - 3.5rem);
+  height: calc(100dvh - 3.5rem);
   margin: var(--default-space);
 }
 
