@@ -36,7 +36,13 @@ public class FeedService {
         feed = this.getFeedMetadata(feed);
         feed.setId(feedRepository.create(feed));
 
-        iconService.findIcon(feed);
+        try {
+            iconService.findIcon(feed);
+        } catch (Exception e) {
+            logger.warn("Could not find icon");
+            // it can be the case that no icon is found or errors occour while searching for one
+            // as missing icons are a legimite case -> ignore
+        }
 
         return feed.getId();
     }
@@ -87,9 +93,9 @@ public class FeedService {
             var channel = rssReader.read(feed.getFeedURI().toString()).toList().getFirst().getChannel();
             feed.setURI(URI.create(channel.getLink()));
             feed.setName(channel.getTitle());
-        } catch (IOException e) {
+        } catch (Exception e) {
             logger.error("Error querying feed [{}] \n {}\n", feed.getFeedURI(), e.getMessage());
-            // ToDo: Exception?
+            throw new NotFoundException("Error creating feed " + feed.getFeedURI());
         }
         return feed;
     }

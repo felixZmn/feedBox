@@ -352,15 +352,14 @@ async function createFolder() {
   folder.name = document.getElementById("folder-name").value;
   folder.color = document.getElementById("folder-color").value;
 
-  dataService
-    .createFolder(folder)
-    .then(() => {
-      loadFolders();
-      hideDialog();
-    })
-    .catch((error) => {
-      alert("Error saving folder: " + error.message);
-    });
+  try {
+    await dataService.createFolder(folder);
+    await loadFolders();
+  } catch (error) {
+    alert("Error saving folder: " + folder.name);
+    console.error(error.message);
+  }
+  hideDialog();
 }
 
 async function editFolder() {
@@ -369,29 +368,27 @@ async function editFolder() {
   folder.color = document.getElementById("folder-color").value;
   folder.id = lastClickedItem.obj.id;
 
-  dataService
-    .updateFolder(folder)
-    .then(() => {
-      loadFolders();
-      hideDialog();
-      lastClickedItem.obj.name = folder.name;
-      lastClickedItem.obj.color = folder.color;
-    })
-    .catch((error) => {
-      alert("Error updating folder: " + error.message);
-    });
+  try {
+    await dataService.updateFolder(folder);
+    await loadFolders();
+    lastClickedItem.obj.name = folder.name;
+    lastClickedItem.obj.color = folder.color;
+  } catch (error) {
+    alert("Error updating folder: " + folder.name);
+    console.error(error.message);
+  }
+  hideDialog();
 }
 
 async function deleteFolder(folder) {
-  dataService
-    .deleteFolder(folder.id)
-    .then(() => {
-      loadFolders();
-      hideDialog();
-    })
-    .catch((error) => {
-      alert("Error deleting folder: " + error.message);
-    });
+  try {
+    await dataService.deleteFolder(folder.id);
+    await loadFolders();
+  } catch (error) {
+    alert("Error deleting folder: " + folder.name);
+    console.error(error.message);
+  }
+  hideDialog();
 }
 
 async function createFeed() {
@@ -399,15 +396,14 @@ async function createFeed() {
   feed.feedUrl = document.getElementById("feed-url").value;
   feed.folderId = document.getElementById("feed-folder").value;
 
-  dataService
-    .createFeed(feed)
-    .then(() => {
-      loadFolders();
-      hideDialog();
-    })
-    .catch((error) => {
-      alert("Error saving feed: " + error.message);
-    });
+  try {
+    await dataService.createFeed(feed);
+    await loadFolders();
+  } catch (error) {
+    alert("Error saving feed: " + feed.feedUrl);
+    console.error(error.message);
+  }
+  hideDialog();
 }
 
 async function editFeed() {
@@ -415,31 +411,29 @@ async function editFeed() {
   feed.feedUrl = document.getElementById("feed-url").value;
   feed.folderId = document.getElementById("feed-folder").value;
 
-  dataService
-    .updateFeed(feed)
-    .then(() => {
-      loadFolders();
-      hideDialog();
-      lastClickedItem.obj.url = feed.feedUrl;
-      lastClickedItem.obj.folderId = feed.folderId;
-    })
-    .catch((error) => {
-      alert("Error updating feed: " + error.message);
-    });
+  try {
+    await dataService.updateFeed(feed);
+    await loadFolders();
+    lastClickedItem.obj.url = feed.feedUrl;
+    lastClickedItem.obj.folderId = feed.folderId;
+  } catch (error) {
+    alert("Error updating feed: " + feed.feedUrl);
+    console.error(error.message);
+  }
+  hideDialog();
 }
 
 async function deleteFeed(feed) {
-  dataService
-    .deleteFeed(feed.id)
-    .then(() => {
-      removeFeedElement(feed.id);
-      articles = articles.filter((article) => article.feedId !== feed.id);
-      renderArticlesList(articles);
-      hideDialog();
-    })
-    .catch((error) => {
-      alert("Error deleting feed: " + error.message);
-    });
+  try {
+    await dataService.deleteFeed(feed.id);
+    removeFeedElement(feed.id);
+    articles = articles.filter((article) => article.feedId !== feed.id);
+    renderArticlesList(articles);
+  } catch (error) {
+    alert("Error deleting feed: " + feed.name);
+    console.error(error.message);
+  }
+  hideDialog();
 }
 
 async function importFeeds() {

@@ -9,6 +9,8 @@ import io.javalin.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
+
 public class FeedController {
     private static final Logger logger = LoggerFactory.getLogger(FeedController.class);
     private final FeedService feedService;
@@ -39,7 +41,7 @@ public class FeedController {
             return;
         }
         feedService.refresh(id);
-        ctx.status(201);
+        ctx.status(201).json(Collections.emptyList());
     }
 
     private void updateFeed(Context ctx) {

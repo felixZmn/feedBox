@@ -46,8 +46,8 @@ function folderDialog(headline, confirmAction, cancelAction) {
   document.getElementById("folder-add-edit").style.display = "grid";
   var saveButton = document.getElementById("trigger-save-folder");
   saveButton = removeAllEventListeners(saveButton);
-  saveButton.addEventListener("click", () => {
-    if (confirmAction) confirmAction();
+  saveButton.addEventListener("click", async () => {
+    if (confirmAction) await confirmAction();
     hideDialog();
   });
   document.getElementById("modal").style.display = "block";
@@ -68,8 +68,8 @@ function feedDialog(headline, confirmAction, cancelAction) {
   document.getElementById("feed-add-edit").style.display = "grid";
   var saveButton = document.getElementById("trigger-save-feed");
   saveButton = removeAllEventListeners(saveButton);
-  saveButton.addEventListener("click", () => {
-    if (confirmAction) confirmAction();
+  saveButton.addEventListener("click", async () => {
+    if (confirmAction) await confirmAction();
     hideDialog();
   });
   document.getElementById("modal").style.display = "block";
