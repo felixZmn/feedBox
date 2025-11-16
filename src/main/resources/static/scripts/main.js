@@ -1,4 +1,4 @@
-import { Navigator, columns } from "./nav.js";
+import { NavigationService, columns } from "./nav.js";
 import {
   renderFoldersList,
   renderArticlesList,
@@ -43,7 +43,17 @@ var lastClickedItem = {
 };
 var selectedArticle = null;
 
-const navigator = new Navigator();
+const navigationService = new NavigationService();
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch((err) => {
+      console.error("Service worker registration failed:", err);
+    });
+  });
+} else {
+  console.error("Service workers are not supported.");
+}
 
 window.addEventListener("DOMContentLoaded", async () => {
   await loadFolders();
@@ -87,9 +97,14 @@ document.getElementById("trigger-next").addEventListener("click", (e) => {
   }
 });
 
+document
+  .getElementById("trigger-show-all-feeds")
+  .addEventListener("click", (e) => {
+    allFeedsClickListener();
+  });
 document.getElementById("trigger-close").addEventListener("click", (e) => {
   clearReaderView();
-  navigator.navigateTo(columns.ARTICLES);
+  navigationService.navigateTo(columns.ARTICLES);
 });
 
 document.getElementById("trigger-refresh").addEventListener("click", (e) => {
@@ -279,7 +294,7 @@ function openContextMenu(x, y) {
  * Click listener for an click on the "All Feeds"-Element
  */
 export async function allFeedsClickListener() {
-  navigator.navigateTo(columns.ARTICLES);
+  navigationService.navigateTo(columns.ARTICLES);
   resetPagination();
   lastClickedItem.type = articleLoadType.ALL;
   lastClickedItem.obj = null;
@@ -294,7 +309,7 @@ export async function allFeedsClickListener() {
  * @param {Feed} feed the clicked feed
  */
 export async function feedClickListener(feed) {
-  navigator.navigateTo(columns.ARTICLES);
+  navigationService.navigateTo(columns.ARTICLES);
   resetPagination();
   lastClickedItem.type = articleLoadType.FEED;
   lastClickedItem.obj = feed;
@@ -309,7 +324,7 @@ export async function feedClickListener(feed) {
  * @param {Folder} folder id of the clicked folder
  */
 export async function folderClickListener(folder) {
-  navigator.navigateTo(columns.ARTICLES);
+  navigationService.navigateTo(columns.ARTICLES);
   resetPagination();
   lastClickedItem.type = articleLoadType.FOLDER;
   lastClickedItem.obj = folder;
@@ -325,7 +340,7 @@ export async function folderClickListener(folder) {
  */
 export function articleClickListener(article) {
   loadArticle(article);
-  navigator.navigateTo(columns.READER);
+  navigationService.navigateTo(columns.READER);
 }
 
 function clearArticlesList() {

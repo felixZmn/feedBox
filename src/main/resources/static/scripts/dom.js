@@ -3,7 +3,6 @@ import {
   feedClickListener,
   folderClickListener,
   articleClickListener,
-  allFeedsClickListener,
   openAddContextMenu,
   folderContextMenu,
   feedContextMenu,
@@ -129,11 +128,10 @@ export function removeFeedElement(feedId) {
  * @param {*} folders
  */
 export function renderFoldersList(folders) {
-  const container = document.getElementById("feeds-col");
+  const container = document.getElementById("folder-container");
   const noFolderFeeds = document.createElement("ul");
 
   container.innerHTML = "";
-  container.appendChild(viewAllFeedsElement());
 
   folders.forEach((folder) => {
     if (folder.id == 0) {
@@ -189,32 +187,6 @@ function createFolderElement(folder) {
   summary.appendChild(img);
   summary.appendChild(nameSpan);
   return summary;
-}
-
-/**
- * Creates the "(view) All Feeds" Element
- * @returns
- */
-function viewAllFeedsElement() {
-  const img = document.createElement("img");
-  img.src = "icons/package.svg";
-  img.classList.add("icon", "f-base");
-
-  const span = document.createElement("span");
-  span.textContent = "All Feeds";
-  span.className = "folder-name";
-
-  const details = document.createElement("div");
-  details.className = "details";
-  details.addEventListener("click", () => {
-    allFeedsClickListener();
-  });
-  const summary = document.createElement("div");
-  summary.className = "summary";
-  summary.appendChild(img);
-  summary.appendChild(span);
-  details.appendChild(summary);
-  return details;
 }
 
 /**

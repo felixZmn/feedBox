@@ -13,6 +13,7 @@
       rel="icon"
       href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgM2w4IDQuNWwwIDlsLTggNC41bC04IC00LjVsMCAtOWw4IC00LjUiIC8+PHBhdGggZD0iTTEyIDEybDggLTQuNSIgLz48cGF0aCBkPSJNMTIgMTJsMCA5IiAvPjxwYXRoIGQ9Ik0xMiAxMmwtOCAtNC41IiAvPjxwYXRoIGQ9Ik0xNiA1LjI1bC04IDQuNSIgLz48L3N2Zz4="
     />
+    <link rel="manifest" href="/manifest.json" crossorigin="use-credentials" />
   </head>
   <body>
     <ul class="context-menu" id="context-menu">
@@ -146,6 +147,17 @@
           </div>
         </div>
         <div class="column" id="feeds-col">
+          <div class="details" id="trigger-show-all-feeds">
+            <div class="summary">
+              <img src="icons/package.svg" class="icon f-base" /><span
+                class="folder-name"
+                >All Feeds</span
+              >
+            </div>
+          </div>
+          <div id="folder-container">
+            <!-- Folders will be injected here -->
+          </div>
           <!-- <div>
             <img class="icon" src="icons/list_search.svg" />
             <span class="folder-name">All Feeds</span>

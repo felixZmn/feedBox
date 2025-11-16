@@ -4,7 +4,7 @@ export const columns = Object.freeze({
   READER: "reader",
 });
 
-export class Navigator {
+export class NavigationService {
   constructor() {
     this.currentState = { column: columns.FEEDS };
     this.feedsEl = document.getElementById("feeds");

@@ -2,7 +2,7 @@
   <img src="./src/main/resources/static/icons/package.svg" alt="FeedBox Logo" width="100"/>
 </p>
 
-<h1 align="center">feedBox</h1>
+<h1 align="center">FeedBox</h1>
 <h3 align="center">Put all your feeds into a box!</h3>
 
 <p align="center">
@@ -30,7 +30,7 @@
 
 ![Desktop Light Mode](./docs/images/desktop-light.png)
 
-# What is feedBox?
+# What is FeedBox?
 
 FeedBox is a simple, self-hosted feed reader built with Java.  
 It allows you to manage all your feeds in one place—without ads, tracking, AI, or other distractions.
@@ -121,7 +121,7 @@ helm install feedbox oci://ghcr.io/felixzmn/helm/feedbox --version <VERSION>
 # Configuration
 
 | Variable       | Required | Description           | Default |
-|----------------|----------|-----------------------|---------|
+| -------------- | -------- | --------------------- | ------- |
 | `PG_USER`      | yes      | Database user         |         |
 | `PG_PASSWORD`  | yes      | Database password     |         |
 | `PG_HOST`      | yes      | Database host         |         |
@@ -133,3 +133,4 @@ helm install feedbox oci://ghcr.io/felixzmn/helm/feedbox --version <VERSION>
 # Icons
 
 [Icons from Tabler Icons.](https://tablericons.com/)
+[PWA Icon generated with maskable](https://maskable.app/editor)

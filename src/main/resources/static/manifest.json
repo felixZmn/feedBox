@@ -1,0 +1,22 @@
+{
+    "name": "FeedBox",
+    "short_name": "FeedBox",
+    "description": "Put all your feeds into a box!",
+    "start_url": "/",
+    "id": "/",
+    "background_color": "#fff",
+    "theme_color": "#005e83",
+    "display_override": [
+        "standalone",
+        "minimal-ui"
+    ],
+    "display": "browser",
+    "icons": [
+        {
+            "purpose": "any",
+            "sizes": "384x384",
+            "src": "/icons/maskable_icon_x384.png",
+            "type": "image/png"
+        }
+    ]
+}
