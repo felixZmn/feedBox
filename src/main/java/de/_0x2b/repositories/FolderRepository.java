@@ -51,20 +51,10 @@ public class FolderRepository {
             DELETE FROM folder WHERE id = ?
             """;
 
-    // safe getter that returns null if column missing or SQL NULL
-    private static String safeGetString(ResultSet rs, String column) {
-        logger.debug("safeGetString");
-        try {
-            return rs.getString(column);
-        } catch (SQLException e) {
-            return null;
-        }
-    }
-
     public List<Folder> findAll() {
         logger.debug("findAll");
         try (Connection conn = Database.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
+                PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
             try (ResultSet rs = stmt.executeQuery()) {
                 return parseResult(rs);
             }
@@ -77,7 +67,7 @@ public class FolderRepository {
     public List<Folder> findByName(String name) {
         logger.debug("findByName");
         try (Connection conn = Database.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(SELECT_ALL_BY_NAME)) {
+                PreparedStatement stmt = conn.prepareStatement(SELECT_ALL_BY_NAME)) {
             stmt.setString(1, name);
             try (ResultSet rs = stmt.executeQuery()) {
                 return parseResult(rs);
@@ -91,7 +81,7 @@ public class FolderRepository {
     public int create(Folder folder) {
         logger.debug("create");
         try (Connection conn = Database.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(INSERT_ONE)) {
+                PreparedStatement stmt = conn.prepareStatement(INSERT_ONE)) {
             stmt.setString(1, folder.getName());
             stmt.setString(2, folder.getColor());
             try (ResultSet rs = stmt.executeQuery()) {
@@ -111,7 +101,7 @@ public class FolderRepository {
     public int update(Folder folder) {
         logger.debug("update");
         try (Connection conn = Database.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(UPDATE)) {
+                PreparedStatement stmt = conn.prepareStatement(UPDATE)) {
 
             stmt.setString(1, folder.getName());
             stmt.setString(2, folder.getColor());
@@ -133,7 +123,7 @@ public class FolderRepository {
     public int delete(int id) {
         logger.debug("delete");
         try (Connection conn = Database.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(DELETE)) {
+                PreparedStatement stmt = conn.prepareStatement(DELETE)) {
 
             stmt.setInt(1, id);
             return stmt.executeUpdate();
@@ -158,13 +148,11 @@ public class FolderRepository {
                                     id,
                                     rs.getString("folder_name"),
                                     new ArrayList<>(),
-                                    rs.getString("folder_color")
-                            );
+                                    rs.getString("folder_color"));
                         } catch (SQLException e) {
                             throw new RuntimeException(e);
                         }
-                    }
-            );
+                    });
             int feedId = rs.getInt("feed_id");
             if (!rs.wasNull()) {
                 Feed feed = new Feed(
@@ -172,8 +160,7 @@ public class FolderRepository {
                         folderId,
                         rs.getString("feed_name"),
                         URI.create(rs.getString("url")),
-                        URI.create(rs.getString("feed_url"))
-                );
+                        URI.create(rs.getString("feed_url")));
                 folder.getFeeds().add(feed);
             }
         }

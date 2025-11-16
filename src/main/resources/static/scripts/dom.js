@@ -19,13 +19,15 @@ export function renderArticlesList(articles) {
     const article = articles[i];
     const articleDiv = document.createElement("div");
     const headerDiv = document.createElement("div");
+    const imageDiv = document.createElement("div");
     const titleDiv = document.createElement("div");
     const sourceSpan = document.createElement("span");
     const ageSpan = document.createElement("span");
 
     articleDiv.className = "article";
     headerDiv.className = "article-header";
-    titleDiv.className = "title";
+    imageDiv.className = "article-image";
+    titleDiv.className = "article-title";
     sourceSpan.className = "source";
     ageSpan.className = "age";
 
@@ -37,6 +39,12 @@ export function renderArticlesList(articles) {
     headerDiv.appendChild(ageSpan);
 
     articleDiv.appendChild(headerDiv);
+    if (article.imageUrl) {
+      const image = document.createElement("img");
+      image.src = article.imageUrl;
+      imageDiv.appendChild(image);
+      articleDiv.appendChild(imageDiv);
+    }
     articleDiv.appendChild(titleDiv);
 
     articleDiv.addEventListener("click", () => {

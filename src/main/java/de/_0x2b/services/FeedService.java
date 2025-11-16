@@ -2,6 +2,9 @@ package de._0x2b.services;
 
 import com.apptasticsoftware.rssreader.Item;
 import com.apptasticsoftware.rssreader.RssReader;
+import com.apptasticsoftware.rssreader.module.mediarss.MediaRssItem;
+import com.apptasticsoftware.rssreader.module.mediarss.MediaRssReader;
+
 import de._0x2b.exceptions.NotFoundException;
 import de._0x2b.models.Article;
 import de._0x2b.models.Feed;
@@ -40,7 +43,8 @@ public class FeedService {
             iconService.findIcon(feed);
         } catch (Exception e) {
             logger.warn("Could not find icon");
-            // it can be the case that no icon is found or errors occour while searching for one
+            // it can be the case that no icon is found or errors occour while searching for
+            // one
             // as missing icons are a legimite case -> ignore
         }
 
@@ -102,12 +106,12 @@ public class FeedService {
 
     private void parseFeed(Feed feed) {
         logger.debug("parseFeed");
-        RssReader rssReader = new RssReader();
+        MediaRssReader rssReader = new MediaRssReader();
         try {
             var items = rssReader.read(feed.getFeedURI().toString()).toList();
             List<Article> articles = new ArrayList<>();
 
-            for (Item item : items) {
+            for (MediaRssItem item : items) {
                 try {
                     var title = item.getTitle().orElse("");
                     var description = item.getDescription().orElse("");
@@ -117,13 +121,22 @@ public class FeedService {
                             .map(zdt -> zdt.withZoneSameInstant(ZoneOffset.UTC).format(formatter))
                             .orElse("unknown pub date");
                     var author = item.getAuthor().orElse("");
+                    var imageUrl = "";
+                    if (item.getMediaThumbnail().isPresent()) {
+                        imageUrl = item.getMediaThumbnail().get().getUrl().toString();
+                    }
+                    if (imageUrl.equals("") && item.getEnclosure().isPresent()
+                            && item.getEnclosure().get().getType().startsWith("image/")) {
+                        imageUrl = item.getEnclosure().get().getUrl();
+                    }
+
                     var categories = item.getCategories().toString();
 
                     Article article = new Article(-1, feed.getId(), feed.getName(),
                             title, description,
                             content, link,
                             datetime,
-                            author, "",
+                            author, imageUrl,
                             categories);
                     articles.add(article);
                 } catch (Exception e) {

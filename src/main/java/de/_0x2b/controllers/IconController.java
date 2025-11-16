@@ -19,6 +19,7 @@ public class IconController {
     }
 
     private void getIconByFeedId(Context ctx) {
+        logger.debug("getIconByFeedId");
         int feedId = Integer.parseInt(ctx.pathParam("id"));
         var icon = iconService.findOneByFeed(feedId);
 

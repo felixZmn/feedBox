@@ -277,6 +277,16 @@ summary::marker {
   gap: var(--default-space);
 }
 
+.articles-list img {
+  width: 100%;
+  height: auto;
+}
+
+.articles-list .article-image {
+  margin-bottom: var(--default-space);
+  margin-top: var(--default-space);
+}
+
 .articles-list .source {
   white-space: nowrap;
   text-overflow: ellipsis;
