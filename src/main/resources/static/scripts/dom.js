@@ -96,18 +96,29 @@ export function clearReaderView() {
 function createFeedElement(feed) {
   const li = document.createElement("li");
   const icon = document.createElement("img");
-  icon.src = "./api/icons/" + feed.id; // ToDo: replace with actual icon
-  icon.className = "feed-icon";
+  icon.src = "./api/icons/" + feed.id;
+  icon.className = "tree-entry-icon";
 
-  li.appendChild(icon);
-  li.appendChild(document.createTextNode(feed.name || "Unnamed Feed"));
+  const nameSpan = document.createElement("span");
+  nameSpan.textContent = feed.name || "";
+  nameSpan.className = "tree-name";
+
   li.addEventListener("click", (e) => {
     feedClickListener(feed);
   });
-  li.addEventListener("contextmenu", (e) => {
+
+  const options = document.createElement("span");
+  options.classList.add("tree-options");
+  options.textContent = "⋮";
+  options.addEventListener("click", (e) => {
     e.preventDefault();
+    e.stopPropagation();
     feedContextMenu(e.pageX, e.pageY, feed);
   });
+
+  li.appendChild(icon);
+  li.appendChild(nameSpan);
+  li.appendChild(options);
   li.dataset.feedId = feed.id;
   return li;
 }
@@ -175,17 +186,24 @@ function createFolderElement(folder) {
 
   const nameSpan = document.createElement("span");
   nameSpan.textContent = folder.name || "";
-  nameSpan.className = "folder-name";
+  nameSpan.className = "tree-name";
   nameSpan.addEventListener("click", (e) => {
     folderClickListener(folder);
   });
-  nameSpan.addEventListener("contextmenu", (e) => {
+
+  const options = document.createElement("span");
+  options.classList.add("tree-options");
+  options.textContent = "⋮";
+  options.addEventListener("click", (e) => {
     e.preventDefault();
+    e.stopPropagation();
     folderContextMenu(e.pageX, e.pageY, folder);
   });
 
   summary.appendChild(img);
   summary.appendChild(nameSpan);
+  summary.appendChild(options);
+
   return summary;
 }
 
@@ -200,7 +218,7 @@ function addElement() {
 
   const span = document.createElement("span");
   span.textContent = "Add";
-  span.className = "folder-name";
+  span.className = "tree-name";
 
   const details = document.createElement("div");
   details.classList.add("space-top", "details");

@@ -183,9 +183,22 @@ button {
   margin: var(--default-space);
 }
 
-.folder-name {
+.tree-name {
   width: 100%;
   padding: var(--default-space) 0;
+}
+
+.tree-options {
+  width: 34px;
+  text-align: center;
+}
+
+.tree-entry-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex: 0 0 16px;
+  display: inline-block;
 }
 
 .feed {
@@ -246,20 +259,15 @@ summary::marker {
 .feeds-ul li {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: var(--default-space) var(--default-space);
+  gap: var(--default-space);
+  padding-bottom: calc(var(--default-space) / 2);
+  padding-top: calc(var(--default-space) / 2);
+  padding-left: var(--default-space);
+  cursor: pointer;
 }
 
 .folder-container {
   margin: 0 0 0 18px;
-}
-
-.feed-icon {
-  width: 16px;
-  height: 16px;
-  object-fit: contain;
-  flex: 0 0 16px;
-  display: inline-block;
 }
 
 /* articles list */
@@ -277,7 +285,7 @@ summary::marker {
   gap: var(--default-space);
 }
 
-.articles-list img {
+.articles-container img {
   width: 100%;
   height: auto;
 }
