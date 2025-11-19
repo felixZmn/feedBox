@@ -153,6 +153,7 @@ export function renderFoldersList(folders) {
       });
       return;
     }
+
     const details = document.createElement("details");
     details.appendChild(createFolderElement(folder));
 

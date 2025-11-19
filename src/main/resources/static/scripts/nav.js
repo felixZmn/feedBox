@@ -1,5 +1,5 @@
 export const columns = Object.freeze({
-  FEEDS: "feeds",
+  FEEDS: "feeds-list",
   ARTICLES: "articles-list",
   READER: "reader",
 });
@@ -7,7 +7,7 @@ export const columns = Object.freeze({
 export class NavigationService {
   constructor() {
     this.currentState = { column: columns.FEEDS };
-    this.feedsEl = document.getElementById("feeds");
+    this.feedsEl = document.getElementById("feeds-list");
     this.articlesEl = document.getElementById("articles-list");
     this.readerEl = document.getElementById("reader");
 

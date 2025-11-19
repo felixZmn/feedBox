@@ -111,7 +111,7 @@ button {
     display: block;
   }
 
-  #feeds,
+  #feeds-list,
   #articles-list,
   #reader {
     display: none;
@@ -120,7 +120,7 @@ button {
   }
 
   /* On mobile: show only the primary column */
-  #feeds.primary,
+  #feeds-list.primary,
   #articles-list.primary,
   #reader.primary {
     display: block;
@@ -141,14 +141,14 @@ button {
   }
 
   /* Hide everything by default */
-  #feeds,
+  #feeds-list,
   #articles-list,
   #reader {
     display: none;
   }
 
   /* Feeds + Articles view */
-  #feeds.active,
+  #feeds-list.active,
   #articles-list.active {
     display: block;
   }
@@ -165,14 +165,14 @@ button {
   }
 }
 
-.feeds,
+.feeds-list,
 .articles-list,
 .reader {
   padding: 0;
   height: 100dvh;
 }
 
-.feeds,
+.feeds-list,
 .articles-list {
   min-width: var(--column-width);
 }
@@ -199,24 +199,6 @@ button {
   object-fit: contain;
   flex: 0 0 16px;
   display: inline-block;
-}
-
-.feed {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  gap: var(--default-space);
-  align-items: center;
-  padding: var(--default-space);
-}
-
-.feed img {
-  height: 1em;
-  width: 1em;
-}
-
-.feed:hover {
-  background-color: var(--font-color-highlight);
 }
 
 /*#############*/
@@ -285,7 +267,7 @@ summary::marker {
   gap: var(--default-space);
 }
 
-.articles-container img {
+.article-image img {
   width: 100%;
   height: auto;
 }
@@ -301,7 +283,7 @@ summary::marker {
   overflow: hidden;
 }
 
-.feeds .header,
+.feeds-list .header,
 .articles-list .header {
   display: flex;
   justify-content: space-between;
@@ -317,11 +299,6 @@ summary::marker {
   border-radius: 2px;
 }
 
-.item-spacer {
-  padding-left: var(--default-space);
-  padding-right: var(--default-space);
-}
-
 .reader .article {
   max-width: 800px;
   display: flex;
@@ -329,36 +306,6 @@ summary::marker {
   margin-left: auto;
   margin-right: auto;
   gap: var(--default-space);
-}
-
-.column-header {
-  position: relative; /* for the full-width faux-border */
-  display: grid;
-  grid-template-columns: 1fr minmax(0, 800px) 1fr; /* center area limited to 800px */
-  align-content: center;
-  padding: 0 var(--default-space);
-  height: 2.5rem;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.column-header .left,
-.column-header .right {
-  display: flex;
-}
-
-.column-header .left {
-  grid-column: 1;
-  justify-self: start;
-}
-
-.column-header .right {
-  grid-column: 2;
-  justify-self: end;
-}
-
-.left a,
-.right a {
-  display: block;
 }
 
 .reader .publisher,
@@ -398,6 +345,63 @@ summary::marker {
   aspect-ratio: 16 / 9;
   width: 100% !important;
   height: auto;
+}
+
+.column-header {
+  position: relative; /* for the full-width faux-border */
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 800px) 1fr; /* center area limited to 800px */
+  align-content: center;
+  padding: 0 var(--default-space);
+  height: 2.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.column-header .left,
+.column-header .right {
+  display: flex;
+}
+
+.column-header .left {
+  grid-column: 1;
+  justify-self: start;
+}
+
+.column-header .right {
+  grid-column: 2;
+  justify-self: end;
+}
+
+.item-spacer {
+  padding-left: var(--default-space);
+  padding-right: var(--default-space);
+}
+
+.left a,
+.right a {
+  display: block;
+}
+
+/* ######################### */
+/* search box */
+.search-container {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--default-space);
+}
+
+.search-container input[type="text"] {
+  border: none;
+  outline: none;
+  /*
+   *   column-widht 
+   * - 20px for the icon
+   * - 4 * default-space for the gaps and paddings 
+   */
+  width: calc(var(--column-width) - 20px - var(--default-space) * 4);
+  background-color: var(--background-color);
+  color: var(--font-color);
 }
 
 /* Helpers */
@@ -542,26 +546,4 @@ li:hover,
 
 .context-menu-item {
   display: none;
-}
-
-/* ######################### */
-/* search box */
-.search-container {
-  position: relative;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--default-space);
-}
-
-.search-container input[type="text"] {
-  border: none;
-  outline: none;
-  /*
-   *   column-widht 
-   * - 20px for the icon
-   * - 4 * default-space for the gaps and paddings 
-   */
-  width: calc(var(--column-width) - 20px - var(--default-space) * 4);
-  background-color: var(--background-color);
-  color: var(--font-color);
 }
