@@ -1,0 +1,34 @@
+name: Update Dependencies
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Run Renovate
+        run: "npx renovate"
+        env:
+          RENOVATE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RENOVATE_PLATFORM: "github"
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
+          RENOVATE_HOST_RULES: '[{"matchHost":"ghcr.io","username":"${{ github.actor }}","password":"${{ secrets.GHCR_TOKEN }}"}]'
+          LOG_LEVEL: "debug"
