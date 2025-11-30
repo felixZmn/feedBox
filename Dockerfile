@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21-alpine AS builder
+FROM eclipse-temurin:25-alpine AS builder
 
 RUN apk add --no-cache maven
 
@@ -8,7 +8,7 @@ COPY ./src ./src
 COPY pom.xml .
 RUN mvn --no-transfer-progress clean install
 
-FROM eclipse-temurin:21-alpine
+FROM eclipse-temurin:25-alpine
 LABEL org.opencontainers.image.source=https://github.com/felixZmn/feedBox
 
 WORKDIR /app
