@@ -53,7 +53,7 @@ database:
   dbNameKey: dbname
 
 ingress:
-  enabled: true
+  enabled: false
   className: nginx
   annotations: {}
   hosts:
@@ -62,6 +62,21 @@ ingress:
         - path: /
           pathType: Prefix
   tls: []
+
+httpRoute:
+  enabled: false
+  annotations: {}
+  parentRefs:
+  - name: gateway
+    sectionName: http
+    namespace: default
+  hostnames:
+  - chart-example.local
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
 
 oauth2Proxy:
   enabled: true
