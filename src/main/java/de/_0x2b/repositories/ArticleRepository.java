@@ -7,184 +7,70 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ArticleRepository {
+public class ArticleRepository extends AbstractRepository<Article> {
     private static final Logger logger = LoggerFactory.getLogger(ArticleRepository.class);
 
-    private static final String SELECT_ALL = """
-            SELECT article.id, article.feed_id, feed.name AS publisher, article.title, article.description, article.content, article.link, article.published, article.authors, article.image_url, article.categories
-            FROM article
-            JOIN feed ON feed.id = feed_id
-            ORDER BY article.published DESC, article.id DESC
-            LIMIT 25
+    private static final String SELECT_COLS = """
+            SELECT a.id, a.feed_id, f.name AS publisher, a.title, a.description,
+                   a.content, a.link, a.published, a.authors, a.image_url, a.categories
             """;
-    private static final String SELECT_ALL_PAGINATED = """
-            SELECT article.id, article.feed_id, feed.name AS publisher, article.title, article.description, article.content, article.link, article.published, article.authors, article.image_url, article.categories
-            FROM article
-            JOIN feed ON feed.id = feed_id
-            WHERE ((article.published < ?) OR (article.published = ? AND article.id < ?))
-            ORDER BY article.published DESC, article.id DESC
-            LIMIT 25
+    private static final String FROM_JOIN = """
+            FROM article a
+            JOIN feed f ON f.id = a.feed_id
             """;
-    private static final String SELECT_BY_FEED = """
-            SELECT article.id, article.feed_id, feed.name AS publisher, article.title, article.description, article.content, article.link, article.published, article.authors, article.image_url, article.categories
-            FROM article
-            JOIN feed ON feed.id = feed_id
-            WHERE feed.id = ?
-            ORDER BY article.published DESC, article.id DESC
-            LIMIT 25
+    private static final String JOIN_FOLDER = " JOIN folder fo on fo.id = f.folder_id ";
+    private static final String WHERE_PAGINATION = " AND ((a.published < ?) OR (a.published = ? AND a.id < ?)) ";
+    private static final String ORDER_LIMIT = " ORDER BY a.published DESC, a.id DESC LIMIT 25";
+    private static final String INSERT_SQL = """
+            INSERT INTO article (feed_id, title, description, content, link, published, authors, image_url, categories)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (link) DO NOTHING
             """;
-    private static final String SELECT_BY_FEED_PAGINATED = """
-            SELECT article.id, article.feed_id, feed.name AS publisher, article.title, article.description, article.content, article.link, article.published, article.authors, article.image_url, article.categories
-            FROM article
-            JOIN feed ON feed.id = feed_id
-            WHERE feed.id = ?
-            and ((article.published < ?) OR (article.published = ? AND article.id < ?))
-            ORDER BY article.published DESC, article.id DESC
-            LIMIT 25
-            """;
-    private static final String SELECT_BY_FOLDER = """
-            SELECT article.id, article.feed_id, feed.name AS publisher, article.title, article.description, article.content, article.link, article.published, article.authors, article.image_url, article.categories
-            FROM article
-            JOIN feed ON feed.id = feed_id
-            JOIN folder on folder.id = feed.folder_id
-            WHERE folder.id = ?
-            ORDER BY article.published DESC, article.id DESC
-            LIMIT 25
-            """;
-    private static final String SELECT_BY_FOLDER_PAGINATED = """
-            SELECT article.id, article.feed_id, feed.name AS publisher, article.title, article.description, article.content, article.link, article.published, article.authors, article.image_url, article.categories
-            FROM article
-            JOIN feed ON feed.id = feed_id
-            JOIN folder on folder.id = feed.folder_id
-            WHERE folder.id = ?
-            and ((article.published < ?) OR (article.published = ? AND article.id < ?))
-            ORDER BY article.published DESC, article.id DESC
-            LIMIT 25
-            """;
+    private static final String DELETE_BY_FEED_SQL = "DELETE FROM article WHERE feed_id = ?";
 
-    private static final String INSERT = """
-            INSERT INTO article (feed_id, title, description, content, link, published, authors, image_url, categories) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (link) DO NOTHING
-            """;
-
-    private static final String DELETE_BY_FEED = """
-            DELETE FROM article WHERE feed_id = ?
-            """;
+    private final RowMapper<Article> articleMapper = rs -> new Article(rs.getInt("id"), rs.getInt("feed_id"), rs.getString("publisher"), rs.getString("title"), rs.getString("description"), rs.getString("content"), rs.getString("link"), rs.getString("published"), rs.getString("authors"), rs.getString("image_url"), rs.getString("categories"));
 
     public List<Article> findAll() {
-        logger.debug("findAll");
-        try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
-            try (ResultSet rs = stmt.executeQuery()) {
-                return parseResult(rs);
-            }
-        } catch (SQLException e) {
-            logger.error("Error executing SQL statement", e);
-        }
-        return List.of();
+        return findInternal(null, null, null, null);
     }
 
     public List<Article> findAll(int paginationId, String paginationDate) {
-        logger.debug("findAll");
-        try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_ALL_PAGINATED)) {
-
-            stmt.setString(1, paginationDate);
-            stmt.setString(2, paginationDate);
-            stmt.setInt(3, paginationId);
-
-            try (var rs = stmt.executeQuery()) {
-                return parseResult(rs);
-            }
-        } catch (SQLException e) {
-            logger.error("Error executing SQL statement", e);
-        }
-        return List.of();
+        return findInternal(null, null, paginationId, paginationDate);
     }
 
     public List<Article> findByFeed(int feedId) {
-        logger.debug("findByFeed");
-        try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FEED)) {
-
-            stmt.setObject(1, feedId);
-
-            try (var rs = stmt.executeQuery()) {
-                return parseResult(rs);
-            }
-        } catch (SQLException e) {
-            logger.error("Error executing SQL statement", e);
-        }
-        return List.of();
+        return findInternal("f.id = ?", List.of(feedId), null, null);
     }
 
     public List<Article> findByFeed(int feedId, int paginationId, String paginationDate) {
-        logger.debug("findByFeed");
-        try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FEED_PAGINATED)) {
-
-            stmt.setInt(1, feedId);
-            stmt.setString(2, paginationDate);
-            stmt.setString(3, paginationDate);
-            stmt.setInt(4, paginationId);
-
-            try (var rs = stmt.executeQuery()) {
-                return parseResult(rs);
-            }
-        } catch (SQLException e) {
-            logger.error("Error executing SQL statement", e);
-        }
-        return List.of();
+        return findInternal("f.id = ?", List.of(feedId), paginationId, paginationDate);
     }
 
     public List<Article> findByFolder(int folderId) {
-        logger.debug("findByFolder");
-        try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FOLDER)) {
-
-            stmt.setInt(1, folderId);
-
-            try (var rs = stmt.executeQuery()) {
-                return parseResult(rs);
-            }
-        } catch (SQLException e) {
-            logger.error("Error executing SQL statement", e);
-        }
-        return List.of();
+        return findInternal("fo.id = ?", List.of(folderId), null, null, true);
     }
 
     public List<Article> findByFolder(int folderId, int paginationId, String paginationDate) {
-        logger.debug("findByFolder");
-        try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_BY_FOLDER_PAGINATED)) {
+        return findInternal("fo.id = ?", List.of(folderId), paginationId, paginationDate, true);
+    }
 
-            stmt.setInt(1, folderId);
-            stmt.setString(2, paginationDate);
-            stmt.setString(3, paginationDate);
-            stmt.setInt(4, paginationId);
-
-            try (var rs = stmt.executeQuery()) {
-                return parseResult(rs);
-            }
-        } catch (SQLException e) {
-            logger.error("Error executing SQL statement", e);
-        }
-        return List.of();
+    public void deleteByFeed(int feedId) throws SQLException {
+        super.update(DELETE_BY_FEED_SQL, List.of(feedId));
     }
 
     public void create(List<Article> articles) {
-        logger.debug("create");
-        if (articles == null || articles.isEmpty()) {
-            return;
-        }
+        if (articles == null || articles.isEmpty()) return;
+
+        logger.debug("Starting batch create for {} articles", articles.size());
+
         try (Connection conn = Database.getConnection()) {
-            conn.setAutoCommit(false);
-            try (PreparedStatement stmt = conn.prepareStatement(INSERT)) {
-                final int batchSize = 500;
+            conn.setAutoCommit(false); // Start Transaction
+
+            try (PreparedStatement stmt = conn.prepareStatement(INSERT_SQL)) {
                 int count = 0;
                 for (Article a : articles) {
                     stmt.setInt(1, a.getFeedId());
@@ -197,59 +83,53 @@ public class ArticleRepository {
                     stmt.setString(8, a.getImageUrl());
                     stmt.setString(9, a.getCategories());
                     stmt.addBatch();
-                    if (++count % batchSize == 0) {
-                        stmt.executeBatch();
-                    }
+
+                    if (++count % 500 == 0) stmt.executeBatch();
                 }
-                stmt.executeBatch(); // execute remaining
-                conn.commit();
+                stmt.executeBatch(); // Execute remaining
+                conn.commit(); // Commit Transaction
             } catch (SQLException e) {
-                try {
-                    conn.rollback();
-                    logger.error("Error executing SQL statement", e);
-                } catch (SQLException ex) {
-                    logger.error("Error executing SQL statement", ex);
-                }
-                logger.error("Error executing SQL statement", e);
-            } finally {
-                conn.setAutoCommit(true);
+                conn.rollback();
+                logger.error("Batch insert failed, rolled back", e);
             }
         } catch (SQLException e) {
-            logger.error("Error executing SQL statement", e);
+            logger.error("Database connection error", e);
         }
     }
 
-    public void deleteByFeed(int feedId) {
-        logger.debug("deleteByFeed");
-        try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(DELETE_BY_FEED)) {
-
-            stmt.setInt(1, feedId);
-            stmt.executeUpdate();
-
-        } catch (SQLException e) {
-            logger.error("Error executing SQL statement", e);
-        }
+    private List<Article> findInternal(String whereClause, List<Object> params, Integer pagId, String pagDate) {
+        return findInternal(whereClause, params, pagId, pagDate, false);
     }
 
-    private List<Article> parseResult(ResultSet rs) throws SQLException {
-        logger.debug("parseResult");
-        List<Article> articles = new ArrayList<>();
-        while (rs.next()) {
-            Article a = new Article(
-                    rs.getInt("id"),
-                    rs.getInt("feed_id"),
-                    rs.getString("publisher"),
-                    rs.getString("title"),
-                    rs.getString("description"),
-                    rs.getString("content"),
-                    rs.getString("link"),
-                    rs.getString("published"),
-                    rs.getString("authors"),
-                    rs.getString("image_url"),
-                    rs.getString("categories"));
-            articles.add(a);
+    private List<Article> findInternal(String whereClause, List<Object> initialParams, Integer pagId, String pagDate, boolean joinFolder) {
+
+        StringBuilder sql = new StringBuilder(SELECT_COLS).append(FROM_JOIN);
+        List<Object> params = new ArrayList<>();
+
+        if (initialParams != null) {
+            params.addAll(initialParams);
         }
-        return articles;
+
+        if (joinFolder) {
+            sql.append(JOIN_FOLDER);
+        }
+
+        // Add where
+        sql.append(" WHERE 1=1 ");
+        if (whereClause != null) {
+            sql.append(" AND ").append(whereClause);
+        }
+
+        // Add Pagination
+        if (pagId != null && pagDate != null) {
+            sql.append(WHERE_PAGINATION);
+            params.add(pagDate);
+            params.add(pagDate);
+            params.add(pagId);
+        }
+
+        sql.append(ORDER_LIMIT);
+
+        return super.query(sql.toString(), articleMapper, params);
     }
 }

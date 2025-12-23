@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
+import java.sql.SQLException;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -212,7 +213,15 @@ public class FeedService {
 
     public int deleteFeed(int feedId) {
         logger.debug("deleteFeed");
-        articleRepository.deleteByFeed(feedId);
-        return feedRepository.delete(feedId);
+        try {
+            articleRepository.deleteByFeed(feedId);
+        } catch (SQLException e) {
+            return -1;
+        }
+        try {
+            return feedRepository.delete(feedId);
+        } catch (SQLException e) {
+            return -1;
+        }
     }
 }

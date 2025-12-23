@@ -21,23 +21,24 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class FolderRepository {
+public class FolderRepository extends AbstractRepository<Folder> {
     private static final Logger logger = LoggerFactory.getLogger(FolderRepository.class);
 
-    private static final String SELECT_ALL = """
+    private static final String SELECT_COLS = """
             SELECT folder.id as "folder_id", folder.name as "folder_name", folder.color as "folder_color", feed.id  AS "feed_id", feed.name AS "feed_name", feed.url as "url", feed.feed_url AS "feed_url"
+            """;
+    private static final String FROM_JOIN = """
             FROM folder
             LEFT JOIN feed ON folder.id = feed.folder_id
+            """;
+    private static final String ORDER = """
             ORDER BY folder.name, feed.name
             """;
-
-    private static final String SELECT_ALL_BY_NAME = """
-            SELECT folder.id as "folder_id", folder.name as "folder_name", folder.color as "folder_color", feed.id  AS "feed_id", feed.name AS "feed_name", feed.url as "url", feed.feed_url AS "feed_url"
-            FROM folder
-            LEFT JOIN feed ON folder.id = feed.folder_id
-            wHERE folder.name = ?
-            ORDER BY folder.name, feed.name
+    private static final String WHERE = """
+            WHERE folder.name = ?
             """;
+    private static final String SELECT_ALL = SELECT_COLS + FROM_JOIN + ORDER;
+    private static final String SELECT_ALL_BY_NAME = SELECT_COLS + FROM_JOIN + WHERE + ORDER;
 
     private static final String INSERT_ONE = """
             INSERT INTO folder (name, color) VALUES (?, ?) RETURNING id
@@ -53,8 +54,7 @@ public class FolderRepository {
 
     public List<Folder> findAll() {
         logger.debug("findAll");
-        try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
+        try (Connection conn = Database.getConnection(); PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
             try (ResultSet rs = stmt.executeQuery()) {
                 return parseResult(rs);
             }
@@ -66,8 +66,7 @@ public class FolderRepository {
 
     public List<Folder> findByName(String name) {
         logger.debug("findByName");
-        try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_ALL_BY_NAME)) {
+        try (Connection conn = Database.getConnection(); PreparedStatement stmt = conn.prepareStatement(SELECT_ALL_BY_NAME)) {
             stmt.setString(1, name);
             try (ResultSet rs = stmt.executeQuery()) {
                 return parseResult(rs);
@@ -79,59 +78,34 @@ public class FolderRepository {
     }
 
     public int create(Folder folder) {
-        logger.debug("create");
-        try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(INSERT_ONE)) {
-            stmt.setString(1, folder.getName());
-            stmt.setString(2, folder.getColor());
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt("id");
-                }
-            }
+        try {
+            List<Object> params = List.of(folder.getName(), folder.getColor());
+
+            return super.insert(INSERT_ONE, params);
+
         } catch (SQLException e) {
-            if (e.getSQLState().equals("23505")) {
-                throw new DuplicateEntityException("Folder with this URL already exists");
+            if ("23505".equals(e.getSQLState())) {
+                throw new DuplicateEntityException("Folder with this Name already exists");
             }
-            logger.error("Error executing SQL statement", e);
+            logger.error("Error creating feed", e);
+            return -1;
         }
-        return -1;
     }
 
     public int update(Folder folder) {
-        logger.debug("update");
-        try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(UPDATE)) {
+        try {
+            List<Object> params = List.of(folder.getName(), folder.getColor(), folder.getId());
 
-            stmt.setString(1, folder.getName());
-            stmt.setString(2, folder.getColor());
-            stmt.setInt(3, folder.getId());
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt("id");
-                }
-            }
+            int rows = super.update(UPDATE, params);
+            return (rows > 0) ? folder.getId() : -1;
         } catch (SQLException e) {
-            if (e.getSQLState().equals("23505")) {
-                throw new DuplicateEntityException("Folder with this URL already exists");
-            }
-            logger.error("Error executing SQL statement", e);
+            logger.error("Error updating feed", e);
+            return -1;
         }
-        return -1;
     }
 
-    public int delete(int id) {
-        logger.debug("delete");
-        try (Connection conn = Database.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(DELETE)) {
-
-            stmt.setInt(1, id);
-            return stmt.executeUpdate();
-
-        } catch (SQLException e) {
-            logger.error("Error executing SQL statement", e);
-        }
-        return -1;
+    public int delete(int id) throws SQLException {
+        return super.update(DELETE, List.of(id));
     }
 
     private ArrayList<Folder> parseResult(ResultSet rs) throws SQLException {
@@ -140,27 +114,16 @@ public class FolderRepository {
 
         while (rs.next()) {
             int folderId = rs.getInt("folder_id");
-            Folder folder = folders.computeIfAbsent(
-                    folderId,
-                    id -> {
-                        try {
-                            return new Folder(
-                                    id,
-                                    rs.getString("folder_name"),
-                                    new ArrayList<>(),
-                                    rs.getString("folder_color"));
-                        } catch (SQLException e) {
-                            throw new RuntimeException(e);
-                        }
-                    });
+            Folder folder = folders.computeIfAbsent(folderId, id -> {
+                try {
+                    return new Folder(id, rs.getString("folder_name"), new ArrayList<>(), rs.getString("folder_color"));
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+            });
             int feedId = rs.getInt("feed_id");
             if (!rs.wasNull()) {
-                Feed feed = new Feed(
-                        feedId,
-                        folderId,
-                        rs.getString("feed_name"),
-                        URI.create(rs.getString("url")),
-                        URI.create(rs.getString("feed_url")));
+                Feed feed = new Feed(feedId, folderId, rs.getString("feed_name"), URI.create(rs.getString("url")), URI.create(rs.getString("feed_url")));
                 folder.getFeeds().add(feed);
             }
         }
