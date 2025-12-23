@@ -64,7 +64,7 @@ public class IconService {
 
     public List<Icon> findOneByFeed(int id) {
         logger.debug("findOne");
-        var icon = iconRepository.findOneByFeed(id);
+        var icon = iconRepository.findByFeed(id);
         if (icon.isEmpty()) {
             return getDefaultIcon();
         }
