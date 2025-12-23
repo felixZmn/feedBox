@@ -53,16 +53,16 @@ public class Database {
                     name VARCHAR(255) UNIQUE NOT NULL,
                     color VARCHAR(255) DEFAULT 'f-base'
                 );
-                
+
                 CREATE TABLE IF NOT EXISTS feed (
                     id SERIAL PRIMARY KEY,
                     folder_id INT NOT NULL,
                     name VARCHAR(255) NOT NULL,
-                    url VARCHAR(2048) NOT NULL UNIQUE,
+                    url VARCHAR(2048) NOT NULL,
                     feed_url VARCHAR(2048) NOT NULL UNIQUE,
                     FOREIGN KEY (folder_id) REFERENCES folder(id) ON DELETE CASCADE
                 );
-                
+
                 CREATE TABLE IF NOT EXISTS icon (
                     id SERIAL PRIMARY KEY,
                     feed_id integer,
@@ -71,7 +71,7 @@ public class Database {
                     file_name VARCHAR(255) NOT NULL,
                     FOREIGN KEY (feed_id) REFERENCES feed(id) ON DELETE SET NULL
                 );
-                
+
                 CREATE TABLE IF NOT EXISTS article (
                     id SERIAL PRIMARY KEY,
                     feed_id INTEGER NOT NULL,
@@ -85,12 +85,12 @@ public class Database {
                     categories TEXT NULL,
                     FOREIGN KEY (feed_id) REFERENCES feed(id) ON DELETE CASCADE
                 );
-                
+
                 INSERT INTO folder (id, name) VALUES (0,'root') ON CONFLICT DO NOTHING;
                 """;
 
         try (Connection conn = Database.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.executeUpdate();
             logger.info("... schema migration successful");
         }

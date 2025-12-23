@@ -97,7 +97,7 @@ public class IconServiceTest {
         // do
         iconService.findIcon(feed);
 
-        // ASSERT
+        // assert
         verify(iconRepository, times(1)).create(any(Icon.class));
         verify(iconRepository).create(iconCaptor.capture());
         Icon storedIcon = iconCaptor.getValue();

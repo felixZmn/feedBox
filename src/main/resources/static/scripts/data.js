@@ -37,6 +37,12 @@ class DataService {
     return await this._deleteRequest(`./api/feeds/${feedId}`);
   }
 
+  async checkFeed(feedUrl) {
+    return await this._getRequest(
+      `./api/feeds/check?url=${encodeURIComponent(feedUrl)}`
+    );
+  }
+
   async refreshFeeds() {
     return await this._getRequest("./api/feeds/refresh");
   }

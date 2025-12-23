@@ -1,15 +1,17 @@
 package de._0x2b.services;
 
-import com.apptasticsoftware.rssreader.Item;
 import com.apptasticsoftware.rssreader.RssReader;
 import com.apptasticsoftware.rssreader.module.mediarss.MediaRssItem;
 import com.apptasticsoftware.rssreader.module.mediarss.MediaRssReader;
-
 import de._0x2b.exceptions.NotFoundException;
 import de._0x2b.models.Article;
 import de._0x2b.models.Feed;
 import de._0x2b.repositories.ArticleRepository;
 import de._0x2b.repositories.FeedRepository;
+import org.jsoup.Connection;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,8 +19,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.Executors;
 
 public class FeedService {
@@ -104,6 +105,70 @@ public class FeedService {
         return feed;
     }
 
+    public List<Feed> checkFeed(String url) {
+        return checkFeed(url, new JsoupProvider());
+    }
+
+    protected List<Feed> checkFeed(String url, JsoupProvider provider) {
+        logger.debug("checkFeed");
+        List<Feed> validFeeds = new ArrayList<>();
+
+        try {
+            Connection.Response queryResponse = provider.execute(url);
+
+            String body = queryResponse.body();
+            String contentType = queryResponse.contentType();
+
+            if (isFeed(contentType, body)) {
+                logger.debug("URL is a direct feed: {}", url);
+                validFeeds.add(new Feed(-1, -1, "", null, URI.create(url)));
+            } else {
+                Document doc = null;
+                doc = queryResponse.parse();
+
+                Elements links = doc.select(
+                        "link[rel=alternate][type=application/rss+xml], link[rel=alternate][type=application/atom+xml]");
+
+                for (Element link : links) {
+                    String feedUrl = link.attr("abs:href");
+                    String feedName = link.attr("title");
+                    if (!feedUrl.isBlank()) {
+                        validFeeds.add(new Feed(-1, -1, feedName.isBlank() ? feedUrl : feedName, URI.create(url),
+                                URI.create(feedUrl)));
+                    }
+                }
+            }
+
+        } catch (IOException e) {
+            logger.error("Error fetching URL: {}", url, e);
+            validFeeds = Collections.emptyList();
+        }
+
+        return validFeeds;
+    }
+
+    /**
+     * Helper to determine if content is likely an RSS/Atom feed based on headers or
+     * raw content.
+     */
+    private boolean isFeed(String contentType, String body) {
+        // 1. Check Content-Type header (fastest)
+        if (contentType != null) {
+            String type = contentType.toLowerCase();
+            if (type.contains("application/rss+xml") || // Standard RSS
+                    type.contains("application/atom+xml") || // Atom
+                    type.contains("application/rdf+xml")) { // RSS 1.0
+                return true;
+            }
+        }
+
+        // 2. Check Content
+        String startOfBody = body.length() > 500 ? body.substring(0, 500).toLowerCase() : body.toLowerCase();
+        return startOfBody.contains("<rss") || // Standard RSS
+                startOfBody.contains("<feed") || // Atom
+                startOfBody.contains("<rdf:rdf"); // RSS 1.0
+    }
+
     private void parseFeed(Feed feed) {
         logger.debug("parseFeed");
         MediaRssReader rssReader = new MediaRssReader();
@@ -123,7 +188,7 @@ public class FeedService {
                     var author = item.getAuthor().orElse("");
                     var imageUrl = "";
                     if (item.getMediaThumbnail().isPresent()) {
-                        imageUrl = item.getMediaThumbnail().get().getUrl().toString();
+                        imageUrl = item.getMediaThumbnail().get().getUrl();
                     }
                     if (imageUrl.equals("") && item.getEnclosure().isPresent()
                             && item.getEnclosure().get().getType().startsWith("image/")) {
@@ -132,12 +197,8 @@ public class FeedService {
 
                     var categories = item.getCategories().toString();
 
-                    Article article = new Article(-1, feed.getId(), feed.getName(),
-                            title, description,
-                            content, link,
-                            datetime,
-                            author, imageUrl,
-                            categories);
+                    Article article = new Article(-1, feed.getId(), feed.getName(), title, description, content, link,
+                            datetime, author, imageUrl, categories);
                     articles.add(article);
                 } catch (Exception e) {
                     logger.error("Error refreshing feed [{}] \n {}\n", feed.getName(), e.getMessage());

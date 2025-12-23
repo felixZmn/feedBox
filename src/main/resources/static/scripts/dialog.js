@@ -5,6 +5,9 @@ export function hideDialog() {
   document.getElementById("confirm-dialog").style.display = "none";
   document.getElementById("folder-name").value = "";
   document.getElementById("feed-url").value = "";
+  document.getElementById("feed-selector-info")?.remove();
+  document.getElementById("multiple-feeds-select")?.remove();
+  document.getElementById("multiple-feeds-label")?.remove();
 }
 
 export function showConfirmDialog(
@@ -18,15 +21,21 @@ export function showConfirmDialog(
   document.getElementById("confirm-dialog").style.display = "grid";
   var yesButton = document.getElementById("confirm-yes");
   yesButton = removeAllEventListeners(yesButton);
-  yesButton.addEventListener("click", () => {
-    if (confirmAction) confirmAction();
-    hideDialog();
+  yesButton.addEventListener("click", async () => {
+    if (!confirmAction) return;
+    const shouldClose = await confirmAction();
+    if (shouldClose === true) {
+      hideDialog();
+    }
   });
   var noButton = document.getElementById("confirm-no");
   noButton = removeAllEventListeners(noButton);
-  noButton.addEventListener("click", () => {
-    if (cancelAction) cancelAction();
-    hideDialog();
+  noButton.addEventListener("click", async () => {
+    if (!cancelAction) return;
+    const shouldClose = await cancelAction();
+    if (shouldClose === true) {
+      hideDialog();
+    }
   });
   document.getElementById("modal").style.display = "block";
 }
@@ -69,8 +78,11 @@ function feedDialog(headline, confirmAction, cancelAction) {
   var saveButton = document.getElementById("trigger-save-feed");
   saveButton = removeAllEventListeners(saveButton);
   saveButton.addEventListener("click", async () => {
-    if (confirmAction) await confirmAction();
-    hideDialog();
+    if (!confirmAction) return;
+    const shouldClose = await confirmAction();
+    if (shouldClose === true) {
+      hideDialog();
+    }
   });
   document.getElementById("modal").style.display = "block";
 }

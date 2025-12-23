@@ -23,6 +23,7 @@ public class FeedController {
         app.post("/api/feeds", this::createFeed);
         app.put("/api/feeds/{id}", this::updateFeed);
         app.get("/api/feeds/refresh", this::refresh);
+        app.get("/api/feeds/check", this::check);
         app.delete("/api/feeds/{id}", this::delete);
     }
 
@@ -74,5 +75,16 @@ public class FeedController {
             return;
         }
         ctx.status(HttpStatus.NO_CONTENT);
+    }
+
+    private void check(Context ctx) {
+        String urlToCheck = ctx.queryParam("url");
+
+        if (urlToCheck == null || urlToCheck.isBlank()) {
+            ctx.status(400).result("Missing 'url' query parameter");
+            return;
+        }
+
+        ctx.json(feedService.checkFeed(urlToCheck));
     }
 }

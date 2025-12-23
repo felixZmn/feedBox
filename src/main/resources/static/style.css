@@ -520,6 +520,10 @@ li:hover,
   width: 100%;
 }
 
+.modal-form select {
+  width: 100%;
+}
+
 /* ######################### */
 /* click menu */
 .context-menu {

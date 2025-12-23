@@ -43,6 +43,11 @@ var lastClickedItem = {
 };
 var selectedArticle = null;
 
+let addFeedState = {
+  mode: "check", // "check" | "select"
+  discoveredFeeds: [],
+};
+
 const navigationService = new NavigationService();
 
 if ("serviceWorker" in navigator) {
@@ -407,18 +412,110 @@ async function deleteFolder(folder) {
 }
 
 async function createFeed() {
-  var feed = {};
-  feed.feedUrl = document.getElementById("feed-url").value;
-  feed.folderId = document.getElementById("feed-folder").value;
-
   try {
-    await dataService.createFeed(feed);
-    await loadFolders();
+    if (addFeedState.mode === "check") {
+      await handleFeedCheck();
+      return false;
+    } else if (addFeedState.mode === "select") {
+      await handleFeedSaveFromSelection();
+      return true;
+    }
   } catch (error) {
-    alert("Error saving feed: " + feed.feedUrl);
-    console.error(error.message);
+    alert("Error saving feed.");
+    console.error(error);
   }
-  hideDialog();
+}
+
+async function handleFeedCheck() {
+  const feedUrl = document.getElementById("feed-url").value.trim();
+  const folderId = document.getElementById("feed-folder").value;
+
+  if (!feedUrl) {
+    alert("Please enter a URL.");
+    return;
+  }
+
+  const response = await dataService.checkFeed(feedUrl);
+
+  if (!Array.isArray(response) || response.length === 0) {
+    alert("No feeds found.");
+    return;
+  }
+
+  if (response.length === 1) {
+    await saveFeed(response[0].feedUrl, folderId);
+  } else {
+    addFeedState.mode = "select";
+    addFeedState.discoveredFeeds = response;
+    showFeedSelector(response);
+  }
+}
+
+async function handleFeedSaveFromSelection() {
+  const select = document.getElementById("multiple-feeds-select");
+  const folderId = document.getElementById("feed-folder").value;
+
+  if (!select) {
+    alert("Please select a feed.");
+    return;
+  }
+
+  await saveFeed(select.value, folderId);
+}
+
+async function saveFeed(feedUrl, folderId) {
+  const feed = {
+    feedUrl,
+    folderId,
+  };
+
+  await dataService.createFeed(feed);
+  await loadFolders();
+  resetAddFeedDialog();
+}
+
+function showFeedSelector(feeds) {
+  removeFeedSelector();
+
+  const anchor = document.querySelector("#feed-add-edit #anchor");
+
+  const info = document.createElement("p");
+  info.id = "feed-selector-info";
+  info.textContent = "Multiple feeds found. Please select one:";
+  info.classList.add("right");
+  anchor.parentNode.insertBefore(info, anchor);
+
+  const label = document.createElement("label");
+  label.setAttribute("for", "multiple-feeds-select");
+  label.textContent = "Feed";
+  label.id = "multiple-feeds-label";
+  anchor.parentNode.insertBefore(label, anchor);
+
+  const select = document.createElement("select");
+  select.id = "multiple-feeds-select";
+
+  feeds.forEach((feed) => {
+    const option = document.createElement("option");
+    option.value = feed.feedUrl;
+    option.textContent = feed.name || feed.feedUrl;
+    select.appendChild(option);
+  });
+
+  anchor.parentNode.insertBefore(select, anchor);
+}
+
+function removeFeedSelector() {
+  document.getElementById("feed-selector-info")?.remove();
+  document.getElementById("multiple-feeds-select")?.remove();
+  document.getElementById("multiple-feeds-label")?.remove();
+}
+
+function resetAddFeedDialog() {
+  removeFeedSelector();
+  addFeedState.mode = "check";
+  addFeedState.discoveredFeeds = [];
+
+  document.getElementById("feed-url").value = "";
 }
 
 async function editFeed() {
