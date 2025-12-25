@@ -1,23 +1,23 @@
-import { NavigationService, columns } from "./nav.js";
-import {
-  renderFoldersList,
-  renderArticlesList,
-  renderReaderView,
-  folderDropdownOptions,
-  clearReaderView,
-  removeFeedElement,
-} from "./dom.js";
+import { dataService } from "./data.js";
 import {
   hideDialog,
+  showAddFeedDialog,
   showAddFolderDialog,
+  showConfirmDialog,
   showEditFeedDialog,
   showEditFolderDialog,
-  showConfirmDialog,
-  showAddFeedDialog,
 } from "./dialog.js";
-import { dataService } from "./data.js";
+import {
+  clearReaderView,
+  folderDropdownOptions,
+  removeFeedElement,
+  renderArticlesList,
+  renderFoldersList,
+  renderReaderView,
+} from "./dom.js";
+import { NavigationService, columns } from "./nav.js";
 
-const articleLoadType = Object.freeze({
+const itemType = Object.freeze({
   ALL: "",
   FEED: "feed",
   FOLDER: "folder",
@@ -30,24 +30,44 @@ export const dialogType = Object.freeze({
   EDIT_FEED: "edit-feed",
 });
 
-var articles = [];
-var paginationId = null;
-var paginationPublished = null;
+// Application state
+const state = {
+  articles: [],
+  pagination: { id: null, published: null },
+  filter: { isActive: false, lastSearchTerm: "" },
+  status: { isRefreshing: false },
+  selectedArticle: null,
+  lastClickedItem: { type: itemType.ALL, obj: null },
+  addFeed: {
+    mode: "check", // "check" | "select"
+    discoveredFeeds: [],
+  },
+};
+
+// Cache DOM elements for later use
+const dom = {
+  modal: document.getElementById("modal"),
+  contextMenu: document.getElementById("context-menu"),
+  articlesList: document.querySelector("#articles-list .container"),
+  refreshSpinner: document.getElementById("refresh-spinner"),
+  searchInput: document.getElementById("search-input"),
+  button: {
+    import: document.getElementById("trigger-import"),
+    refresh: document.getElementById("trigger-refresh"),
+    previous: document.getElementById("trigger-previous"),
+    next: document.getElementById("trigger-next"),
+    close: document.getElementById("trigger-close"),
+    showAllFeeds: document.getElementById("trigger-show-all-feeds"),
+    addFeed: document.getElementById("trigger-feed-add"),
+    editFeed: document.getElementById("trigger-feed-edit"),
+    deleteFeed: document.getElementById("trigger-feed-delete"),
+    addFolder: document.getElementById("trigger-folder-add"),
+    editFolder: document.getElementById("trigger-folder-edit"),
+    deleteFolder: document.getElementById("trigger-folder-delete"),
+  },
+};
+
 var lazyLoadObserver = null;
-var isRefreshing = false;
-var isFilterActive = false;
-var lastSearchTerm = "";
-var lastClickedItem = {
-  type: articleLoadType.ALL,
-  obj: null,
-};
-var selectedArticle = null;
-
-let addFeedState = {
-  mode: "check", // "check" | "select"
-  discoveredFeeds: [],
-};
-
 const navigationService = new NavigationService();
 
 if ("serviceWorker" in navigator) {
@@ -64,158 +84,94 @@ window.addEventListener("DOMContentLoaded", async () => {
   await loadFolders();
   await loadArticles();
   lazyLoadObserver = setupScrollObserver();
-});
-
-document.querySelector(".modal-close").onclick = () => {
-  hideDialog();
-};
-
-document.addEventListener("click", (e) => {
-  if (e.target === document.getElementById("modal")) {
-    hideDialog();
-  }
-
-  // close context menu on outside click
-  const menu = document.getElementById("context-menu");
-  menu.style.display = "none";
-});
-
-document.getElementById("trigger-previous").addEventListener("click", (e) => {
-  for (var i = articles.length - 1; i >= 0; i--) {
-    if (articles[i].id == selectedArticle.id) {
-      if (i - 1 >= 0) {
-        loadArticle(articles[i - 1]);
-      }
-      break;
-    }
-  }
-});
-
-document.getElementById("trigger-next").addEventListener("click", (e) => {
-  for (var i = 0; i < articles.length; i++) {
-    if (articles[i].id == selectedArticle.id) {
-      if (i + 1 < articles.length) {
-        loadArticle(articles[i + 1]);
-      }
-      break;
-    }
-  }
-});
-
-document
-  .getElementById("trigger-show-all-feeds")
-  .addEventListener("click", (e) => {
-    allFeedsClickListener();
-  });
-document.getElementById("trigger-close").addEventListener("click", (e) => {
-  clearReaderView();
-  navigationService.navigateTo(columns.ARTICLES);
-});
-
-document.getElementById("trigger-refresh").addEventListener("click", (e) => {
-  refreshFeeds();
-});
-
-document.getElementById("trigger-folder-add").addEventListener("click", (e) => {
-  showAddFolderDialog(() => createFolder());
-});
-
-document.getElementById("trigger-feed-add").addEventListener("click", (e) => {
-  showAddFeedDialog(() => createFeed());
-});
-
-document.getElementById("trigger-feed-edit").addEventListener("click", (e) => {
-  showEditFeedDialog(lastClickedItem.obj, () => editFeed());
-});
-
-document
-  .getElementById("trigger-feed-delete")
-  .addEventListener("click", (e) => {
-    let message = `Are you sure you want to delete the feed "${lastClickedItem.obj.name}"?`;
-    showConfirmDialog("Delete", message, () => deleteFeed(lastClickedItem.obj));
-  });
-
-document
-  .getElementById("trigger-folder-edit")
-  .addEventListener("click", (e) => {
-    showEditFolderDialog(lastClickedItem.obj, () => editFolder());
-  });
-
-document
-  .getElementById("trigger-folder-delete")
-  .addEventListener("click", (e) => {
-    let message = `Are you sure you want to delete the folder "${lastClickedItem.obj.name}"? All contained feeds will be deleted".`;
-    showConfirmDialog("Delete", message, () => {
-      deleteFolder(lastClickedItem.obj);
-    });
-  });
-
-document.getElementById("trigger-import").addEventListener("click", (e) => {
-  importFeeds();
-});
-
-document.getElementById("search-input").addEventListener("input", (e) => {
-  let searchTerm = e.target.value.trim().toLowerCase();
-
-  // filter empty -> reset
-  if (searchTerm === "") {
-    isFilterActive = false;
-    lastSearchTerm = "";
-    articles = dataService.getArticles();
-    renderArticlesList(articles);
-    return;
-  }
-
-  if (!searchTerm.startsWith(lastSearchTerm)) {
-    articles = dataService.getArticles();
-  }
-
-  lastSearchTerm = searchTerm;
-  articles = articles.filter((article) =>
-    article.title.toLowerCase().includes(searchTerm)
-  );
-  isFilterActive = true;
-  renderArticlesList(articles);
+  initEventListeners();
 });
 
 /**
- * seraches the selected article by id in the global articles array and renders it
+ * Helper to set up all event listeners in a single place
+ */
+function initEventListeners() {
+  document.querySelector(".modal-close").onclick = () => {
+    hideDialog();
+  };
+  document.addEventListener("click", (e) => {
+    if (e.target === dom.modal) hideDialog();
+    dom.contextMenu.style.display = "none";
+  });
+
+  dom.button.next.addEventListener("click", () => navigateArticle(1));
+  dom.button.previous.addEventListener("click", () => navigateArticle(-1));
+  dom.button.showAllFeeds.addEventListener("click", (e) =>
+    allFeedsClickListener()
+  );
+  dom.button.refresh.addEventListener("click", (e) => refreshFeeds());
+  dom.button.import.addEventListener("click", (e) => importFeeds());
+  dom.button.addFolder.addEventListener("click", (e) =>
+    showAddFolderDialog(() => createFolder())
+  );
+  dom.button.editFolder.addEventListener("click", (e) => {
+    showEditFolderDialog(state.lastClickedItem.obj, () => editFolder());
+  });
+  dom.button.deleteFolder.addEventListener("click", (e) => {
+    let message = `Are you sure you want to delete the folder "${state.lastClickedItem.obj.name}"? All contained feeds will be deleted".`;
+    showConfirmDialog("Delete", message, () => {
+      deleteFolder(state.lastClickedItem.obj);
+    });
+  });
+
+  dom.button.addFeed.addEventListener("click", (e) =>
+    showAddFeedDialog(() => createFeed())
+  );
+  dom.button.editFeed.addEventListener("click", (e) => {
+    showEditFeedDialog(state.lastClickedItem.obj, () => editFeed());
+  });
+  dom.button.deleteFeed.addEventListener("click", (e) => {
+    let message = `Are you sure you want to delete the feed "${state.lastClickedItem.obj.name}"?`;
+    showConfirmDialog("Delete", message, () =>
+      deleteFeed(state.lastClickedItem.obj)
+    );
+  });
+  dom.button.close.addEventListener("click", (e) => {
+    clearReaderView();
+    navigationService.navigateTo(columns.ARTICLES);
+  });
+  dom.searchInput.addEventListener("input", (e) => {
+    let searchTerm = e.target.value.trim().toLowerCase();
+    // filter empty -> reset
+    if (searchTerm === "") {
+      state.filter.isActive = false;
+      state.filter.lastSearchTerm = "";
+      state.articles = dataService.getArticles();
+      renderArticlesList(state.articles);
+      return;
+    }
+    if (!searchTerm.startsWith(state.filter.lastSearchTerm)) {
+      state.articles = dataService.getArticles();
+    }
+    state.filter.lastSearchTerm = searchTerm;
+    state.articles = state.articles.filter((article) =>
+      article.title.toLowerCase().includes(searchTerm)
+    );
+    state.filter.isActive = true;
+    renderArticlesList(state.articles);
+  });
+}
+
+/**
+ * searches the selected article by id in the global articles array and renders it
  * ToDo: add lazy loading of missing articles - currently not an issue
  * @param {Article} article
  * @returns
  */
 export function loadArticle(article) {
   // article should be stored in global articles array
-  const result = articles.find((a) => a.id === article.id);
+  const result = state.articles.find((a) => a.id === article.id);
   if (!result) {
     console.error("Article not found:", article);
     return;
   }
-  selectedArticle = result;
+  state.selectedArticle = result;
   renderReaderView(result);
-}
-
-// collapse/expand mechanic
-function addFolderEvents() {
-  const elements = document.getElementsByTagName("details");
-  for (let i = 0; i < elements.length; i++) {
-    elements[i].addEventListener("click", function (e) {
-      e.preventDefault();
-    });
-  }
-
-  const icons = document.querySelectorAll("details summary img");
-  for (let i = 0; i < icons.length; i++) {
-    icons[i].addEventListener("click", function (e) {
-      const details = this.parentElement.parentElement;
-      details.open = !details.open;
-      if (details.open) {
-        this.src = "icons/folder_open.svg";
-      } else {
-        this.src = "icons/folder.svg";
-      }
-    });
-  }
 }
 
 /**
@@ -228,12 +184,12 @@ function setupScrollObserver() {
     (entries, obs) => {
       const entry = entries[0];
       if (!entry) return;
-      if (entry.isIntersecting && !isFilterActive) {
+      if (entry.isIntersecting && !state.filter.isActive) {
         loadArticles();
       }
     },
     {
-      root: document.querySelector("#articles-list .container"),
+      root: dom.articlesList,
       rootMargin: "0px",
       scrollMargin: "325px", // 5 articles with about 65px height each
       threshold: 0.1,
@@ -260,9 +216,28 @@ export function openAddContextMenu(x, y) {
   openContextMenu(x, y);
 }
 
+/**
+ * helper to navigate to the next/previous article
+ * @param {*} direction
+ * @returns
+ */
+function navigateArticle(direction) {
+  if (!state.selectedArticle) return;
+
+  const idx = state.articles.findIndex(
+    (a) => a.id === state.selectedArticle.id
+  );
+  if (idx === -1) return;
+
+  const nextIdx = idx + direction;
+  if (nextIdx >= 0 && nextIdx < state.articles.length) {
+    loadArticle(state.articles[nextIdx]);
+  }
+}
+
 export function feedContextMenu(x, y, feed) {
-  lastClickedItem.type = articleLoadType.FEED;
-  lastClickedItem.obj = feed;
+  state.lastClickedItem.type = itemType.FEED;
+  state.lastClickedItem.obj = feed;
   // hide all items first, then show the feed menu items
   document.querySelectorAll(".context-menu-item").forEach((element) => {
     element.style.display = "none";
@@ -274,8 +249,8 @@ export function feedContextMenu(x, y, feed) {
 }
 
 export function folderContextMenu(x, y, folder) {
-  lastClickedItem.type = articleLoadType.FOLDER;
-  lastClickedItem.obj = folder;
+  state.lastClickedItem.type = itemType.FOLDER;
+  state.lastClickedItem.obj = folder;
   // hide all items first, then show the folder menu items
   document.querySelectorAll(".context-menu-item").forEach((element) => {
     element.style.display = "none";
@@ -287,7 +262,7 @@ export function folderContextMenu(x, y, folder) {
 }
 
 function openContextMenu(x, y) {
-  const menu = document.getElementById("context-menu");
+  const menu = dom.contextMenu;
   menu.style.display = "block";
   const { innerWidth, innerHeight } = window;
   const menuRect = menu.getBoundingClientRect();
@@ -301,8 +276,8 @@ function openContextMenu(x, y) {
 export async function allFeedsClickListener() {
   navigationService.navigateTo(columns.ARTICLES);
   resetPagination();
-  lastClickedItem.type = articleLoadType.ALL;
-  lastClickedItem.obj = null;
+  state.lastClickedItem.type = itemType.ALL;
+  state.lastClickedItem.obj = null;
   lazyLoadObserver.pause();
   clearArticlesList();
   await loadArticles();
@@ -316,8 +291,8 @@ export async function allFeedsClickListener() {
 export async function feedClickListener(feed) {
   navigationService.navigateTo(columns.ARTICLES);
   resetPagination();
-  lastClickedItem.type = articleLoadType.FEED;
-  lastClickedItem.obj = feed;
+  state.lastClickedItem.type = itemType.FEED;
+  state.lastClickedItem.obj = feed;
   lazyLoadObserver.pause();
   clearArticlesList();
   await loadArticles();
@@ -331,8 +306,8 @@ export async function feedClickListener(feed) {
 export async function folderClickListener(folder) {
   navigationService.navigateTo(columns.ARTICLES);
   resetPagination();
-  lastClickedItem.type = articleLoadType.FOLDER;
-  lastClickedItem.obj = folder;
+  state.lastClickedItem.type = itemType.FOLDER;
+  state.lastClickedItem.obj = folder;
   lazyLoadObserver.pause();
   clearArticlesList();
   await loadArticles();
@@ -349,21 +324,20 @@ export function articleClickListener(article) {
 }
 
 function clearArticlesList() {
-  articles = [];
+  state.articles = [];
   dataService.clearArticles();
   document.querySelector("#articles-list #articles-container").innerHTML = "";
 }
 
 function resetPagination() {
-  paginationId = null;
-  paginationPublished = null;
+  state.pagination.id = null;
+  state.pagination.published = null;
 }
 
 async function loadFolders() {
   const foldersWithFeeds = await dataService.getFolders();
   renderFoldersList(foldersWithFeeds);
   folderDropdownOptions(foldersWithFeeds);
-  addFolderEvents();
   return foldersWithFeeds;
 }
 
@@ -386,13 +360,13 @@ async function editFolder() {
   var folder = {};
   folder.name = document.getElementById("folder-name").value;
   folder.color = document.getElementById("folder-color").value;
-  folder.id = lastClickedItem.obj.id;
+  folder.id = state.lastClickedItem.obj.id;
 
   try {
     await dataService.updateFolder(folder);
     await loadFolders();
-    lastClickedItem.obj.name = folder.name;
-    lastClickedItem.obj.color = folder.color;
+    state.lastClickedItem.obj.name = folder.name;
+    state.lastClickedItem.obj.color = folder.color;
   } catch (error) {
     alert("Error updating folder: " + folder.name);
     console.error(error.message);
@@ -413,10 +387,10 @@ async function deleteFolder(folder) {
 
 async function createFeed() {
   try {
-    if (addFeedState.mode === "check") {
+    if (state.addFeed.mode === "check") {
       await handleFeedCheck();
       return false;
-    } else if (addFeedState.mode === "select") {
+    } else if (state.addFeed.mode === "select") {
       await handleFeedSaveFromSelection();
       return true;
     }
@@ -445,8 +419,8 @@ async function handleFeedCheck() {
   if (response.length === 1) {
     await saveFeed(response[0].feedUrl, folderId);
   } else {
-    addFeedState.mode = "select";
-    addFeedState.discoveredFeeds = response;
+    state.addFeed.mode = "select";
+    state.addFeed.discoveredFeeds = response;
     showFeedSelector(response);
   }
 }
@@ -512,22 +486,22 @@ function removeFeedSelector() {
 
 function resetAddFeedDialog() {
   removeFeedSelector();
-  addFeedState.mode = "check";
-  addFeedState.discoveredFeeds = [];
+  state.addFeed.mode = "check";
+  state.addFeed.discoveredFeeds = [];
 
   document.getElementById("feed-url").value = "";
 }
 
 async function editFeed() {
-  var feed = lastClickedItem.obj;
+  var feed = state.lastClickedItem.obj;
   feed.feedUrl = document.getElementById("feed-url").value;
   feed.folderId = document.getElementById("feed-folder").value;
 
   try {
     await dataService.updateFeed(feed);
     await loadFolders();
-    lastClickedItem.obj.url = feed.feedUrl;
-    lastClickedItem.obj.folderId = feed.folderId;
+    state.lastClickedItem.obj.url = feed.feedUrl;
+    state.lastClickedItem.obj.folderId = feed.folderId;
   } catch (error) {
     alert("Error updating feed: " + feed.feedUrl);
     console.error(error.message);
@@ -539,8 +513,10 @@ async function deleteFeed(feed) {
   try {
     await dataService.deleteFeed(feed.id);
     removeFeedElement(feed.id);
-    articles = articles.filter((article) => article.feedId !== feed.id);
-    renderArticlesList(articles);
+    state.articles = state.articles.filter(
+      (article) => article.feedId !== feed.id
+    );
+    renderArticlesList(state.articles);
   } catch (error) {
     alert("Error deleting feed: " + feed.name);
     console.error(error.message);
@@ -584,41 +560,41 @@ async function importFeeds() {
 }
 
 async function refreshFeeds() {
-  if (isRefreshing) {
+  if (state.status.isRefreshing) {
     return;
   }
 
-  isRefreshing = true;
-  document.getElementById("refresh-spinner").classList.add("spinner");
+  state.status.isRefreshing = true;
+  dom.refreshSpinner.classList.add("spinner");
   dataService.refreshFeeds().then(() => {
-    document.getElementById("refresh-spinner").classList.remove("spinner");
+    dom.refreshSpinner.classList.remove("spinner");
     allFeedsClickListener();
-    isRefreshing = false;
+    state.status.isRefreshing = false;
   });
 }
 
 async function loadArticles() {
   const params = {};
-  switch (lastClickedItem.type) {
-    case articleLoadType.FEED:
-      if (!lastClickedItem.obj) return;
-      params.feed = lastClickedItem.obj.id;
+  switch (state.lastClickedItem.type) {
+    case itemType.FEED:
+      if (!state.lastClickedItem.obj) return;
+      params.feed = state.lastClickedItem.obj.id;
       break;
-    case articleLoadType.FOLDER:
-      if (!lastClickedItem.obj) return;
-      params.folder = lastClickedItem.obj.id;
+    case itemType.FOLDER:
+      if (!state.lastClickedItem.obj) return;
+      params.folder = state.lastClickedItem.obj.id;
       break;
-    case articleLoadType.ALL:
+    case itemType.ALL:
     // no additional param
     default:
       // no additional param
       break;
   }
-  if (paginationId != null) {
-    params.pagination_id = paginationId;
+  if (state.pagination.id != null) {
+    params.pagination_id = state.pagination.id;
   }
-  if (paginationPublished != null) {
-    params.pagination_date = paginationPublished;
+  if (state.pagination.published != null) {
+    params.pagination_date = state.pagination.published;
   }
 
   await dataService.loadArticles(params);
@@ -626,12 +602,12 @@ async function loadArticles() {
   const newArticles = dataService.getArticles();
   if (!newArticles || newArticles.length === 0) return;
 
-  articles = newArticles;
+  state.articles = newArticles;
 
   // update pagination
   const lastArticle = newArticles[newArticles.length - 1];
-  paginationId = lastArticle.id;
-  paginationPublished = lastArticle.published;
+  state.pagination.id = lastArticle.id;
+  state.pagination.published = lastArticle.published;
 
-  renderArticlesList(articles);
+  renderArticlesList(state.articles);
 }
