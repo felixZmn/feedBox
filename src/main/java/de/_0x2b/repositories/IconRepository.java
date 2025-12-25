@@ -2,6 +2,7 @@ package de._0x2b.repositories;
 
 import de._0x2b.exceptions.DuplicateEntityException;
 import de._0x2b.models.Icon;
+import de._0x2b.services.DatabaseService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,19 +12,21 @@ import java.util.List;
 
 public class IconRepository extends AbstractRepository<Icon> {
     private static final Logger logger = LoggerFactory.getLogger(IconRepository.class);
-
     private static final String SELECT_COLS = """
             SELECT id, feed_id, image, mime_type, file_name
             """;
     private static final String FROM = """
             from icon
             """;
-
     private static final String INSERT_ONE = """
             INSERT INTO icon (feed_id, mime_type, file_name, image) VALUES (?, ?, ?, ?) RETURNING id
             """;
+    private final RowMapper<Icon> iconMapper = rs -> new Icon(rs.getInt("id"), rs.getInt("feed_id"),
+            rs.getBytes("image"), rs.getString("mime_type"), rs.getString("file_name"), "");
 
-    private final RowMapper<Icon> iconMapper = rs -> new Icon(rs.getInt("id"), rs.getInt("feed_id"), rs.getBytes("image"), rs.getString("mime_type"), rs.getString("file_name"), "");
+    public IconRepository(DatabaseService db) {
+        super(db);
+    }
 
     public List<Icon> findByFeed(int feedId) {
         return findInternal("feed_id = ?", List.of(feedId));

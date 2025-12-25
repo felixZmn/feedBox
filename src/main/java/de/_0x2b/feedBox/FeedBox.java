@@ -1,7 +1,8 @@
 package de._0x2b.feedBox;
 
 import de._0x2b.controllers.*;
-import de._0x2b.database.Database;
+import de._0x2b.exceptions.DuplicateEntityException;
+import de._0x2b.exceptions.NotFoundException;
 import de._0x2b.repositories.ArticleRepository;
 import de._0x2b.repositories.FeedRepository;
 import de._0x2b.repositories.FolderRepository;
@@ -13,43 +14,29 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+
+import static io.javalin.apibuilder.ApiBuilder.*;
 
 public class FeedBox {
     private static final Logger logger = LoggerFactory.getLogger(FeedBox.class);
 
     public static void main(String[] args) throws SQLException {
-        var variables = getVariables();
+        var appConfig = AppConfig.loadFromEnv();
+
         System.setProperty("jdk.xml.totalEntitySizeLimit", "500000");
         System.setProperty("jdk.xml.maxGeneralEntitySizeLimit", "500000");
 
-        logger.info("Using database at {}:{}/{}", variables.get("dbHost"), variables.get("dbPort"),
-                variables.get("dbName"));
-        Database.connect(variables.get("dbHost"), variables.get("dbPort"), variables.get("dbName"),
-                variables.get("dbUsername"), variables.get("dbPassword"));
-        Database.migrate(); // try/catch not necessary as there is no way of recovering
+        var databaseService = new DatabaseService(appConfig.dbHost(), appConfig.dbPort(), appConfig.dbName(),
+                appConfig.dbUser(), appConfig.dbPass());
 
-        var app = Javalin.create(config -> {
-            config.useVirtualThreads = true;
-            config.staticFiles.add("/static", Location.CLASSPATH);
-            config.jetty.defaultHost = "0.0.0.0";
+        databaseService.migrate();
 
-            config.requestLogger.http((ctx, ms) -> {
-                // GET http://localhost:8080/style.css HTTP/1.1" from [::1]:44872 - 200 in
-                // 526.042µs
-                logger.info("{} {} {} from {}:{} - {} in {}µs", ctx.method(), ctx.url(), ctx.protocol(),
-                        ctx.req().getRemoteAddr(), ctx.req().getRemotePort(), ctx.status().getCode(), ms);
-            });
-
-        });
-
-        var articleRepository = new ArticleRepository();
-        var feedRepository = new FeedRepository();
-        var folderRepository = new FolderRepository();
-        var iconRepository = new IconRepository();
+        var articleRepository = new ArticleRepository(databaseService);
+        var feedRepository = new FeedRepository(databaseService);
+        var folderRepository = new FolderRepository(databaseService);
+        var iconRepository = new IconRepository(databaseService);
 
         var articleService = new ArticleService(articleRepository);
         var folderService = new FolderService(folderRepository);
@@ -64,51 +51,91 @@ public class FeedBox {
         var opmlController = new OPMLController(opmlService);
         var iconController = new IconController(iconService);
 
-        articleController.registerRoutes(app);
-        opmlController.registerRoutes(app);
-        folderController.registerRoutes(app);
-        feedController.registerRoutes(app);
-        healthController.registerRoutes(app);
-        iconController.registerRoutes(app);
+        var app = Javalin.create(config -> {
+            config.useVirtualThreads = true;
+            config.staticFiles.add("/static", Location.CLASSPATH);
+            config.jetty.defaultHost = "0.0.0.0";
+
+            config.requestLogger.http((ctx, ms) -> {
+                // GET http://localhost:8080/style.css HTTP/1.1" from [::1]:44872 - 200 in
+                // 526.042 ms
+                logger.info("{} {} {} from {}:{} - {} in {} ms", ctx.method(), ctx.url(), ctx.protocol(),
+                        ctx.req().getRemoteAddr(), ctx.req().getRemotePort(), ctx.status().getCode(), ms);
+            });
+            config.router.apiBuilder(() -> {
+                path("/api", () -> {
+                    path("/articles", () -> {
+                        get(articleController::getAllArticles);
+                    });
+                    path("/feeds", () -> {
+                        post(feedController::createFeed);
+                        path("/{id}", () -> {
+                            put(feedController::updateFeed);
+                            delete(feedController::delete);
+                        });
+                        path("/refresh", () -> {
+                            get(feedController::refresh);
+                        });
+                        path("/check", () -> {
+                            get(feedController::check);
+                        });
+                    });
+                    path("/folders", () -> {
+                        get(folderController::get);
+                        post(folderController::create);
+                        path("/{id}", () -> {
+                            put(folderController::update);
+                            delete(folderController::delete);
+                        });
+                    });
+                    path("/healthz", () -> {
+                        get(healthController::healthz);
+                    });
+                    path("/icons", () -> {
+                        path("/{id}", () -> {
+                            get(iconController::getIconByFeedId);
+                        });
+                    });
+                    path("/opml", () -> {
+                        post(opmlController::importOPML);
+                        get(opmlController::exportOPML);
+                    });
+                });
+            });
+        });
+
+        app.exception(DuplicateEntityException.class, (e, ctx) -> {
+            ctx.status(409).result(e.getMessage());
+        });
+        app.exception(NotFoundException.class, (e, ctx) -> {
+            ctx.status(404).result(e.getMessage());
+        });
+        app.exception(NumberFormatException.class, (e, ctx) -> {
+            ctx.status(400).result("Invalid parameter format");
+        });
+
+        app.start(appConfig.appPort());
 
         // set up periodic refresh; for now only via env var configurable
-        var refreshRate = Integer.parseInt(variables.get("refreshRate"));
-        if (refreshRate > 0) {
+        if (appConfig.refreshRate() > 0) {
             var scheduler = Executors.newScheduledThreadPool(1);
-            Runnable task = feedService::refresh;
-            scheduler.scheduleAtFixedRate(task, 0, refreshRate, TimeUnit.MINUTES);
+
+            // Wrap task to prevent scheduler death on Exception
+            Runnable task = () -> {
+                try {
+                    logger.info("Starting scheduled feed refresh...");
+                    feedService.refresh();
+                    logger.info("Finished scheduled feed refresh.");
+                } catch (Throwable t) {
+                    logger.error("Periodic refresh failed", t);
+                }
+            };
+            scheduler.scheduleAtFixedRate(task, 30, appConfig.refreshRate() * 60L, TimeUnit.SECONDS);
+            logger.info("Feed refresh scheduled to start in 30 seconds.");
         }
 
-        app.start(Integer.parseInt(variables.get("appPort")));
-        Runtime.getRuntime().addShutdownHook(new Thread(Database::disconnect));
-    }
-
-    private static Map<String, String> getVariables() {
-        var dbUsername = System.getenv("PG_USER");
-        var dbPassword = System.getenv("PG_PASSWORD");
-        var dbHost = System.getenv("PG_HOST");
-        var dbPort = System.getenv("PG_PORT");
-        var dbName = System.getenv("PG_DB");
-        var appPort = System.getenv("PORT");
-        var refreshRate = System.getenv("REFRESH_RATE");
-
-        if (dbUsername == null) throw new IllegalStateException("PG_USER not set");
-        if (dbPassword == null) throw new IllegalStateException("PG_PASSWORD not set");
-        if (dbHost == null) throw new IllegalStateException("PG_HOST not set");
-        if (dbPort == null) throw new IllegalStateException("PG_PORT not set");
-        if (dbName == null) throw new IllegalStateException("PG_DB not set");
-        if (appPort == null) appPort = "7070"; // default port
-        if (refreshRate == null) refreshRate = "60"; // minutes; ugly; needs parsing
-
-        Map<String, String> variables = new HashMap<>();
-        variables.put("dbUsername", dbUsername);
-        variables.put("dbPassword", dbPassword);
-        variables.put("dbHost", dbHost);
-        variables.put("dbPort", dbPort);
-        variables.put("dbName", dbName);
-        variables.put("appPort", appPort);
-        variables.put("refreshRate", refreshRate);
-
-        return variables;
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            databaseService.close();
+        }));
     }
 }
