@@ -226,6 +226,14 @@ summary::marker {
   content: none;
 }
 
+details summary img {
+  content: url("icons/folder.svg");
+}
+
+details[open] summary img {
+  content: url("icons/folder_open.svg");
+}
+
 .icon {
   width: 20px;
   height: 20px;
