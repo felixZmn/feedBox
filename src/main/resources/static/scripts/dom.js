@@ -1,12 +1,12 @@
-import { getRelativeTime, parseDate } from "./util.js";
 import {
-  feedClickListener,
-  folderClickListener,
   articleClickListener,
-  openAddContextMenu,
-  folderContextMenu,
+  feedClickListener,
   feedContextMenu,
+  folderClickListener,
+  folderContextMenu,
+  openAddContextMenu,
 } from "./main.js";
+import { getRelativeTime, parseDate } from "./util.js";
 
 export function renderArticlesList(articles) {
   const container = document.querySelector(

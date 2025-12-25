@@ -1,7 +1,6 @@
 package de._0x2b.controllers;
 
 import de._0x2b.services.IconService;
-import io.javalin.Javalin;
 import io.javalin.http.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,11 +13,7 @@ public class IconController {
         this.iconService = iconService;
     }
 
-    public void registerRoutes(Javalin app) {
-        app.get("/api/icons/{id}", this::getIconByFeedId);
-    }
-
-    private void getIconByFeedId(Context ctx) {
+    public void getIconByFeedId(Context ctx) {
         logger.debug("getIconByFeedId");
         int feedId = Integer.parseInt(ctx.pathParam("id"));
         var icon = iconService.findOneByFeed(feedId);

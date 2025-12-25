@@ -17,9 +17,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
+import java.sql.SQLException;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Executors;
 
 public class FeedService {
@@ -35,6 +38,12 @@ public class FeedService {
         this.articleRepository = articleRepository;
     }
 
+    /**
+     * Store a new feed in the database
+     * @param feed
+     * @return
+     * @throws NotFoundException
+     */
     public int create(Feed feed) throws NotFoundException {
         logger.debug("create");
         feed = this.getFeedMetadata(feed);
@@ -52,6 +61,11 @@ public class FeedService {
         return feed.getId();
     }
 
+    /**
+     * Update an existing feed 
+     * @param feed
+     * @return
+     */
     public int update(Feed feed) {
         logger.debug("update");
         return feedRepository.update(feed);
@@ -68,8 +82,7 @@ public class FeedService {
 
     /**
      * Refresh a single feed by its ID
-     *
-     * @param id
+     * @param id id of the feed to refresh
      */
     public void refresh(int id) {
         logger.debug("refresh");
@@ -77,6 +90,10 @@ public class FeedService {
         refresh(feeds);
     }
 
+    /**
+     * Internal helper to refresh a list of feeds
+     * @param feeds
+     */
     private void refresh(List<Feed> feeds) {
         logger.info("Refreshing Feeds...");
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -105,6 +122,11 @@ public class FeedService {
         return feed;
     }
 
+    /**
+     * Check if a URL is a valid feed or contains feed links
+     * @param url URL to check
+     * @return List of valid feeds found
+     */
     public List<Feed> checkFeed(String url) {
         return checkFeed(url, new JsoupProvider());
     }
@@ -148,8 +170,10 @@ public class FeedService {
     }
 
     /**
-     * Helper to determine if content is likely an RSS/Atom feed based on headers or
-     * raw content.
+     * Helper to determine if content is likely an RSS/Atom feed based on headers or raw content.
+     * @param contentType
+     * @param body
+     * @return
      */
     private boolean isFeed(String contentType, String body) {
         // 1. Check Content-Type header (fastest)
@@ -169,6 +193,10 @@ public class FeedService {
                 startOfBody.contains("<rdf:rdf"); // RSS 1.0
     }
 
+    /**
+     * Parse a feed and store articles in the database (batch insert)
+     * @param feed
+     */
     private void parseFeed(Feed feed) {
         logger.debug("parseFeed");
         MediaRssReader rssReader = new MediaRssReader();
@@ -210,9 +238,22 @@ public class FeedService {
         }
     }
 
+    /**
+     * Delete a feed and its articles
+     * @param feedId
+     * @return
+     */
     public int deleteFeed(int feedId) {
         logger.debug("deleteFeed");
-        articleRepository.deleteByFeed(feedId);
-        return feedRepository.delete(feedId);
+        try {
+            articleRepository.deleteByFeed(feedId);
+        } catch (SQLException e) {
+            return -1;
+        }
+        try {
+            return feedRepository.delete(feedId);
+        } catch (SQLException e) {
+            return -1;
+        }
     }
 }

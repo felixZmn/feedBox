@@ -41,8 +41,7 @@ resources:
     cpu: "250m"
 
 config:
-  # Non-secret app configs, key/value pairs
-  exampleKey: exampleValue
+  JAVA_TOOL_OPTIONS: "-XX:InitialRAMPercentage=75.0 -XX:MaxRAMPercentage=75.0 -XX:MinRAMPercentage=75.0"
 
 dbSecretName: newsfeed-pguser-newsfeed
 database:

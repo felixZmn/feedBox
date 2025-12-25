@@ -17,7 +17,8 @@ public class HTTPSService {
     HttpClient client;
 
     private HTTPSService() {
-        client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.ALWAYS).connectTimeout(Duration.ofSeconds(30)).build();
+        client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.ALWAYS)
+                .connectTimeout(Duration.ofSeconds(30)).build();
     }
 
     public static HTTPSService getInstance() {

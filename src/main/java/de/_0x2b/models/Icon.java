@@ -70,9 +70,12 @@ public class Icon {
 
     @Override
     public boolean equals(Object o) {
-        if (o == null || getClass() != o.getClass()) return false;
+        if (o == null || getClass() != o.getClass())
+            return false;
         Icon icon = (Icon) o;
-        return id == icon.id && feedId == icon.feedId && Objects.deepEquals(image, icon.image) && Objects.equals(mimeType, icon.mimeType) && Objects.equals(fileName, icon.fileName) && url.equals(icon.url);
+        return id == icon.id && feedId == icon.feedId && Objects.deepEquals(image, icon.image)
+                && Objects.equals(mimeType, icon.mimeType) && Objects.equals(fileName, icon.fileName)
+                && url.equals(icon.url);
     }
 
     @Override

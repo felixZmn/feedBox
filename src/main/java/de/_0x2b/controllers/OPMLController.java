@@ -1,8 +1,8 @@
 package de._0x2b.controllers;
 
 import de._0x2b.services.OPMLService;
-import io.javalin.Javalin;
 import io.javalin.http.Context;
+import io.javalin.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,23 +17,18 @@ public class OPMLController {
         this.opmlService = opmlService;
     }
 
-    public void registerRoutes(Javalin app) {
-        app.post("/api/opml", this::importOPML);
-        app.get("api/opml", this::exportOPML);
-    }
-
-    private void importOPML(Context ctx) {
+    public void importOPML(Context ctx) {
         logger.debug("importOPML");
         try {
             InputStream bodyStream = ctx.bodyInputStream();
             opmlService.importOPML(bodyStream);
         } catch (XMLStreamException | InterruptedException e) {
             logger.error("Error while importing opml file", e);
-            ctx.status(500);
+            ctx.status(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    private void exportOPML(Context ctx) {
+    public void exportOPML(Context ctx) {
         logger.debug("exportOPML");
         ctx.contentType("text/x-opml; charset=UTF-8");
         ctx.header("Content-Disposition", "attachment; filename=\"feed-export.opml\"");

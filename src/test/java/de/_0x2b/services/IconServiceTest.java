@@ -49,8 +49,8 @@ public class IconServiceTest {
         var firstIcon = new Icon(1, 1, IMAGE_BYTES, "image/x-icon", "favicon.ico", "example.com/favicon.ico");
         var defaultIcon = new Icon(-1, -1, getClass().getResourceAsStream("/static/icons/rss.svg").readAllBytes(), "image/svg+xml", "icon.svg", "");
 
-        when(iconRepository.findOneByFeed(1)).thenReturn(List.of(firstIcon));
-        when(iconRepository.findOneByFeed(1337)).thenReturn(Collections.emptyList());
+        when(iconRepository.findByFeed(1)).thenReturn(List.of(firstIcon));
+        when(iconRepository.findByFeed(1337)).thenReturn(Collections.emptyList());
 
         // Act
         var shouldBeFirstIcon = iconService.findOneByFeed(1);

@@ -19,7 +19,8 @@ public class Feed {
     Icon icon;
 
     @JsonCreator
-    public Feed(@JsonProperty("id") int id, @JsonProperty("folderId") int folderId, @JsonProperty("name") String name, @JsonProperty("url") URI url, @JsonProperty("feedUrl") URI feedUrl) {
+    public Feed(@JsonProperty("id") int id, @JsonProperty("folderId") int folderId, @JsonProperty("name") String name,
+            @JsonProperty("url") URI url, @JsonProperty("feedUrl") URI feedUrl) {
         this.id = id;
         this.folderId = folderId;
         this.name = name;
@@ -38,9 +39,12 @@ public class Feed {
 
     @Override
     public boolean equals(Object o) {
-        if (o == null || getClass() != o.getClass()) return false;
+        if (o == null || getClass() != o.getClass())
+            return false;
         Feed feed = (Feed) o;
-        return id == feed.id && folderId == feed.folderId && Objects.equals(name, feed.name) && Objects.equals(url, feed.url) && Objects.equals(feedUrl, feed.feedUrl) && Objects.equals(icon, feed.icon);
+        return id == feed.id && folderId == feed.folderId && Objects.equals(name, feed.name)
+                && Objects.equals(url, feed.url) && Objects.equals(feedUrl, feed.feedUrl)
+                && Objects.equals(icon, feed.icon);
     }
 
     @Override

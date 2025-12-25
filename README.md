@@ -50,13 +50,23 @@ It allows you to manage all your feeds in one place—without ads, tracking, AI,
 
 ## Local Development
 
-**Prerequisites**:
+### Prerequisites
 
 - PostgreSQL (e.g. via Docker)
 - Java
 - Maven
 
-**Build the application**:
+### Commit scopes
+
+| Scope   | Description           |
+| ------- | --------------------- |
+| backend | Java-code             |
+| ui      | Frontend related code |
+| chart   | Helm chart            |
+| deps    | Dependencies          |
+| docs    | Documentation         |
+
+### Build the application
 
 ```bash
 mvn clean install
@@ -132,5 +142,5 @@ helm install feedbox oci://ghcr.io/felixzmn/helm/feedbox --version <VERSION>
 
 # Icons
 
-[Icons from Tabler Icons.](https://tablericons.com/)
+[Icons from Tabler Icons.](https://tablericons.com/)\
 [PWA Icon generated with maskable](https://maskable.app/editor)

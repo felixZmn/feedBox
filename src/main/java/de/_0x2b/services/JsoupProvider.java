@@ -5,7 +5,10 @@ import org.jsoup.Jsoup;
 
 import java.io.IOException;
 
-public class JsoupProvider{
+/**
+ * Jsoup provider to allow mocking in tests
+ */
+public class JsoupProvider {
     public Connection.Response execute(String url) throws IOException {
         return Jsoup.connect(url).followRedirects(true).ignoreContentType(true).execute();
     }

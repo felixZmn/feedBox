@@ -2,7 +2,6 @@ package de._0x2b.controllers;
 
 import de._0x2b.models.Article;
 import de._0x2b.services.ArticleService;
-import io.javalin.Javalin;
 import io.javalin.http.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,22 +16,18 @@ public class ArticleController {
         this.articleService = articleService;
     }
 
-    public void registerRoutes(Javalin app) {
-        app.get("/api/articles", this::getAllArticles);
-    }
-
-    private void getAllArticles(Context ctx) {
+    public void getAllArticles(Context ctx) {
         logger.debug("getAllArticles");
-        var folderId = ctx.queryParam("folder") != null ? Integer.parseInt(ctx.queryParam("folder")) : -1;
-        var feedId = ctx.queryParam("feed") != null ? Integer.parseInt(ctx.queryParam("feed")) : -1;
+        Integer folderId = ctx.queryParamAsClass("folder", Integer.class).getOrDefault(null);
+        Integer feedId = ctx.queryParamAsClass("feed", Integer.class).getOrDefault(null);
         var paginationId = ctx.queryParam("pagination_id") != null ? Integer.parseInt(ctx.queryParam("pagination_id"))
                 : -1;
         var paginationDate = ctx.queryParam("pagination_date") != null ? ctx.queryParam("pagination_date") : "";
 
         List<Article> result;
-        if (folderId != -1) {
+        if (folderId != null) {
             result = articleService.findByFolder(paginationId, paginationDate, folderId);
-        } else if (feedId != -1) {
+        } else if (feedId != null) {
             result = articleService.findByFeed(paginationId, paginationDate, feedId);
         } else {
             result = articleService.getAll(paginationId, paginationDate);

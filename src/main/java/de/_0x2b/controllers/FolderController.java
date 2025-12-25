@@ -3,7 +3,6 @@ package de._0x2b.controllers;
 import de._0x2b.exceptions.DuplicateEntityException;
 import de._0x2b.models.Folder;
 import de._0x2b.services.FolderService;
-import io.javalin.Javalin;
 import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
 import org.slf4j.Logger;
@@ -17,20 +16,13 @@ public class FolderController {
         this.folderService = folderService;
     }
 
-    public void registerRoutes(Javalin app) {
-        app.get("/api/folders", this::get);
-        app.post("/api/folders/", this::create);
-        app.put("/api/folders/{id}", this::update);
-        app.delete("/api/folders/{id}", this::delete);
-    }
-
-    private void get(Context ctx) {
+    public void get(Context ctx) {
         logger.debug("get");
         var foo = folderService.findAll();
         ctx.json(foo);
     }
 
-    private void create(Context ctx) {
+    public void create(Context ctx) {
         logger.debug("create");
         int result;
         try {
@@ -43,7 +35,7 @@ public class FolderController {
         ctx.status(201).json(result);
     }
 
-    private void update(Context ctx) {
+    public void update(Context ctx) {
         logger.debug("update");
         var folder = ctx.bodyAsClass(Folder.class);
         folder.setId(Integer.parseInt(ctx.pathParam("id")));
@@ -58,7 +50,7 @@ public class FolderController {
         ctx.status(201).json(result);
     }
 
-    private void delete(Context ctx) {
+    public void delete(Context ctx) {
         logger.debug("delete");
         int folderId = Integer.parseInt(ctx.pathParam("id"));
         var result = folderService.delete(folderId);

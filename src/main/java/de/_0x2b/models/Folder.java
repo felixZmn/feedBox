@@ -13,11 +13,8 @@ public class Folder {
     String color;
 
     @JsonCreator
-    public Folder(
-            @JsonProperty("id") int id,
-            @JsonProperty("name") String name,
-            @JsonProperty("feeds") List<Feed> feeds,
-            @JsonProperty("color") String color) {
+    public Folder(@JsonProperty("id") int id, @JsonProperty("name") String name,
+            @JsonProperty("feeds") List<Feed> feeds, @JsonProperty("color") String color) {
         this.id = id;
         this.name = name;
         this.feeds = feeds;
@@ -58,9 +55,11 @@ public class Folder {
 
     @Override
     public boolean equals(Object o) {
-        if (o == null || getClass() != o.getClass()) return false;
+        if (o == null || getClass() != o.getClass())
+            return false;
         Folder folder = (Folder) o;
-        return id == folder.id && Objects.equals(name, folder.name) && Objects.equals(feeds, folder.feeds) && Objects.equals(color, folder.color);
+        return id == folder.id && Objects.equals(name, folder.name) && Objects.equals(feeds, folder.feeds)
+                && Objects.equals(color, folder.color);
     }
 
     @Override
