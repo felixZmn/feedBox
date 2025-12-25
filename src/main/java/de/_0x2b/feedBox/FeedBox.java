@@ -63,6 +63,9 @@ public class FeedBox {
                         ctx.req().getRemoteAddr(), ctx.req().getRemotePort(), ctx.status().getCode(), ms);
             });
             config.router.apiBuilder(() -> {
+                path("/healthz", () -> {
+                    get(healthController::healthz);
+                });
                 path("/api", () -> {
                     path("/articles", () -> {
                         get(articleController::getAllArticles);
@@ -87,9 +90,6 @@ public class FeedBox {
                             put(folderController::update);
                             delete(folderController::delete);
                         });
-                    });
-                    path("/healthz", () -> {
-                        get(healthController::healthz);
                     });
                     path("/icons", () -> {
                         path("/{id}", () -> {
