@@ -2,6 +2,7 @@ package de._0x2b.repositories;
 
 import de._0x2b.exceptions.DuplicateEntityException;
 import de._0x2b.models.Feed;
+import de._0x2b.services.DatabaseService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,12 +13,10 @@ import java.util.List;
 
 public class FeedRepository extends AbstractRepository<Feed> {
     private static final Logger logger = LoggerFactory.getLogger(FeedRepository.class);
-
     private static final String SELECT_COLS = """
             SELECT id, folder_id, name, url, feed_url
             """;
     private static final String FROM = " FROM feed";
-
     private static final String INSERT_SQL = """
             INSERT INTO feed (folder_id, name, url, feed_url) VALUES (?, ?, ?, ?) RETURNING id
             """;
@@ -27,15 +26,18 @@ public class FeedRepository extends AbstractRepository<Feed> {
     private static final String DELETE = """
             DELETE FROM feed WHERE id = ?
             """;
-
     private final RowMapper<Feed> feedMapper = rs -> new Feed(rs.getInt("id"), rs.getInt("folder_id"),
 
             rs.getString("name"), URI.create(rs.getString("url")), URI.create(rs.getString("feed_url")));
 
+    public FeedRepository(DatabaseService db) {
+        super(db);
+    }
 
     public int create(Feed feed) {
         try {
-            List<Object> params = List.of(feed.getFolderId(), feed.getName(), feed.getURI().toString(), feed.getFeedURI().toString());
+            List<Object> params = List.of(feed.getFolderId(), feed.getName(), feed.getURI().toString(),
+                    feed.getFeedURI().toString());
 
             return super.insert(INSERT_SQL, params);
 
@@ -50,7 +52,8 @@ public class FeedRepository extends AbstractRepository<Feed> {
 
     public int update(Feed feed) {
         try {
-            List<Object> params = List.of(feed.getFolderId(), feed.getName(), feed.getURI().toString(), feed.getFeedURI().toString(), feed.getId());
+            List<Object> params = List.of(feed.getFolderId(), feed.getName(), feed.getURI().toString(),
+                    feed.getFeedURI().toString(), feed.getId());
 
             int rows = super.update(UPDATE, params);
             return (rows > 0) ? feed.getId() : -1;

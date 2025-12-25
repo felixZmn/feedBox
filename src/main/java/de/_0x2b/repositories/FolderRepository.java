@@ -4,10 +4,10 @@
 
 package de._0x2b.repositories;
 
-import de._0x2b.database.Database;
 import de._0x2b.exceptions.DuplicateEntityException;
 import de._0x2b.models.Feed;
 import de._0x2b.models.Folder;
+import de._0x2b.services.DatabaseService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,8 +22,8 @@ import java.util.List;
 import java.util.Map;
 
 public class FolderRepository extends AbstractRepository<Folder> {
-    private static final Logger logger = LoggerFactory.getLogger(FolderRepository.class);
 
+    private static final Logger logger = LoggerFactory.getLogger(FolderRepository.class);
     private static final String SELECT_COLS = """
             SELECT folder.id as "folder_id", folder.name as "folder_name", folder.color as "folder_color", feed.id  AS "feed_id", feed.name AS "feed_name", feed.url as "url", feed.feed_url AS "feed_url"
             """;
@@ -39,22 +39,23 @@ public class FolderRepository extends AbstractRepository<Folder> {
             """;
     private static final String SELECT_ALL = SELECT_COLS + FROM_JOIN + ORDER;
     private static final String SELECT_ALL_BY_NAME = SELECT_COLS + FROM_JOIN + WHERE + ORDER;
-
     private static final String INSERT_ONE = """
             INSERT INTO folder (name, color) VALUES (?, ?) RETURNING id
             """;
-
     private static final String UPDATE = """
             UPDATE folder set name = ?, color = ? WHERE id = ? RETURNING id
             """;
-
     private static final String DELETE = """
             DELETE FROM folder WHERE id = ?
             """;
 
+    public FolderRepository(DatabaseService db) {
+        super(db);
+    }
+
     public List<Folder> findAll() {
         logger.debug("findAll");
-        try (Connection conn = Database.getConnection(); PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
+        try (Connection conn = db.getConnection(); PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
             try (ResultSet rs = stmt.executeQuery()) {
                 return parseResult(rs);
             }
@@ -66,7 +67,7 @@ public class FolderRepository extends AbstractRepository<Folder> {
 
     public List<Folder> findByName(String name) {
         logger.debug("findByName");
-        try (Connection conn = Database.getConnection(); PreparedStatement stmt = conn.prepareStatement(SELECT_ALL_BY_NAME)) {
+        try (Connection conn = db.getConnection(); PreparedStatement stmt = conn.prepareStatement(SELECT_ALL_BY_NAME)) {
             stmt.setString(1, name);
             try (ResultSet rs = stmt.executeQuery()) {
                 return parseResult(rs);
@@ -123,7 +124,8 @@ public class FolderRepository extends AbstractRepository<Folder> {
             });
             int feedId = rs.getInt("feed_id");
             if (!rs.wasNull()) {
-                Feed feed = new Feed(feedId, folderId, rs.getString("feed_name"), URI.create(rs.getString("url")), URI.create(rs.getString("feed_url")));
+                Feed feed = new Feed(feedId, folderId, rs.getString("feed_name"), URI.create(rs.getString("url")),
+                        URI.create(rs.getString("feed_url")));
                 folder.getFeeds().add(feed);
             }
         }

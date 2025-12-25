@@ -1,7 +1,7 @@
 package de._0x2b.repositories;
 
-import de._0x2b.database.Database;
 import de._0x2b.models.Article;
+import de._0x2b.services.DatabaseService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,8 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ArticleRepository extends AbstractRepository<Article> {
-    private static final Logger logger = LoggerFactory.getLogger(ArticleRepository.class);
 
+    private static final Logger logger = LoggerFactory.getLogger(ArticleRepository.class);
     private static final String SELECT_COLS = """
             SELECT a.id, a.feed_id, f.name AS publisher, a.title, a.description,
                    a.content, a.link, a.published, a.authors, a.image_url, a.categories
@@ -31,8 +31,14 @@ public class ArticleRepository extends AbstractRepository<Article> {
             ON CONFLICT (link) DO NOTHING
             """;
     private static final String DELETE_BY_FEED_SQL = "DELETE FROM article WHERE feed_id = ?";
+    private final RowMapper<Article> articleMapper = rs -> new Article(rs.getInt("id"), rs.getInt("feed_id"),
+            rs.getString("publisher"), rs.getString("title"), rs.getString("description"), rs.getString("content"),
+            rs.getString("link"), rs.getString("published"), rs.getString("authors"), rs.getString("image_url"),
+            rs.getString("categories"));
 
-    private final RowMapper<Article> articleMapper = rs -> new Article(rs.getInt("id"), rs.getInt("feed_id"), rs.getString("publisher"), rs.getString("title"), rs.getString("description"), rs.getString("content"), rs.getString("link"), rs.getString("published"), rs.getString("authors"), rs.getString("image_url"), rs.getString("categories"));
+    public ArticleRepository(DatabaseService db) {
+        super(db);
+    }
 
     public List<Article> findAll() {
         return findInternal(null, null, null, null);
@@ -63,11 +69,12 @@ public class ArticleRepository extends AbstractRepository<Article> {
     }
 
     public void create(List<Article> articles) {
-        if (articles == null || articles.isEmpty()) return;
+        if (articles == null || articles.isEmpty())
+            return;
 
         logger.debug("Starting batch create for {} articles", articles.size());
 
-        try (Connection conn = Database.getConnection()) {
+        try (Connection conn = db.getConnection()) {
             conn.setAutoCommit(false); // Start Transaction
 
             try (PreparedStatement stmt = conn.prepareStatement(INSERT_SQL)) {
@@ -84,7 +91,8 @@ public class ArticleRepository extends AbstractRepository<Article> {
                     stmt.setString(9, a.getCategories());
                     stmt.addBatch();
 
-                    if (++count % 500 == 0) stmt.executeBatch();
+                    if (++count % 500 == 0)
+                        stmt.executeBatch();
                 }
                 stmt.executeBatch(); // Execute remaining
                 conn.commit(); // Commit Transaction
@@ -101,7 +109,8 @@ public class ArticleRepository extends AbstractRepository<Article> {
         return findInternal(whereClause, params, pagId, pagDate, false);
     }
 
-    private List<Article> findInternal(String whereClause, List<Object> initialParams, Integer pagId, String pagDate, boolean joinFolder) {
+    private List<Article> findInternal(String whereClause, List<Object> initialParams, Integer pagId, String pagDate,
+            boolean joinFolder) {
 
         StringBuilder sql = new StringBuilder(SELECT_COLS).append(FROM_JOIN);
         List<Object> params = new ArrayList<>();

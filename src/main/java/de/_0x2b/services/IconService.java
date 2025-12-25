@@ -29,13 +29,14 @@ public class IconService {
     /**
      * Extracts the charset from the Content-Type header.
      * If charset is not specified or unsupported, returns UTF-8 as default.
-     *
-     * @param contentType the Content-Type header string, e.g. "text/html; charset=UTF-8"
+     * 
+     * @param contentType the Content-Type header string, e.g. "text/html;
+     *                    charset=UTF-8"
      * @return the Charset to be used for decoding
      */
     public static Charset getCharsetFromContentType(String contentType) {
         if (contentType == null) {
-            return StandardCharsets.UTF_8; // default
+            return StandardCharsets.UTF_8;
         }
 
         // Split the header into parts separated by ';'
@@ -43,7 +44,7 @@ public class IconService {
         for (String part : parts) {
             part = part.trim().toLowerCase();
             // Check if part starts with "charset="
-            if (!part.toLowerCase().startsWith("charset=")){
+            if (!part.toLowerCase().startsWith("charset=")) {
                 continue;
             }
             String charsetName = part.substring("charset=".length()).trim();
@@ -53,15 +54,18 @@ public class IconService {
             try {
                 return Charset.forName(charsetName);
             } catch (Exception e) {
-                // Unsupported charset, fallback to default
                 return StandardCharsets.UTF_8;
             }
         }
-
-        // If no charset param found, return default charset
         return StandardCharsets.UTF_8;
     }
 
+    /**
+     * Find icon by feed id
+     * 
+     * @param id
+     * @return
+     */
     public List<Icon> findOneByFeed(int id) {
         logger.debug("findOne");
         var icon = iconRepository.findByFeed(id);
@@ -71,6 +75,11 @@ public class IconService {
         return icon;
     }
 
+    /**
+     * Find icon for a given feed by parsing its HTML for icon links
+     * 
+     * @param feed
+     */
     public void findIcon(Feed feed) {
         var urls = constructHtmlUris(feed);
 
@@ -86,7 +95,8 @@ public class IconService {
             if (iconUrl.getHost() != null) {
                 url = iconUrl.toString();
             } else {
-                url = response.uri().getScheme() + "://" + response.uri().getHost() + (iconUrl.getPath().startsWith("/") ? "" : "/") + iconUrl.getPath();
+                url = response.uri().getScheme() + "://" + response.uri().getHost()
+                        + (iconUrl.getPath().startsWith("/") ? "" : "/") + iconUrl.getPath();
             }
             var icon = fetchFavicon(new Icon(-1, feed.getId(), null, "", "", url));
 
@@ -98,7 +108,8 @@ public class IconService {
     }
 
     /**
-     * Helper method to construct a list of urls to check for a reference to a favicon
+     * Helper method to construct a list of urls to check for a reference to a
+     * favicon
      *
      * @param feed feed to use as a base
      * @return list of uris to use to search a favicon
@@ -114,7 +125,7 @@ public class IconService {
         var host = feed.getURI().getHost();
         var path = feed.getURI().getPath();
 
-        iconUris.add(URI.create(scheme + "://" + host + path ));
+        iconUris.add(URI.create(scheme + "://" + host + path));
         return iconUris;
     }
 
@@ -142,7 +153,6 @@ public class IconService {
             // try <icon></icon>
             return URI.create(doc.selectFirst("icon").childNode(0).toString());
         } catch (Exception e) {
-            // do something
             logger.error("Error while searching html for icon url, error: {}", e.getMessage());
         }
 

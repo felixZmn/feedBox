@@ -15,6 +15,12 @@ public class ArticleService {
         this.articleRepository = repository;
     }
 
+    /**
+     * Get all articles with pagination
+     * @param paginationId 
+     * @param paginationPublished
+     * @return
+     */
     public List<Article> getAll(int paginationId, String paginationPublished) {
         logger.debug("getAll");
         if (paginationId == -1 && "".equals(paginationPublished)) {
@@ -24,6 +30,13 @@ public class ArticleService {
         return articleRepository.findAll(paginationId, paginationPublished);
     }
 
+    /**
+     * Get articles by folder with pagination
+     * @param paginationId
+     * @param paginationPublished
+     * @param folderId
+     * @return
+     */
     public List<Article> findByFolder(int paginationId, String paginationPublished, int folderId) {
         logger.debug("findByFolder");
         if (paginationId == -1 && "".equals(paginationPublished)) {
@@ -32,6 +45,13 @@ public class ArticleService {
         return articleRepository.findByFolder(folderId, paginationId, paginationPublished);
     }
 
+    /**
+     * Get articles by feed with pagination
+     * @param paginationId
+     * @param paginationPublished
+     * @param feedId
+     * @return
+     */
     public List<Article> findByFeed(int paginationId, String paginationPublished, int feedId) {
         logger.debug("findByFeed");
         if (paginationId == -1 && "".equals(paginationPublished)) {

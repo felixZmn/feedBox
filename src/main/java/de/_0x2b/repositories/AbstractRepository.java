@@ -1,6 +1,6 @@
 package de._0x2b.repositories;
 
-import de._0x2b.database.Database;
+import de._0x2b.services.DatabaseService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,12 +10,17 @@ import java.util.List;
 
 public abstract class AbstractRepository<T> {
     private static final Logger logger = LoggerFactory.getLogger(AbstractRepository.class);
+    protected final DatabaseService db;
+
+    public AbstractRepository(DatabaseService db) {
+        this.db = db;
+    }
 
     // Generic select method
     protected List<T> query(String sql, RowMapper<T> mapper, List<Object> params) {
         logger.debug("Executing Query: {}", sql);
 
-        try (Connection conn = Database.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = db.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             setParameters(stmt, params);
 
@@ -44,7 +49,8 @@ public abstract class AbstractRepository<T> {
     protected int insert(String sql, List<Object> params) throws SQLException {
         logger.debug("Executing SQL: {}", sql);
 
-        try (Connection conn = Database.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (Connection conn = db.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             if (params != null) {
                 for (int i = 0; i < params.size(); i++) {
@@ -80,7 +86,8 @@ public abstract class AbstractRepository<T> {
     protected int update(String sql, List<Object> params) throws SQLException {
         logger.debug("Executing SQL: {}", sql);
 
-        try (Connection conn = Database.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (Connection conn = db.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             if (params != null) {
                 for (int i = 0; i < params.size(); i++) {
@@ -92,7 +99,8 @@ public abstract class AbstractRepository<T> {
     }
 
     private void setParameters(PreparedStatement stmt, List<Object> params) throws SQLException {
-        if (params == null) return;
+        if (params == null)
+            return;
         for (int i = 0; i < params.size(); i++) {
             stmt.setObject(i + 1, params.get(i));
         }

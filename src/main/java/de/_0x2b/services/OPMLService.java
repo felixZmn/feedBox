@@ -50,6 +50,12 @@ public class OPMLService {
         this.feedService = feedService;
     }
 
+    /**
+     * Convert a Document to a formatted String
+     * @param document
+     * @return
+     * @throws TransformerException
+     */
     public static String documentToString(Document document) throws TransformerException {
         TransformerFactory transformerFactory = TransformerFactory.newInstance();
         Transformer transformer = transformerFactory.newTransformer();
@@ -61,6 +67,12 @@ public class OPMLService {
         return stringWriter.toString();
     }
 
+    /**
+     * Import OPML from InputStream
+     * @param stream
+     * @throws XMLStreamException
+     * @throws InterruptedException
+     */
     public void importOPML(InputStream stream) throws XMLStreamException, InterruptedException {
         logger.debug("importOPML");
 
@@ -155,6 +167,10 @@ public class OPMLService {
         }
     }
 
+    /**
+     * Export OPML as String, for example for download
+     * @return
+     */
     public String exportOpml() {
         var result = folderService.findAll();
         Document doc = null;
@@ -166,6 +182,12 @@ public class OPMLService {
         }
     }
 
+    /**
+     * Create OPML Document from folders and feeds
+     * @param folders list of folders to include in the OPML
+     * @return Document object representing the OPML
+     * @throws ParserConfigurationException
+     */
     public Document createOPML(List<Folder> folders) throws ParserConfigurationException {
         DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
@@ -208,12 +230,24 @@ public class OPMLService {
         return doc;
     }
 
+    /**
+     * Create folder outline element
+     * @param doc
+     * @param folder
+     * @return
+     */
     private Element createFolderElement(Document doc, Folder folder) {
         var el = doc.createElement("outline");
         el.setAttribute("text", folder.getName());
         return el;
     }
 
+    /**
+     * Create feed outline element
+     * @param doc
+     * @param feed
+     * @return
+     */
     private Element createFeedElement(Document doc, Feed feed) {
         var el = doc.createElement("outline");
         el.setAttribute("text", feed.getName());
