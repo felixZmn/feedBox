@@ -240,7 +240,6 @@ details[open] summary img {
   display: inline-block;
 }
 
-/* files list: PNG icon + filename */
 .feeds-ul {
   margin: 6px 0 0 0;
   list-style: none;
@@ -356,9 +355,9 @@ details[open] summary img {
 }
 
 .column-header {
-  position: relative; /* for the full-width faux-border */
+  position: relative;
   display: grid;
-  grid-template-columns: 1fr minmax(0, 800px) 1fr; /* center area limited to 800px */
+  grid-template-columns: 1fr minmax(0, 800px) 1fr;
   align-content: center;
   padding: 0 var(--default-space);
   height: 2.5rem;
@@ -443,7 +442,7 @@ li:hover,
 
 /* refresh spinner */
 .spinner {
-  animation: spin 1s linear infinite; /* rotate continuously */
+  animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
@@ -456,80 +455,69 @@ li:hover,
 }
 
 /* ############## */
-/* modal */
-.modal {
-  display: none; /* Hidden by default */
-  position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  overflow: auto; /* Enable scrolling if needed */
-  background-color: rgba(0, 0, 0, 0.6); /* Black with opacity */
-}
-
-/* Modal box */
-.modal-content {
-  background: var(--background-color);
-  margin: 10% auto;
-  padding: 20px;
+/* modal dialog */
+dialog {
+  padding: 0;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   width: 400px;
-  max-width: 90%;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
-.modal-headline {
-  font-size: var(--font-size-large);
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
 }
 
-/* Close button */
-.modal-close {
-  float: right;
-  font-size: 24px;
-  font-weight: bold;
-  cursor: pointer;
-}
-.modal-close:hover {
-  color: red;
+.modal-header {
+  padding-left: 20px;
+  padding-right: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #ddd;
 }
 
-/* ######################### */
-/* dialog forms */
-.modal-form {
-  display: none;
-  flex-direction: column; /* STACKED: each control on its own row */
-  gap: calc(var(--default-space) * 2);
-  grid-template-columns: 120px auto;
-  font-size: var(--font-size-base);
+.modal-body {
+  padding: 1.5rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  align-items: center;
 }
 
-.modal-form input,
-.modal-form select,
-.modal-form button {
+.modal-body:has(> :nth-child(2)) {
+  grid-template-columns: 1fr 2fr;
+}
+
+.modal-body input,
+.modal-body select {
+  width: 100%;
+  height: 25px;
+}
+
+.modal-footer {
+  padding: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  border-top: 1px solid #ddd;
+}
+
+.btn {
   border: 1px solid var(--border-color);
   color: var(--font-color);
   outline: none;
   padding: var(--default-space);
 }
 
-.modal-form .left {
-  justify-self: start;
-  grid-column: 1;
+.btn-primary {
+  background-color: var(--font-color-highlight);
+  color: white;
+  border: none;
 }
 
-.modal-form .right {
-  justify-self: start;
-  grid-column: 2;
-}
-
-.modal-form .full {
-  grid-column: 1 / span 2;
-  width: 100%;
-}
-
-.modal-form select {
-  width: 100%;
+.btn-secondary {
+  background-color: transparent;
 }
 
 /* ######################### */

@@ -1,6 +1,5 @@
 import { dataService } from "./data.js";
 import {
-  hideDialog,
   showAddFeedDialog,
   showAddFolderDialog,
   showConfirmDialog,
@@ -9,7 +8,6 @@ import {
 } from "./dialog.js";
 import {
   clearReaderView,
-  folderDropdownOptions,
   removeFeedElement,
   renderArticlesList,
   renderFoldersList,
@@ -33,15 +31,12 @@ export const dialogType = Object.freeze({
 // Application state
 const state = {
   articles: [],
+  folders: [],
   pagination: { id: null, published: null },
   filter: { isActive: false, lastSearchTerm: "" },
   status: { isRefreshing: false },
   selectedArticle: null,
   lastClickedItem: { type: itemType.ALL, obj: null },
-  addFeed: {
-    mode: "check", // "check" | "select"
-    discoveredFeeds: [],
-  },
 };
 
 // Cache DOM elements for later use
@@ -91,11 +86,7 @@ window.addEventListener("DOMContentLoaded", async () => {
  * Helper to set up all event listeners in a single place
  */
 function initEventListeners() {
-  document.querySelector(".modal-close").onclick = () => {
-    hideDialog();
-  };
   document.addEventListener("click", (e) => {
-    if (e.target === dom.modal) hideDialog();
     dom.contextMenu.style.display = "none";
   });
 
@@ -106,30 +97,45 @@ function initEventListeners() {
   );
   dom.button.refresh.addEventListener("click", (e) => refreshFeeds());
   dom.button.import.addEventListener("click", (e) => importFeeds());
-  dom.button.addFolder.addEventListener("click", (e) =>
-    showAddFolderDialog(() => createFolder())
-  );
-  dom.button.editFolder.addEventListener("click", (e) => {
-    showEditFolderDialog(state.lastClickedItem.obj, () => editFolder());
+  dom.button.addFolder.addEventListener("click", async (e) => {
+    let newFolder = await showAddFolderDialog();
+    if (newFolder) await createFolder(newFolder);
   });
-  dom.button.deleteFolder.addEventListener("click", (e) => {
-    let message = `Are you sure you want to delete the folder "${state.lastClickedItem.obj.name}"? All contained feeds will be deleted".`;
-    showConfirmDialog("Delete", message, () => {
-      deleteFolder(state.lastClickedItem.obj);
-    });
+  dom.button.editFolder.addEventListener("click", async (e) => {
+    let editedFolder = await showEditFolderDialog(state.lastClickedItem.obj);
+    if (editedFolder) {
+      editedFolder.id = state.lastClickedItem.obj.id;
+      await editFolder(editedFolder);
+    }
+  });
+  dom.button.deleteFolder.addEventListener("click", async (e) => {
+    let headline = "Delete";
+    let message = `Are you sure you want to delete the folder "${state.lastClickedItem.obj.name}"? All contained feeds will be deleted.`;
+    let response = await showConfirmDialog(headline, message);
+    if (response) deleteFolder(state.lastClickedItem.obj);
   });
 
-  dom.button.addFeed.addEventListener("click", (e) =>
-    showAddFeedDialog(() => createFeed())
-  );
-  dom.button.editFeed.addEventListener("click", (e) => {
-    showEditFeedDialog(state.lastClickedItem.obj, () => editFeed());
+  dom.button.addFeed.addEventListener("click", async (e) => {
+    let newFeed = await showAddFeedDialog(state.folders);
+    if (newFeed) await createFeed(newFeed);
   });
-  dom.button.deleteFeed.addEventListener("click", (e) => {
-    let message = `Are you sure you want to delete the feed "${state.lastClickedItem.obj.name}"?`;
-    showConfirmDialog("Delete", message, () =>
-      deleteFeed(state.lastClickedItem.obj)
+  dom.button.editFeed.addEventListener("click", async (e) => {
+    let response = await showEditFeedDialog(
+      state.folders,
+      state.lastClickedItem.obj
     );
+    let editedFeed = state.lastClickedItem.obj;
+    if (response) {
+      editedFeed.feedUrl = response.feedUrl;
+      editedFeed.folderId = response.folderId;
+    }
+    if (editedFeed) await editFeed(editedFeed);
+  });
+  dom.button.deleteFeed.addEventListener("click", async (e) => {
+    let headline = "Delete";
+    let message = `Are you sure you want to delete the feed "${state.lastClickedItem.obj.name}"?`;
+    let response = await showConfirmDialog(headline, message);
+    if (response) deleteFeed(state.lastClickedItem.obj);
   });
   dom.button.close.addEventListener("click", (e) => {
     clearReaderView();
@@ -337,15 +343,10 @@ function resetPagination() {
 async function loadFolders() {
   const foldersWithFeeds = await dataService.getFolders();
   renderFoldersList(foldersWithFeeds);
-  folderDropdownOptions(foldersWithFeeds);
-  return foldersWithFeeds;
+  state.folders = foldersWithFeeds;
 }
 
-async function createFolder() {
-  var folder = {};
-  folder.name = document.getElementById("folder-name").value;
-  folder.color = document.getElementById("folder-color").value;
-
+async function createFolder(folder) {
   try {
     await dataService.createFolder(folder);
     await loadFolders();
@@ -353,15 +354,9 @@ async function createFolder() {
     alert("Error saving folder: " + folder.name);
     console.error(error.message);
   }
-  hideDialog();
 }
 
-async function editFolder() {
-  var folder = {};
-  folder.name = document.getElementById("folder-name").value;
-  folder.color = document.getElementById("folder-color").value;
-  folder.id = state.lastClickedItem.obj.id;
-
+async function editFolder(folder) {
   try {
     await dataService.updateFolder(folder);
     await loadFolders();
@@ -371,7 +366,6 @@ async function editFolder() {
     alert("Error updating folder: " + folder.name);
     console.error(error.message);
   }
-  hideDialog();
 }
 
 async function deleteFolder(folder) {
@@ -382,121 +376,19 @@ async function deleteFolder(folder) {
     alert("Error deleting folder: " + folder.name);
     console.error(error.message);
   }
-  hideDialog();
 }
 
-async function createFeed() {
+async function createFeed(feed) {
   try {
-    if (state.addFeed.mode === "check") {
-      await handleFeedCheck();
-      return false;
-    } else if (state.addFeed.mode === "select") {
-      await handleFeedSaveFromSelection();
-      return true;
-    }
+    await dataService.createFeed(feed);
+    await loadFolders();
   } catch (error) {
     alert("Error saving feed.");
     console.error(error);
   }
 }
 
-async function handleFeedCheck() {
-  const feedUrl = document.getElementById("feed-url").value.trim();
-  const folderId = document.getElementById("feed-folder").value;
-
-  if (!feedUrl) {
-    alert("Please enter a URL.");
-    return;
-  }
-
-  const response = await dataService.checkFeed(feedUrl);
-
-  if (!Array.isArray(response) || response.length === 0) {
-    alert("No feeds found.");
-    return;
-  }
-
-  if (response.length === 1) {
-    await saveFeed(response[0].feedUrl, folderId);
-  } else {
-    state.addFeed.mode = "select";
-    state.addFeed.discoveredFeeds = response;
-    showFeedSelector(response);
-  }
-}
-
-async function handleFeedSaveFromSelection() {
-  const select = document.getElementById("multiple-feeds-select");
-  const folderId = document.getElementById("feed-folder").value;
-
-  if (!select) {
-    alert("Please select a feed.");
-    return;
-  }
-
-  await saveFeed(select.value, folderId);
-}
-
-async function saveFeed(feedUrl, folderId) {
-  const feed = {
-    feedUrl,
-    folderId,
-  };
-
-  await dataService.createFeed(feed);
-  await loadFolders();
-  resetAddFeedDialog();
-}
-
-function showFeedSelector(feeds) {
-  removeFeedSelector();
-
-  const anchor = document.querySelector("#feed-add-edit #anchor");
-
-  const info = document.createElement("p");
-  info.id = "feed-selector-info";
-  info.textContent = "Multiple feeds found. Please select one:";
-  info.classList.add("right");
-  anchor.parentNode.insertBefore(info, anchor);
-
-  const label = document.createElement("label");
-  label.setAttribute("for", "multiple-feeds-select");
-  label.textContent = "Feed";
-  label.id = "multiple-feeds-label";
-  anchor.parentNode.insertBefore(label, anchor);
-
-  const select = document.createElement("select");
-  select.id = "multiple-feeds-select";
-
-  feeds.forEach((feed) => {
-    const option = document.createElement("option");
-    option.value = feed.feedUrl;
-    option.textContent = feed.name || feed.feedUrl;
-    select.appendChild(option);
-  });
-
-  anchor.parentNode.insertBefore(select, anchor);
-}
-
-function removeFeedSelector() {
-  document.getElementById("feed-selector-info")?.remove();
-  document.getElementById("multiple-feeds-select")?.remove();
-  document.getElementById("multiple-feeds-label")?.remove();
-}
-
-function resetAddFeedDialog() {
-  removeFeedSelector();
-  state.addFeed.mode = "check";
-  state.addFeed.discoveredFeeds = [];
-
-  document.getElementById("feed-url").value = "";
-}
-
-async function editFeed() {
-  var feed = state.lastClickedItem.obj;
-  feed.feedUrl = document.getElementById("feed-url").value;
-  feed.folderId = document.getElementById("feed-folder").value;
-
+async function editFeed(feed) {
   try {
     await dataService.updateFeed(feed);
     await loadFolders();
@@ -506,7 +398,6 @@ async function editFeed() {
     alert("Error updating feed: " + feed.feedUrl);
     console.error(error.message);
   }
-  hideDialog();
 }
 
 async function deleteFeed(feed) {
@@ -521,7 +412,6 @@ async function deleteFeed(feed) {
     alert("Error deleting feed: " + feed.name);
     console.error(error.message);
   }
-  hideDialog();
 }
 
 async function importFeeds() {

@@ -40,88 +40,6 @@
     </ul>
 
     <div class="layout">
-      <div id="modal" class="modal">
-        <div class="modal-content">
-          <span class="modal-close">&times;</span>
-          <h2 id="modal-headline">Modal Title</h2>
-          <div id="modal-content-container">
-            <div class="modal-form" id="folder-add-edit">
-              <label class="field" for="folder-name">Folder name </label>
-              <input
-                id="folder-name"
-                name="folder-name"
-                type="text"
-                placeholder="My folder"
-                required
-              />
-
-              <label
-                class="field"
-                for="folder-color"
-                aria-labelledby="color-label"
-                >Color</label
-              >
-              <div class="color-row">
-                <select id="folder-color" name="folder-color">
-                  <option value="f-base">Grey</option>
-                  <option value="f-red">Red</option>
-                  <option value="f-orange">Orange</option>
-                  <option value="f-yellow">Yellow</option>
-                  <option value="f-green">Green</option>
-                  <option value="f-blue">Blue</option>
-                  <option value="f-violet">Violet</option>
-                </select>
-                <span
-                  id="color-swatch"
-                  class="swatch"
-                  aria-hidden="true"
-                ></span>
-              </div>
-
-              <button id="trigger-save-folder" type="submit" class="btn right">
-                Save
-              </button>
-            </div>
-
-            <div class="modal-form" id="feed-add-edit">
-              <label class="field" for="feed-url">Feed Link</label>
-              <input
-                id="feed-url"
-                name="feed-url"
-                type="text"
-                placeholder="http[s]://"
-              />
-
-              <label class="field" for="feed-folder">Folder</label>
-              <div class="feed-folder-row">
-                <select id="feed-folder" name="feed-folder">
-                  <option value="0"></option>
-                  <!-- <option value="1">blogs</option>
-                  <option value="2">it sec</option>
-                  <option value="3">news</option>
-                  <option value="8">tech</option>
-                  <option value="9">Sports</option> -->
-                </select>
-              </div>
-
-              <span id="anchor" class="d-none"></span>
-
-              <button type="submit" id="trigger-save-feed" class="btn right">
-                Save
-              </button>
-            </div>
-
-            <div class="modal-form" id="confirm-dialog">
-              <p class="full" id="confirm-message">Are you sure?</p>
-              <p class="right">
-                <button id="confirm-yes" class="btn">Yes</button>
-                <button id="confirm-no" class="btn">No</button>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <aside id="feeds-list" class="feeds-list border-right">
         <div class="column-header">
           <div class="left">
@@ -250,6 +168,20 @@
         </div>
       </section>
     </div>
+
+    <dialog id="generic-modal" class="modal">
+      <div class="modal-header">
+        <h2 id="modal-title">Title</h2>
+        <button class="icon-btn close-modal">&times;</button>
+      </div>
+
+      <div id="modal-body" class="modal-body"></div>
+
+      <div class="modal-footer">
+        <button id="btn-cancel" class="btn btn-secondary">Cancel</button>
+        <button id="btn-confirm" class="btn btn-primary">Confirm</button>
+      </div>
+    </dialog>
   </body>
   <script type="module" src="./scripts/main.js"></script>
 </html>
