@@ -10,41 +10,41 @@ class DataService {
   }
 
   async getFolders() {
-    return await this._getRequest("./api/folders");
+    return this._getRequest("./api/folders");
   }
 
   async createFolder(folder) {
-    return await this._postRequest("./api/folders", folder);
+    return this._postRequest("./api/folders", folder);
   }
 
   async updateFolder(folder) {
-    return await this._putRequest(`./api/folders/${folder.id}`, folder);
+    return this._putRequest(`./api/folders/${folder.id}`, folder);
   }
 
   async deleteFolder(folderId) {
-    return await this._deleteRequest(`./api/folders/${folderId}`);
+    return this._deleteRequest(`./api/folders/${folderId}`);
   }
 
   async createFeed(feed) {
-    return await this._postRequest("./api/feeds", feed);
+    return this._postRequest("./api/feeds", feed);
   }
 
   async updateFeed(feed) {
-    return await this._putRequest(`./api/feeds/${feed.id}`, feed);
+    return this._putRequest(`./api/feeds/${feed.id}`, feed);
   }
 
   async deleteFeed(feedId) {
-    return await this._deleteRequest(`./api/feeds/${feedId}`);
+    return this._deleteRequest(`./api/feeds/${feedId}`);
   }
 
   async checkFeed(feedUrl) {
-    return await this._getRequest(
+    return this._getRequest(
       `./api/feeds/check?url=${encodeURIComponent(feedUrl)}`
     );
   }
 
   async refreshFeeds() {
-    return await this._getRequest("./api/feeds/refresh");
+    return this._getRequest("./api/feeds/refresh");
   }
 
   getArticles() {
@@ -58,9 +58,9 @@ class DataService {
   async loadArticles(params) {
     const queryString = new URLSearchParams(params).toString();
     const url = `./api/articles?${queryString}`;
-    return await this._getRequest(url).then((data) => {
-      this.cache = this.cache.concat(data);
-    });
+    let data = await this._getRequest(url);
+    this.cache = this.cache.concat(data);
+    return data;
   }
 
   async _getRequest(url) {

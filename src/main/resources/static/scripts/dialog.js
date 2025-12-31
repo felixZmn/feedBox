@@ -1,100 +1,166 @@
-export function hideDialog() {
-  document.getElementById("modal").style.display = "none";
-  document.getElementById("folder-add-edit").style.display = "none";
-  document.getElementById("feed-add-edit").style.display = "none";
-  document.getElementById("confirm-dialog").style.display = "none";
-  document.getElementById("folder-name").value = "";
-  document.getElementById("feed-url").value = "";
-  document.getElementById("feed-selector-info")?.remove();
-  document.getElementById("multiple-feeds-select")?.remove();
-  document.getElementById("multiple-feeds-label")?.remove();
-}
+import { dataService } from "./data.js";
+import { modal } from "./modal.js";
 
-export function showConfirmDialog(
-  headline,
-  message,
-  confirmAction,
-  cancelAction
-) {
-  document.getElementById("modal-headline").textContent = headline;
-  document.getElementById("confirm-message").textContent = message;
-  document.getElementById("confirm-dialog").style.display = "grid";
-  var yesButton = document.getElementById("confirm-yes");
-  yesButton = removeAllEventListeners(yesButton);
-  yesButton.addEventListener("click", async () => {
-    if (!confirmAction) return;
-    const shouldClose = await confirmAction();
-    if (shouldClose === true) {
-      hideDialog();
-    }
+const colorOptions = [
+  { value: "f-base", label: "Grey" },
+  { value: "f-red", label: "Red" },
+  { value: "f-orange", label: "Orange" },
+  { value: "f-yellow", label: "Yellow" },
+  { value: "f-green", label: "Green" },
+  { value: "f-blue", label: "Blue" },
+  { value: "f-violet", label: "Violet" },
+];
+
+export async function showConfirmDialog(headline, message) {
+  return await modal.show({
+    title: headline,
+    content: `<p>${message}</p>`,
+    type: "confirm",
   });
-  var noButton = document.getElementById("confirm-no");
-  noButton = removeAllEventListeners(noButton);
-  noButton.addEventListener("click", async () => {
-    if (!cancelAction) return;
-    const shouldClose = await cancelAction();
-    if (shouldClose === true) {
-      hideDialog();
-    }
+}
+
+export async function showAddFolderDialog() {
+  const optionsHtml = colorOptions
+    .map((opt) => {
+      return `<option value="${opt.value}">${opt.label}</option>`;
+    })
+    .join("");
+  const html = `
+    <label class="field" for="name">Folder name</label>
+    <input
+      id="name"
+      name="name"
+      type="text"
+      placeholder="My folder"
+      required
+    />
+    <label class="field" for="folder-color" aria-labelledby="color-label">Color</label>
+    <div class="color-row">
+      <select id="folder-color" name="color">
+        ${optionsHtml}
+      </select>
+    </div>
+  `;
+  return await modal.show({
+    title: "Add Folder",
+    content: html,
+    type: "confirm",
   });
-  document.getElementById("modal").style.display = "block";
 }
 
-export function showAddFolderDialog(confirmAction, cancelAction) {
-  folderDialog("Add Folder", confirmAction, cancelAction);
-}
+export async function showEditFolderDialog(folder) {
+  const optionsHtml = colorOptions
+    .map((opt) => {
+      const isSelected = opt.value === folder.color ? "selected" : "";
+      return `<option value="${opt.value}" ${isSelected}>${opt.label}</option>`;
+    })
+    .join("");
 
-export function showEditFolderDialog(folder, confirmAction, cancelAction) {
-  document.getElementById("folder-name").value = folder.name;
-  document.getElementById("folder-color").value = folder.color;
-  folderDialog("Edit Folder", confirmAction, cancelAction);
-}
-
-function folderDialog(headline, confirmAction, cancelAction) {
-  document.getElementById("modal-headline").textContent = headline;
-  document.getElementById("folder-add-edit").style.display = "grid";
-  var saveButton = document.getElementById("trigger-save-folder");
-  saveButton = removeAllEventListeners(saveButton);
-  saveButton.addEventListener("click", async () => {
-    if (confirmAction) await confirmAction();
-    hideDialog();
+  const html = `
+    <label class="field" for="folder-name">Folder name</label>
+    <input
+      id="folder-name"
+      name="name" 
+      type="text"
+      value="${folder.name}"
+      required
+    />
+    
+    <label class="field" for="folder-color" aria-labelledby="color-label">Color</label>
+    <div class="color-row">
+      <select id="folder-color" name="color">
+        ${optionsHtml}
+      </select>
+    </div>
+  `;
+  return await modal.show({
+    title: "Edit Folder",
+    content: html,
+    type: "confirm",
   });
-  document.getElementById("modal").style.display = "block";
 }
 
-export function showAddFeedDialog(confirmAction, cancelAction) {
-  feedDialog("Add Feed", confirmAction, cancelAction);
-}
+export async function showAddFeedDialog(folders) {
+  const html = `
+    <label class="field" for="feed-url">Feed URL</label>
+    <input
+      id="feed-url"
+      name="feedUrl"
+      type="url"
+      placeholder="https://example.com/feed.xml"
+      required
+    />
+    <label class="field" for="feed-folder">Folder</label>
+    <select id="feed-folder" name="folderId">
+      ${folders.map((folder) => {
+        return `<option value="${folder.id}">${folder.name}</option>`;
+      })}
+    </select>
+  `;
 
-export function showEditFeedDialog(feed, confirmAction, cancelAction) {
-  document.getElementById("feed-url").value = feed.feedUrl;
-  document.getElementById("feed-folder").value = feed.folderId;
-  feedDialog("Edit Feed", confirmAction, cancelAction);
-}
+  return await modal.show({
+    title: "Add Feed",
+    content: html,
+    type: "confirm",
+    onValidate: async (data, bodyEl) => {
+      if (!data.feedUrl || data.feedUrl.trim() === "") {
+        alert("Please enter a URL.");
+        return;
+      }
+      const response = await dataService.checkFeed(data.feedUrl);
+      if (!Array.isArray(response) || response.length === 0) {
+        alert("No feeds found.");
+        return;
+      }
 
-function feedDialog(headline, confirmAction, cancelAction) {
-  document.getElementById("modal-headline").textContent = headline;
-  document.getElementById("feed-add-edit").style.display = "grid";
-  var saveButton = document.getElementById("trigger-save-feed");
-  saveButton = removeAllEventListeners(saveButton);
-  saveButton.addEventListener("click", async () => {
-    if (!confirmAction) return;
-    const shouldClose = await confirmAction();
-    if (shouldClose === true) {
-      hideDialog();
-    }
+      if (response.length === 1) {
+        return true;
+      }
+
+      // Multiple feeds found, show selector
+      const feedOptions = response
+        .map(
+          (feed, index) =>
+            `<option value="${feed.feedUrl}">${feed.name} (${feed.feedUrl})</option>`
+        )
+        .join("");
+
+      bodyEl.innerHTML = `
+        <label class="field" for="feed-selector">Multiple feeds found. Please select one:</label>
+        <select id="feed-selector" name="feedUrl">
+          ${feedOptions}
+        </select>
+        <input type="hidden" name="folderId" value="${data.folderId}" />
+      `;
+
+      return false; // Keep dialog open
+    },
   });
-  document.getElementById("modal").style.display = "block";
 }
 
-/**
- * Remove all event listeners from a DOM element
- * by replacing it with a deep clone.
- * @param {HTMLElement} el - The element to clean
- * @returns {HTMLElement} - The cleaned clone
- */
-function removeAllEventListeners(el) {
-  const newEl = el.cloneNode(true);
-  el.parentNode.replaceChild(newEl, el);
-  return newEl;
+export function showEditFeedDialog(folders, feed) {
+  const html = `
+    <label class="field" for="feed-url">Feed URL</label>
+    <input
+      id="feed-url"
+      name="feedUrl"
+      type="url"
+      value="${feed.feedUrl}"
+      required
+    />
+    <label class="field" for="feed-folder">Folder</label>
+    <select id="feed-folder" name="folderId">
+      <option value="">No folder</option>
+      ${folders.map((folder) => {
+        const isSelected = folder.id === feed.folderId ? "selected" : "";
+        return `<option value="${folder.id}" ${isSelected}>${folder.name}</option>`;
+      })}
+    </select>
+  `;
+
+  return modal.show({
+    title: "Edit Feed",
+    content: html,
+    type: "confirm",
+  });
 }
