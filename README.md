@@ -37,63 +37,33 @@ It allows you to manage all your feeds in one place—without ads, tracking, AI,
 
 # Features
 
-⚠️ **Currently in non-production state**. Planned features include:
+Feature highlights include:
 
-- Simple UI with automatic dark mode
-- Mobile and desktop views
 - Fully self-hostable
+- Automatic dark mode
+- Mobile and desktop views
 - Import and export feeds as OPML
 - Organize feeds into folders
 - Periodic background refresh
 
-# Getting Started
+# Installation
 
-## Local Development
+It is possible to run FeedBox via Docker or deploy it to a Kubernetes cluster using the provided Helm chart. In both cases, a PostgreSQL database is required.
+The following environment variables need to be set for database connectivity:
 
-### Prerequisites
+| Variable      | Description       |
+| ------------- | ----------------- |
+| `PG_USER`     | Database user     |
+| `PG_PASSWORD` | Database password |
+| `PG_HOST`     | Database host     |
+| `PG_PORT`     | Database port     |
+| `PG_DB`       | Database name     |
 
-- PostgreSQL (e.g. via Docker)
-- Java
-- Maven
+Additionally, the application port can be configured using the `PORT` variable (default is 7070).
 
-### Commit scopes
+## Docker
 
-| Scope   | Description           |
-| ------- | --------------------- |
-| backend | Java-code             |
-| ui      | Frontend related code |
-| chart   | Helm chart            |
-| deps    | Dependencies          |
-| docs    | Documentation         |
-
-### Build the application
-
-```bash
-mvn clean install
-```
-
-Run the application:
-
-```bash
-PG_USER=user \
-PG_PASSWORD=password \
-PG_HOST=127.0.0.1 \
-PG_PORT=5432 \
-PG_DB=postgres \
-java -jar target/feedBox.jar
-```
-
-Build and push Docker image:
-
-```bash
-VERSION=$(grep -m1 '<version>' pom.xml | sed -E 's/.*<version>([^<]+)<\/version>.*/\1/')
-
-docker build -t ghcr.io/felixzmn/docker/feedbox:$VERSION -t ghcr.io/felixzmn/docker/feedbox:latest .
-docker push ghcr.io/felixzmn/docker/feedbox:$VERSION
-docker push ghcr.io/felixzmn/docker/feedbox:latest
-```
-
-Running with Docker
+To run FeedBox using Docker, first start a PostgreSQL container, then run the FeedBox container. For testing purposes, you can use the following commands - for production, make sure to follow best practices regarding security and data persistence.
 
 ```bash
 docker network create appnet
@@ -112,33 +82,68 @@ docker run --rm --name feedbox \
   ghcr.io/felixzmn/docker/feedbox:latest
 ```
 
-## Helm Chart
+## Helm
 
-### Build the chart
+For installing via Helm, use the following command:
+
+```bash
+helm install feedbox oci://ghcr.io/felixzmn/helm/feedbox --version <VERSION>
+```
+
+Further configuration options can be found having a look at the `values.yaml` file in the `chart` directory.
+
+# Local Development
+
+## Prerequisites
+
+- PostgreSQL (e.g. via Docker)
+- Java
+- Maven
+
+## Commit scopes
+
+| Scope     | Description           |
+| --------- | --------------------- |
+| `backend` | Java-code             |
+| `ui`      | Frontend related code |
+| `chart`   | Helm chart            |
+| `deps`    | Dependencies          |
+| `docs`    | Documentation         |
+
+## Build the application
+
+```bash
+mvn clean install
+```
+
+Run the application:
+
+```bash
+PG_USER=user \
+PG_PASSWORD=password \
+PG_HOST=127.0.0.1 \
+PG_PORT=5432 \
+PG_DB=postgres \
+java -jar target/feedBox.jar
+```
+
+## Build and push the Docker image:
+
+```bash
+VERSION=$(grep -m1 '<version>' pom.xml | sed -E 's/.*<version>([^<]+)<\/version>.*/\1/')
+
+docker build -t ghcr.io/felixzmn/docker/feedbox:$VERSION -t ghcr.io/felixzmn/docker/feedbox:latest .
+docker push ghcr.io/felixzmn/docker/feedbox:$VERSION
+docker push ghcr.io/felixzmn/docker/feedbox:latest
+```
+
+## Build and push the Helm chart
 
 ```bash
 cd chart
 helm package .
 helm push feedbox-*.tgz oci://ghcr.io/felixzmn/helm
 ```
-
-### Deploy to your cluster
-
-```bash
-helm install feedbox oci://ghcr.io/felixzmn/helm/feedbox --version <VERSION>
-```
-
-# Configuration
-
-| Variable       | Required | Description           | Default |
-| -------------- | -------- | --------------------- | ------- |
-| `PG_USER`      | yes      | Database user         |         |
-| `PG_PASSWORD`  | yes      | Database password     |         |
-| `PG_HOST`      | yes      | Database host         |         |
-| `PG_PORT`      | yes      | Database port         |         |
-| `PG_DB`        | yes      | Database name         |         |
-| `PORT`         | no       | Application port      | 7070    |
-| `REFRESH_RATE` | no       | Feed refresh interval | 60min   |
 
 # Icons
 
