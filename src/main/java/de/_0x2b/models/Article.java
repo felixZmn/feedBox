@@ -3,7 +3,7 @@ package de._0x2b.models;
 import java.util.Objects;
 
 public class Article {
-    int id;
+    long id;
     int feedId;
     String feedName;
     String title;
@@ -15,7 +15,7 @@ public class Article {
     String imageUrl;
     String categories;
 
-    public Article(int id, int feedId, String feedName, String title, String description, String content, String link,
+    public Article(long id, int feedId, String feedName, String title, String description, String content, String link,
             String published, String authors, String imageUrl, String categories) {
         this.id = id;
         this.feedId = feedId;
@@ -48,7 +48,7 @@ public class Article {
                 categories);
     }
 
-    public int getId() {
+    public long getId() {
         return id;
     }
 
