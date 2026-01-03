@@ -33,6 +33,7 @@ public class DatabaseService {
 
     /**
      * Get a connection from the pool
+     * 
      * @return
      * @throws SQLException
      */
@@ -42,6 +43,7 @@ public class DatabaseService {
 
     /**
      * Get the DataSource
+     * 
      * @return
      */
     public DataSource getDataSource() {
@@ -60,12 +62,12 @@ public class DatabaseService {
 
     /**
      * Perform database schema migration
+     * 
      * @throws SQLException
      */
     public void migrate() throws SQLException {
         logger.info("Checking database schema...");
 
-        // Split SQL to ensure we can identify which statement fails and wrap in transaction for safety.
         String[] migrationStatements = { """
                 CREATE TABLE IF NOT EXISTS folder (
                     id SERIAL PRIMARY KEY,
@@ -92,7 +94,7 @@ public class DatabaseService {
                 )
                 """, """
                 CREATE TABLE IF NOT EXISTS article (
-                    id SERIAL PRIMARY KEY,
+                    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                     feed_id INTEGER NOT NULL,
                     title TEXT NOT NULL,
                     description TEXT NOT NULL,
