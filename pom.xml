@@ -30,7 +30,7 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.7.8</version>  <!-- or latest version -->
+            <version>42.7.10</version>  <!-- or latest version -->
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
