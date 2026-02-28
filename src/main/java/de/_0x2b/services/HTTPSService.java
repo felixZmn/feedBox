@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -13,12 +14,14 @@ import java.time.Duration;
 public class HTTPSService {
     private static final Logger logger = LoggerFactory.getLogger(HTTPSService.class);
     private static HTTPSService instance;
+    private static final String USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36";
+    private static final int TIMEOUT_SECONDS = 10;
 
     HttpClient client;
 
     private HTTPSService() {
         client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.ALWAYS)
-                .connectTimeout(Duration.ofSeconds(30)).build();
+                .connectTimeout(Duration.ofSeconds(TIMEOUT_SECONDS)).build();
     }
 
     public static HTTPSService getInstance() {
@@ -34,8 +37,12 @@ public class HTTPSService {
      * @param uri URI to fetch
      * @return Response object or null if request is not successful
      */
-    public HttpResponse<byte[]> fetchURI(URI uri) {
-        HttpRequest request = HttpRequest.newBuilder(uri).GET().timeout(Duration.ofSeconds(30)).build();
+    public HttpResponse<byte[]> fetchUriAsBytes(URI uri) {
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .GET()
+                .header("User-Agent", USER_AGENT)
+                .timeout(Duration.ofSeconds(TIMEOUT_SECONDS))
+                .build();
         HttpResponse<byte[]> response = null;
         try {
             response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
@@ -49,5 +56,24 @@ public class HTTPSService {
             return null;
         }
         return response;
+    }
+
+    public InputStream fetchUriAsStream(URI uri){
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .GET()
+                .header("User-Agent", USER_AGENT)
+                .timeout(Duration.ofSeconds(TIMEOUT_SECONDS))
+                .build();
+
+        HttpResponse<InputStream> response = null;
+        try {
+            response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        if (response.statusCode() == 200){
+            return response.body();
+        }
+        return null;
     }
 }

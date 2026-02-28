@@ -18,16 +18,16 @@ public class ArticleController {
 
     public void getAllArticles(Context ctx) {
         logger.debug("getAllArticles");
-        Integer folderId = ctx.queryParamAsClass("folder", Integer.class).getOrDefault(null);
-        Integer feedId = ctx.queryParamAsClass("feed", Integer.class).getOrDefault(null);
+        int folderId = ctx.queryParamAsClass("folder", Integer.class).getOrDefault(-1);
+        int feedId = ctx.queryParamAsClass("feed", Integer.class).getOrDefault(-1);
         var paginationId = ctx.queryParam("pagination_id") != null ? Integer.parseInt(ctx.queryParam("pagination_id"))
                 : -1;
         var paginationDate = ctx.queryParam("pagination_date") != null ? ctx.queryParam("pagination_date") : "";
 
         List<Article> result;
-        if (folderId != null) {
+        if (folderId > -1) {
             result = articleService.findByFolder(paginationId, paginationDate, folderId);
-        } else if (feedId != null) {
+        } else if (feedId > -1) {
             result = articleService.findByFeed(paginationId, paginationDate, feedId);
         } else {
             result = articleService.getAll(paginationId, paginationDate);

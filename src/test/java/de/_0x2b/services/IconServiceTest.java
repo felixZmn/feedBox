@@ -87,11 +87,11 @@ public class IconServiceTest {
         when(response.body()).thenReturn(html.getBytes(StandardCharsets.UTF_8));
         when(response.headers()).thenReturn(java.net.http.HttpHeaders.of(java.util.Map.of("Content-Type", List.of("text/html; charset=UTF-8")), (k, v) -> true));
         when(response.uri()).thenReturn(uri);
-        when(httpsService.fetchURI(any(URI.class))).thenReturn(response);
+        when(httpsService.fetchUriAsBytes(any(URI.class))).thenReturn(response);
         var favResponse = mock(java.net.http.HttpResponse.class);
         when(favResponse.body()).thenReturn(IMAGE_BYTES);
         when(favResponse.headers()).thenReturn(java.net.http.HttpHeaders.of(java.util.Map.of("content-type", List.of("image/x-icon")), (k, v) -> true));
-        when(httpsService.fetchURI(eq(URI.create("https://example.org/test.ico")))).thenReturn(favResponse);
+        when(httpsService.fetchUriAsBytes(eq(URI.create("https://example.org/test.ico")))).thenReturn(favResponse);
         ArgumentCaptor<Icon> iconCaptor = ArgumentCaptor.forClass(Icon.class);
 
         // do

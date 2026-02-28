@@ -200,42 +200,38 @@ public class FeedService {
     private void parseFeed(Feed feed) {
         logger.debug("parseFeed");
         MediaRssReader rssReader = new MediaRssReader();
-        try {
-            var items = rssReader.read(feed.getFeedURI().toString()).toList();
-            List<Article> articles = new ArrayList<>();
+        var items = rssReader.read(HTTPSService.getInstance().fetchUriAsStream(feed.getFeedURI())).toList();
+        List<Article> articles = new ArrayList<>();
 
-            for (MediaRssItem item : items) {
-                try {
-                    var title = item.getTitle().orElse("");
-                    var description = item.getDescription().orElse("");
-                    var content = item.getContent().orElse("");
-                    var link = item.getLink().orElse("");
-                    var datetime = item.getPubDateZonedDateTime()
-                            .map(zdt -> zdt.withZoneSameInstant(ZoneOffset.UTC).format(formatter))
-                            .orElse("unknown pub date");
-                    var author = item.getAuthor().orElse("");
-                    var imageUrl = "";
-                    if (item.getMediaThumbnail().isPresent()) {
-                        imageUrl = item.getMediaThumbnail().get().getUrl();
-                    }
-                    if (imageUrl.equals("") && item.getEnclosure().isPresent()
-                            && item.getEnclosure().get().getType().startsWith("image/")) {
-                        imageUrl = item.getEnclosure().get().getUrl();
-                    }
-
-                    var categories = item.getCategories().toString();
-
-                    Article article = new Article(-1, feed.getId(), feed.getName(), title, description, content, link,
-                            datetime, author, imageUrl, categories);
-                    articles.add(article);
-                } catch (Exception e) {
-                    logger.error("Error refreshing feed [{}] \n {}\n", feed.getName(), e.getMessage());
+        for (MediaRssItem item : items) {
+            try {
+                var title = item.getTitle().orElse("");
+                var description = item.getDescription().orElse("");
+                var content = item.getContent().orElse("");
+                var link = item.getLink().orElse("");
+                var datetime = item.getPubDateZonedDateTime()
+                        .map(zdt -> zdt.withZoneSameInstant(ZoneOffset.UTC).format(formatter))
+                        .orElse("unknown pub date");
+                var author = item.getAuthor().orElse("");
+                var imageUrl = "";
+                if (item.getMediaThumbnail().isPresent()) {
+                    imageUrl = item.getMediaThumbnail().get().getUrl();
                 }
+                if (imageUrl.equals("") && item.getEnclosure().isPresent()
+                        && item.getEnclosure().get().getType().startsWith("image/")) {
+                    imageUrl = item.getEnclosure().get().getUrl();
+                }
+
+                var categories = item.getCategories().toString();
+
+                Article article = new Article(-1, feed.getId(), feed.getName(), title, description, content, link,
+                        datetime, author, imageUrl, categories);
+                articles.add(article);
+            } catch (Exception e) {
+                logger.error("Error refreshing feed [{}] \n {}\n", feed.getName(), e.getMessage());
             }
-            articleRepository.create(articles);
-        } catch (IOException e) {
-            logger.error("Error refreshing feed [{}] \n {}\n", feed.getName(), e.getMessage());
         }
+        articleRepository.create(articles);
     }
 
     /**
