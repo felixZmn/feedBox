@@ -6,7 +6,7 @@
     <!-- project coordinates - values which uniquely identify this project -->
     <groupId>de.0x2b</groupId>
     <artifactId>feedBox</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
 
     <packaging>jar</packaging>
 
