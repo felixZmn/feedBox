@@ -84,7 +84,7 @@ public class IconService {
         var urls = constructHtmlUris(feed);
 
         for (URI uri : urls) {
-            var response = HTTPSService.getInstance().fetchURI(uri);
+            var response = HTTPSService.getInstance().fetchUriAsBytes(uri);
             if (response == null) {
                 continue; // try next url
             }
@@ -166,7 +166,7 @@ public class IconService {
      * @return Icon object that, in case of success is filled with icon data
      */
     public Icon fetchFavicon(Icon icon) {
-        HttpResponse<byte[]> response = HTTPSService.getInstance().fetchURI(URI.create(icon.getUrl()));
+        HttpResponse<byte[]> response = HTTPSService.getInstance().fetchUriAsBytes(URI.create(icon.getUrl()));
 
         if (response == null) {
             logger.error("Failed to fetch favicon");

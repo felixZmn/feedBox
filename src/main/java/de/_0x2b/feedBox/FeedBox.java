@@ -52,9 +52,9 @@ public class FeedBox {
         var iconController = new IconController(iconService);
 
         var app = Javalin.create(config -> {
-            config.useVirtualThreads = true;
+            config.concurrency.useVirtualThreads = true;
             config.staticFiles.add("/static", Location.CLASSPATH);
-            config.jetty.defaultHost = "0.0.0.0";
+            config.jetty.host = "0.0.0.0";
 
             config.requestLogger.http((ctx, ms) -> {
                 // GET http://localhost:8080/style.css HTTP/1.1" from [::1]:44872 - 200 in
@@ -62,7 +62,7 @@ public class FeedBox {
                 logger.info("{} {} {} from {}:{} - {} in {} ms", ctx.method(), ctx.url(), ctx.protocol(),
                         ctx.req().getRemoteAddr(), ctx.req().getRemotePort(), ctx.status().getCode(), ms);
             });
-            config.router.apiBuilder(() -> {
+            config.routes.apiBuilder(() -> {
                 path("/healthz", () -> {
                     get(healthController::healthz);
                 });
@@ -102,16 +102,15 @@ public class FeedBox {
                     });
                 });
             });
-        });
-
-        app.exception(DuplicateEntityException.class, (e, ctx) -> {
-            ctx.status(409).result(e.getMessage());
-        });
-        app.exception(NotFoundException.class, (e, ctx) -> {
-            ctx.status(404).result(e.getMessage());
-        });
-        app.exception(NumberFormatException.class, (e, ctx) -> {
-            ctx.status(400).result("Invalid parameter format");
+            config.routes.exception(DuplicateEntityException.class, (e, ctx) -> {
+                ctx.status(409).result(e.getMessage());
+            });
+            config.routes.exception(NotFoundException.class, (e, ctx) -> {
+                ctx.status(404).result(e.getMessage());
+            });
+            config.routes.exception(NumberFormatException.class, (e, ctx) -> {
+                ctx.status(400).result("Invalid parameter format");
+            });
         });
 
         app.start(appConfig.appPort());
@@ -134,8 +133,6 @@ public class FeedBox {
             logger.info("Feed refresh scheduled to start in 30 seconds.");
         }
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            databaseService.close();
-        }));
+        Runtime.getRuntime().addShutdownHook(new Thread(databaseService::close));
     }
 }
