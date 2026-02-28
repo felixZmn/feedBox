@@ -17,6 +17,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class IconService {
     private static final Logger logger = LoggerFactory.getLogger(IconService.class);
@@ -84,10 +85,11 @@ public class IconService {
         var urls = constructHtmlUris(feed);
 
         for (URI uri : urls) {
-            var response = HTTPSService.getInstance().fetchUriAsBytes(uri);
-            if (response == null) {
+            var optional = HTTPSService.getInstance().fetchAsBytes(uri);
+            if (optional.isEmpty()) {
                 continue; // try next url
             }
+            var response = optional.get();
             var charset = getCharsetFromContentType(response.headers().firstValue("Content-Type").orElse(""));
             var iconUrl = parseHtml(new String(response.body(), charset));
 
@@ -166,13 +168,13 @@ public class IconService {
      * @return Icon object that, in case of success is filled with icon data
      */
     public Icon fetchFavicon(Icon icon) {
-        HttpResponse<byte[]> response = HTTPSService.getInstance().fetchUriAsBytes(URI.create(icon.getUrl()));
-
-        if (response == null) {
+        var optional = HTTPSService.getInstance().fetchAsBytes(URI.create(icon.getUrl()));
+        if (optional.isEmpty()){
             logger.error("Failed to fetch favicon");
             return icon;
         }
 
+        var response = optional.get();
         icon.setImage(response.body());
         icon.setMimeType(response.headers().map().get("content-type").getFirst());
         return icon;

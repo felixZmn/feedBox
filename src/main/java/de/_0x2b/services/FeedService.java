@@ -200,7 +200,12 @@ public class FeedService {
     private void parseFeed(Feed feed) {
         logger.debug("parseFeed");
         MediaRssReader rssReader = new MediaRssReader();
-        var items = rssReader.read(HTTPSService.getInstance().fetchUriAsStream(feed.getFeedURI())).toList();
+        var optional = HTTPSService.getInstance().fetchUriAsStream(feed.getFeedURI());
+        if (optional.isEmpty() || optional.get().statusCode() != 200){
+            return;
+        }
+        var response = optional.get();
+        var items = rssReader.read(response.body()).toList();
         List<Article> articles = new ArrayList<>();
 
         for (MediaRssItem item : items) {
