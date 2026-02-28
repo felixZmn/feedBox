@@ -1,0 +1,23 @@
+
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+    <channel>
+        <title>Deutsche Welle: DW.com Deutsch</title>
+        <link>https://www.dw.com/german/?maca=de-rss-de-all-1119-xml-mrss</link>
+        <description>Deutsche Welle: DW.com Deutsch</description>
+        <language>de</language>
+        <copyright>2026 DW</copyright>
+        <pubDate>Mon, 16 Feb 2026 20:46:22 GMT</pubDate>
+        <lastBuildDate>Mon, 16 Feb 2026 20:46:22 GMT</lastBuildDate>
+        <atom:link href="https://rss.dw.com/xml/rss-de-all" rel="self"/>
+        <image>
+            <url>https://rss.dw.com/images/DW-L-RGB_whitebg.png</url>
+            <title>Deutsche Welle: DW.com Deutsch</title>
+            <link>https://www.dw.com/german/?maca=de-rss-de-all-1119-xml-mrss</link>
+            <description>News, Analysis and Service from Germany and Europe - in 30 Languages</description>
+            <width>98</width>
+            <height>64</height>
+        </image>
+        <ttl>10</ttl>
+    </channel>
+</rss>

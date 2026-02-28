@@ -10,9 +10,13 @@ import org.mockito.MockedStatic;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.http.HttpHeaders;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import static de._0x2b.services.IconService.getCharsetFromContentType;
 import static org.junit.jupiter.api.Assertions.*;
@@ -71,40 +75,48 @@ public class IconServiceTest {
         URI uri = URI.create("https://example.org/feed.xml");
         when(feed.getURI()).thenReturn(uri);
 
-        MockedStatic<HTTPSService> httpsServiceStatic;
-        httpsServiceStatic = mockStatic(HTTPSService.class);
-        httpsServiceStatic.when(HTTPSService::getInstance).thenReturn(httpsService);
+        try (MockedStatic<HTTPSService> httpsServiceStatic = mockStatic(HTTPSService.class)) {
+            httpsServiceStatic.when(HTTPSService::getInstance).thenReturn(httpsService);
 
-        String html = """
-                <html>
-                    <head>
-                      <link rel="shortcut icon" href="https://example.org/test.ico"/>
-                    </head>
-                    <body></body>
-                </html>
-                """;
-        var response = mock(java.net.http.HttpResponse.class);
-        when(response.body()).thenReturn(html.getBytes(StandardCharsets.UTF_8));
-        when(response.headers()).thenReturn(java.net.http.HttpHeaders.of(java.util.Map.of("Content-Type", List.of("text/html; charset=UTF-8")), (k, v) -> true));
-        when(response.uri()).thenReturn(uri);
-        when(httpsService.fetchUriAsBytes(any(URI.class))).thenReturn(response);
-        var favResponse = mock(java.net.http.HttpResponse.class);
-        when(favResponse.body()).thenReturn(IMAGE_BYTES);
-        when(favResponse.headers()).thenReturn(java.net.http.HttpHeaders.of(java.util.Map.of("content-type", List.of("image/x-icon")), (k, v) -> true));
-        when(httpsService.fetchUriAsBytes(eq(URI.create("https://example.org/test.ico")))).thenReturn(favResponse);
-        ArgumentCaptor<Icon> iconCaptor = ArgumentCaptor.forClass(Icon.class);
+            String html = """
+                    <html>
+                        <head>
+                          <link rel="shortcut icon" href="https://example.org/test.ico"/>
+                        </head>
+                        <body></body>
+                    </html>
+                    """;
+            // For the HTML response
+            HttpResponse<byte[]> htmlResponse = mock(HttpResponse.class);
+            when(htmlResponse.body()).thenReturn(html.getBytes(StandardCharsets.UTF_8));
+            when(htmlResponse.headers()).thenReturn(HttpHeaders.of(Map.of("Content-Type", List.of("text/html; charset=UTF-8")), (k, v) -> true));
+            when(htmlResponse.uri()).thenReturn(uri);
 
-        // do
-        iconService.findIcon(feed);
+            // For the favicon response
+            HttpResponse<byte[]> favResponse = mock(HttpResponse.class);
+            when(favResponse.body()).thenReturn(IMAGE_BYTES);
+            when(favResponse.headers()).thenReturn(HttpHeaders.of(Map.of("content-type", List.of("image/x-icon")), (k, v) -> true));
 
-        // assert
-        verify(iconRepository, times(1)).create(any(Icon.class));
-        verify(iconRepository).create(iconCaptor.capture());
-        Icon storedIcon = iconCaptor.getValue();
-        assertEquals(feed.getId(), storedIcon.getFeedId());
-        assertEquals("https://example.org/test.ico", storedIcon.getUrl());
-        assertNotNull(storedIcon.getImage());
-        assertArrayEquals(IMAGE_BYTES, storedIcon.getImage());
-        assertEquals("image/x-icon", storedIcon.getMimeType());
+            // Configure mock HTTPSService to return Optional responses
+            when(httpsService.fetchAsBytes(any(URI.class))).thenReturn(Optional.of(htmlResponse));
+
+            when(httpsService.fetchAsBytes(eq(URI.create("https://example.org/test.ico")))).thenReturn(Optional.of(favResponse));
+
+            // Argument captor for Icon
+            ArgumentCaptor<Icon> iconCaptor = ArgumentCaptor.forClass(Icon.class);
+
+            // do
+            iconService.findIcon(feed);
+
+            // assert
+            verify(iconRepository, times(1)).create(any(Icon.class));
+            verify(iconRepository).create(iconCaptor.capture());
+            Icon storedIcon = iconCaptor.getValue();
+            assertEquals(feed.getId(), storedIcon.getFeedId());
+            assertEquals("https://example.org/test.ico", storedIcon.getUrl());
+            assertNotNull(storedIcon.getImage());
+            assertArrayEquals(IMAGE_BYTES, storedIcon.getImage());
+            assertEquals("image/x-icon", storedIcon.getMimeType());
+        }
     }
 }
