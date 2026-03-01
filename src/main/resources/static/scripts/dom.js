@@ -145,7 +145,7 @@ export function renderFoldersList(folders) {
   container.innerHTML = "";
 
   folders.forEach((folder) => {
-    if (folder.id == 0) {
+    if (folder.id === 0) {
       // folder 0 => feeds without folder
       noFolderFeeds.className = "feeds-ul";
       folder.feeds.forEach((feed) => {
@@ -247,7 +247,7 @@ export function folderDropdownOptions(folders) {
   select.innerHTML = '<option value="0">No Folder</option>'; // Reset options
 
   folders.forEach((folder) => {
-    if (folder.id == 0) {
+    if (folder.id === 0) {
       return; // Skip "no folder" option
     }
     const option = document.createElement("option");

@@ -14,8 +14,7 @@ export class NavigationService {
     this.#renderColumn(this.currentState.column);
 
     window.addEventListener("popstate", (event) => {
-      const state = event.state || { column: columns.FEEDS };
-      this.currentState = state;
+      this.currentState = event.state || {column: columns.FEEDS};
       this.#renderColumn(this.currentState.column);
     });
   }

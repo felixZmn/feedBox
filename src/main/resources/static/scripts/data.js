@@ -72,8 +72,7 @@ class DataService {
       if (response.status === 204) {
         return [];
       }
-      const data = await response.json();
-      return data;
+      return await response.json();
     } catch (error) {
       throw new Error(`Error fetching data from ${url}: ${error.message}`);
     }
@@ -91,8 +90,7 @@ class DataService {
       if (!response.ok) {
         throw new Error(`Error posting data to ${url}: ${response.status}`);
       }
-      const data = await response.json();
-      return data;
+      return await response.json();
     } catch (error) {
       throw new Error(`Error posting data to ${url}: ${error.message}`);
     }
@@ -110,8 +108,7 @@ class DataService {
       if (!response.ok) {
         throw new Error(`Error putting data to ${url}: ${response.status}`);
       }
-      const data = await response.json();
-      return data;
+      return await response.json();
     } catch (error) {
       throw new Error(`Error putting data to ${url}: ${error.message}`);
     }
@@ -125,7 +122,6 @@ class DataService {
       if (!response.ok) {
         throw new Error(`Error deleting data from ${url}: ${response.status}`);
       }
-      return;
     } catch (error) {
       throw new Error(`Error deleting data from ${url}: ${error.message}`);
     }
