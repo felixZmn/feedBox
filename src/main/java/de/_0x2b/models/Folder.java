@@ -1,20 +1,21 @@
 package de._0x2b.models;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 import java.util.Objects;
 
 public class Folder {
+    @JsonProperty("id")
     int id;
+    @JsonProperty("name")
     String name;
+    @JsonProperty("feeds")
     List<Feed> feeds;
+    @JsonProperty("color")
     String color;
 
-    @JsonCreator
-    public Folder(@JsonProperty("id") int id, @JsonProperty("name") String name,
-            @JsonProperty("feeds") List<Feed> feeds, @JsonProperty("color") String color) {
+    public Folder(int id, String name, List<Feed> feeds, String color) {
         this.id = id;
         this.name = name;
         this.feeds = feeds;

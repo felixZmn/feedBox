@@ -17,7 +17,8 @@ public class ArticleService {
 
     /**
      * Get all articles with pagination
-     * @param paginationId 
+     * 
+     * @param paginationId
      * @param paginationPublished
      * @return
      */
@@ -32,6 +33,7 @@ public class ArticleService {
 
     /**
      * Get articles by folder with pagination
+     * 
      * @param paginationId
      * @param paginationPublished
      * @param folderId
@@ -47,6 +49,7 @@ public class ArticleService {
 
     /**
      * Get articles by feed with pagination
+     * 
      * @param paginationId
      * @param paginationPublished
      * @param feedId

@@ -28,8 +28,8 @@
 
 /**
  * @typedef {Object} Folder
- * @property {number} id
- * @property {string} name
- * @property {string} color
- * @property {Feed[]} feeds
+ * @property {number} id - Unique identifier for the folder
+ * @property {string} name - Name of the folder
+ * @property {string} color - CSS class to influence the folder icon color
+ * @property {Feed[]} feeds - Feeds in the folder
  */

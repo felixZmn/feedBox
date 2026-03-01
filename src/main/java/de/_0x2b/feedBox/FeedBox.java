@@ -23,13 +23,12 @@ public class FeedBox {
     private static final Logger logger = LoggerFactory.getLogger(FeedBox.class);
 
     public static void main(String[] args) throws SQLException {
-        var appConfig = AppConfig.loadFromEnv();
-
         System.setProperty("jdk.xml.totalEntitySizeLimit", "500000");
         System.setProperty("jdk.xml.maxGeneralEntitySizeLimit", "500000");
+        AppConfig appConfig = AppConfig.fromEnvironment();
 
         var databaseService = new DatabaseService(appConfig.dbHost(), appConfig.dbPort(), appConfig.dbName(),
-                appConfig.dbUser(), appConfig.dbPass());
+                appConfig.dbUsername(), appConfig.dbPassword());
 
         databaseService.migrate();
 
@@ -38,10 +37,11 @@ public class FeedBox {
         var folderRepository = new FolderRepository(databaseService);
         var iconRepository = new IconRepository(databaseService);
 
+        var httpService = new HTTPSService(appConfig.userAgent(), appConfig.networkTimeout());
         var articleService = new ArticleService(articleRepository);
         var folderService = new FolderService(folderRepository);
-        var iconService = new IconService(iconRepository);
-        var feedService = new FeedService(iconService, feedRepository, articleRepository);
+        var iconService = new IconService(httpService, iconRepository);
+        var feedService = new FeedService(httpService, iconService, feedRepository, articleRepository);
         var opmlService = new OPMLService(folderService, feedService);
 
         var articleController = new ArticleController(articleService);
@@ -116,7 +116,7 @@ public class FeedBox {
         app.start(appConfig.appPort());
 
         // set up periodic refresh; for now only via env var configurable
-        if (appConfig.refreshRate() > 0) {
+        if (appConfig.refreshInterval() > 0) {
             var scheduler = Executors.newScheduledThreadPool(1);
 
             // Wrap task to prevent scheduler death on Exception
@@ -129,7 +129,7 @@ public class FeedBox {
                     logger.error("Periodic refresh failed", t);
                 }
             };
-            scheduler.scheduleAtFixedRate(task, 30, appConfig.refreshRate() * 60L, TimeUnit.SECONDS);
+            scheduler.scheduleAtFixedRate(task, 30, appConfig.refreshInterval() * 60L, TimeUnit.SECONDS);
             logger.info("Feed refresh scheduled to start in 30 seconds.");
         }
 

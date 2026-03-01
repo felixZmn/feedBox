@@ -14,22 +14,17 @@ import java.util.Optional;
 
 public class HTTPSService {
     private static final Logger logger = LoggerFactory.getLogger(HTTPSService.class);
-    private static HTTPSService instance;
-    private static final String USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36";
-    private static final int TIMEOUT_SECONDS = 15;
+    private final String userAgent;
+    private final int timeout;
 
     HttpClient client;
 
-    private HTTPSService() {
-        client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.ALWAYS)
-                .connectTimeout(Duration.ofSeconds(TIMEOUT_SECONDS)).build();
-    }
-
-    public static HTTPSService getInstance() {
-        if (instance == null) {
-            instance = new HTTPSService();
-        }
-        return instance;
+    public HTTPSService(String userAgent, int timeout) {
+        this.userAgent = userAgent;
+        this.timeout = timeout;
+        client = HttpClient.newBuilder()
+                .followRedirects(HttpClient.Redirect.ALWAYS)
+                .connectTimeout(Duration.ofSeconds(timeout)).build();
     }
 
     /**
@@ -41,8 +36,8 @@ public class HTTPSService {
     public Optional<HttpResponse<byte[]>> fetchAsBytes(URI uri) {
         HttpRequest request = HttpRequest.newBuilder(uri)
                 .GET()
-                .header("User-Agent", USER_AGENT)
-                .timeout(Duration.ofSeconds(TIMEOUT_SECONDS))
+                .header("User-Agent", userAgent)
+                .timeout(Duration.ofSeconds(timeout))
                 .build();
 
         try {
@@ -64,11 +59,11 @@ public class HTTPSService {
      * @param uri URI to fetch
      * @return Response object or null if request is not successful
      */
-    public Optional<HttpResponse<InputStream>> fetchUriAsStream(URI uri){
+    public Optional<HttpResponse<InputStream>> fetchUriAsStream(URI uri) {
         HttpRequest request = HttpRequest.newBuilder(uri)
                 .GET()
-                .header("User-Agent", USER_AGENT)
-                .timeout(Duration.ofSeconds(TIMEOUT_SECONDS))
+                .header("User-Agent", userAgent)
+                .timeout(Duration.ofSeconds(timeout))
                 .build();
         try {
             HttpResponse<InputStream> response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());

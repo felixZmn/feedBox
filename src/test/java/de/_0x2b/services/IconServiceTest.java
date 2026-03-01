@@ -1,12 +1,13 @@
 package de._0x2b.services;
 
+import de._0x2b.feedBox.AppConfig;
+import de._0x2b.feedBox.FeedBox;
 import de._0x2b.models.Feed;
 import de._0x2b.models.Icon;
 import de._0x2b.repositories.IconRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.MockedStatic;
 
 import java.io.IOException;
 import java.net.URI;
@@ -33,7 +34,7 @@ public class IconServiceTest {
     void setUp() {
         iconRepository = mock(IconRepository.class);
         httpsService = mock(HTTPSService.class);
-        iconService = new IconService(iconRepository);
+        iconService = new IconService(httpsService, iconRepository);
     }
 
     @Test
@@ -70,13 +71,11 @@ public class IconServiceTest {
     @Test
     void findIconTest() {
         // mock'n'prepare
-        Feed feed = mock(Feed.class);
+     Feed feed = mock(Feed.class);
         when(feed.getId()).thenReturn(123);
         URI uri = URI.create("https://example.org/feed.xml");
         when(feed.getURI()).thenReturn(uri);
 
-        try (MockedStatic<HTTPSService> httpsServiceStatic = mockStatic(HTTPSService.class)) {
-            httpsServiceStatic.when(HTTPSService::getInstance).thenReturn(httpsService);
 
             String html = """
                     <html>
@@ -117,6 +116,5 @@ public class IconServiceTest {
             assertNotNull(storedIcon.getImage());
             assertArrayEquals(IMAGE_BYTES, storedIcon.getImage());
             assertEquals("image/x-icon", storedIcon.getMimeType());
-        }
     }
 }

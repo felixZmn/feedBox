@@ -52,6 +52,7 @@ public class OPMLService {
 
     /**
      * Convert a Document to a formatted String
+     * 
      * @param document
      * @return
      * @throws TransformerException
@@ -69,6 +70,7 @@ public class OPMLService {
 
     /**
      * Import OPML from InputStream
+     * 
      * @param stream
      * @throws XMLStreamException
      * @throws InterruptedException
@@ -169,6 +171,7 @@ public class OPMLService {
 
     /**
      * Export OPML as String, for example for download
+     * 
      * @return
      */
     public String exportOpml() {
@@ -184,6 +187,7 @@ public class OPMLService {
 
     /**
      * Create OPML Document from folders and feeds
+     * 
      * @param folders list of folders to include in the OPML
      * @return Document object representing the OPML
      * @throws ParserConfigurationException
@@ -232,6 +236,7 @@ public class OPMLService {
 
     /**
      * Create folder outline element
+     * 
      * @param doc
      * @param folder
      * @return
@@ -244,6 +249,7 @@ public class OPMLService {
 
     /**
      * Create feed outline element
+     * 
      * @param doc
      * @param feed
      * @return

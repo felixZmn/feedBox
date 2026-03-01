@@ -12,18 +12,18 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.http.HttpResponse;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 public class IconService {
     private static final Logger logger = LoggerFactory.getLogger(IconService.class);
     private final IconRepository iconRepository;
+    private final HTTPSService httpsService;
 
-    public IconService(IconRepository iconRepository) {
+    public IconService(HTTPSService httpsService, IconRepository iconRepository) {
+        this.httpsService = httpsService;
         this.iconRepository = iconRepository;
     }
 
@@ -85,7 +85,7 @@ public class IconService {
         var urls = constructHtmlUris(feed);
 
         for (URI uri : urls) {
-            var optional = HTTPSService.getInstance().fetchAsBytes(uri);
+            var optional = httpsService.fetchAsBytes(uri);
             if (optional.isEmpty()) {
                 continue; // try next url
             }
@@ -168,8 +168,8 @@ public class IconService {
      * @return Icon object that, in case of success is filled with icon data
      */
     public Icon fetchFavicon(Icon icon) {
-        var optional = HTTPSService.getInstance().fetchAsBytes(URI.create(icon.getUrl()));
-        if (optional.isEmpty()){
+        var optional = httpsService.fetchAsBytes(URI.create(icon.getUrl()));
+        if (optional.isEmpty()) {
             logger.error("Failed to fetch favicon");
             return icon;
         }

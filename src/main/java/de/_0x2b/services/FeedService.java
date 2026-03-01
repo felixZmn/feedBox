@@ -27,12 +27,15 @@ import java.util.concurrent.Executors;
 
 public class FeedService {
     private static final Logger logger = LoggerFactory.getLogger(FeedService.class);
+    private final HTTPSService httpsService;
     private final IconService iconService;
     private final FeedRepository feedRepository;
     private final ArticleRepository articleRepository;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'");
 
-    public FeedService(IconService iconService, FeedRepository feedRepository, ArticleRepository articleRepository) {
+    public FeedService(HTTPSService httpsService, IconService iconService, FeedRepository feedRepository,
+            ArticleRepository articleRepository) {
+        this.httpsService = httpsService;
         this.iconService = iconService;
         this.feedRepository = feedRepository;
         this.articleRepository = articleRepository;
@@ -40,6 +43,7 @@ public class FeedService {
 
     /**
      * Store a new feed in the database
+     * 
      * @param feed
      * @return
      * @throws NotFoundException
@@ -62,7 +66,8 @@ public class FeedService {
     }
 
     /**
-     * Update an existing feed 
+     * Update an existing feed
+     * 
      * @param feed
      * @return
      */
@@ -82,6 +87,7 @@ public class FeedService {
 
     /**
      * Refresh a single feed by its ID
+     * 
      * @param id id of the feed to refresh
      */
     public void refresh(int id) {
@@ -92,6 +98,7 @@ public class FeedService {
 
     /**
      * Internal helper to refresh a list of feeds
+     * 
      * @param feeds
      */
     private void refresh(List<Feed> feeds) {
@@ -124,6 +131,7 @@ public class FeedService {
 
     /**
      * Check if a URL is a valid feed or contains feed links
+     * 
      * @param url URL to check
      * @return List of valid feeds found
      */
@@ -170,7 +178,9 @@ public class FeedService {
     }
 
     /**
-     * Helper to determine if content is likely an RSS/Atom feed based on headers or raw content.
+     * Helper to determine if content is likely an RSS/Atom feed based on headers or
+     * raw content.
+     * 
      * @param contentType
      * @param body
      * @return
@@ -195,13 +205,14 @@ public class FeedService {
 
     /**
      * Parse a feed and store articles in the database (batch insert)
+     * 
      * @param feed
      */
     private void parseFeed(Feed feed) {
         logger.debug("parseFeed");
         MediaRssReader rssReader = new MediaRssReader();
-        var optional = HTTPSService.getInstance().fetchUriAsStream(feed.getFeedURI());
-        if (optional.isEmpty() || optional.get().statusCode() != 200){
+        var optional = httpsService.fetchUriAsStream(feed.getFeedURI());
+        if (optional.isEmpty() || optional.get().statusCode() != 200) {
             return;
         }
         var response = optional.get();
@@ -241,6 +252,7 @@ public class FeedService {
 
     /**
      * Delete a feed and its articles
+     * 
      * @param feedId
      * @return
      */

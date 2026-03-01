@@ -15,9 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -27,10 +25,11 @@ public class FeedServiceTest {
 
     @BeforeEach
     void setUp(){
+        var mockHttpsService = mock(HTTPSService.class);
         var mockIconService = mock(IconService.class);
         var mockFeedRepository = mock(FeedRepository.class);
         var mockArticleRepository = mock(ArticleRepository.class);
-        feedServce = new FeedService(mockIconService, mockFeedRepository, mockArticleRepository);
+        feedServce = new FeedService(mockHttpsService, mockIconService, mockFeedRepository, mockArticleRepository);
     }
 
     @Test
