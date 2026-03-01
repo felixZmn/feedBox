@@ -27,8 +27,8 @@ class ModalService {
    * @param {Object} options
    * @param {string} options.title Title of the modal
    * @param {string} options.content Content HTML string for the modal body
-   * @param {string} options.type - "confirm" (default) or "alert"
-   * @param {Function} options.onValidate - Async function returning boolean.
+   * @param {string} [options.type="confirm"] - "confirm" (default) or "alert"
+   * @param {Function} [options.onValidate] - Async function returning boolean.
    *                                        If false, modal stays open.
    */
   show({ title, content, type = "confirm", onValidate = null }) {

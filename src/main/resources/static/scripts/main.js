@@ -1,4 +1,5 @@
 import { dataService } from "./data.js";
+import { modal } from "./modal.js";
 import {
   showAddFeedDialog,
   showAddFolderDialog,
@@ -19,13 +20,6 @@ const itemType = Object.freeze({
   ALL: "",
   FEED: "feed",
   FOLDER: "folder",
-});
-
-export const dialogType = Object.freeze({
-  ADD_FOLDER: "add-folder",
-  EDIT_FOLDER: "edit-folder",
-  ADD_FEED: "add-feed",
-  EDIT_FEED: "edit-feed",
 });
 
 // Application state
@@ -62,7 +56,7 @@ const dom = {
   },
 };
 
-var lazyLoadObserver = null;
+let lazyLoadObserver = null;
 const navigationService = new NavigationService();
 
 if ("serviceWorker" in navigator) {
@@ -112,7 +106,7 @@ function initEventListeners() {
     let headline = "Delete";
     let message = `Are you sure you want to delete the folder "${state.lastClickedItem.obj.name}"? All contained feeds will be deleted.`;
     let response = await showConfirmDialog(headline, message);
-    if (response) deleteFolder(state.lastClickedItem.obj);
+    if (response) await deleteFolder(state.lastClickedItem.obj);
   });
 
   dom.button.addFeed.addEventListener("click", async (e) => {
@@ -291,7 +285,7 @@ export async function allFeedsClickListener() {
 }
 
 /**
- * Click listener for an click on a single feed in the left-side list
+ * Click listener for a click on a single feed in the left-side list
  * @param {Feed} feed the clicked feed
  */
 export async function feedClickListener(feed) {
@@ -306,7 +300,7 @@ export async function feedClickListener(feed) {
 }
 
 /**
- * Click listener for an click on a single folder in the left-side list
+ * Click listener for a click on a single folder in the left-side list
  * @param {Folder} folder id of the clicked folder
  */
 export async function folderClickListener(folder) {
@@ -321,7 +315,7 @@ export async function folderClickListener(folder) {
 }
 
 /**
- * Click listener for an click on an single article in the middle list
+ * Click listener for a click on a single article in the middle list
  * @param {Article} article the clicked article
  */
 export function articleClickListener(article) {
@@ -351,8 +345,12 @@ async function createFolder(folder) {
     await dataService.createFolder(folder);
     await loadFolders();
   } catch (error) {
-    alert("Error saving folder: " + folder.name);
     console.error(error.message);
+    await modal.show({
+      title: "Error",
+      content: "Error saving folder: " + folder.name,
+      type: "alert",
+    });
   }
 }
 
@@ -363,8 +361,12 @@ async function editFolder(folder) {
     state.lastClickedItem.obj.name = folder.name;
     state.lastClickedItem.obj.color = folder.color;
   } catch (error) {
-    alert("Error updating folder: " + folder.name);
     console.error(error.message);
+    await modal.show({
+      title: "Error",
+      content: "Error updating folder: " + folder.name,
+      type: "alert",
+    });
   }
 }
 
@@ -373,8 +375,12 @@ async function deleteFolder(folder) {
     await dataService.deleteFolder(folder.id);
     await loadFolders();
   } catch (error) {
-    alert("Error deleting folder: " + folder.name);
     console.error(error.message);
+    await modal.show({
+      title: "Error",
+      content: "Error deleting folder: " + folder.name,
+      type: "alert",
+    });
   }
 }
 
@@ -383,8 +389,12 @@ async function createFeed(feed) {
     await dataService.createFeed(feed);
     await loadFolders();
   } catch (error) {
-    alert("Error saving feed.");
     console.error(error);
+    await modal.show({
+      title: "Error",
+      content: "Error saving feed.",
+      type: "alert",
+    });
   }
 }
 
@@ -395,8 +405,12 @@ async function editFeed(feed) {
     state.lastClickedItem.obj.url = feed.feedUrl;
     state.lastClickedItem.obj.folderId = feed.folderId;
   } catch (error) {
-    alert("Error updating feed: " + feed.feedUrl);
     console.error(error.message);
+    await modal.show({
+      title: "Error",
+      content: "Error updating feed: " + feed.feedUrl,
+      type: "alert",
+    });
   }
 }
 
@@ -409,8 +423,12 @@ async function deleteFeed(feed) {
     );
     renderArticlesList(state.articles);
   } catch (error) {
-    alert("Error deleting feed: " + feed.name);
     console.error(error.message);
+    await modal.show({
+      title: "Error",
+      content: "Error deleting feed: " + feed.name,
+      type: "alert",
+    });
   }
 }
 
@@ -423,7 +441,11 @@ async function importFeeds() {
 
   fileInput.addEventListener("change", async () => {
     if (fileInput.files.length === 0) {
-      alert("Please select a file to import.");
+      await modal.show({
+        title: "Error",
+        content: "Please select a file to import.",
+        type: "alert",
+      });
       return;
     }
     const file = fileInput.files[0];
@@ -437,10 +459,14 @@ async function importFeeds() {
     });
 
     if (response.ok) {
-      loadFolders();
-      refreshFeeds();
+      await loadFolders();
+      await refreshFeeds();
     } else {
-      alert("Error importing feeds: " + response.statusText);
+      await modal.show({
+        title: "Error",
+        content: "Error importing feeds: " + response.statusText,
+        type: "alert",
+      });
     }
 
     document.body.removeChild(fileInput);

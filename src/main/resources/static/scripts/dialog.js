@@ -12,7 +12,7 @@ const colorOptions = [
 ];
 
 export async function showConfirmDialog(headline, message) {
-  return await modal.show({
+  return modal.show({
     title: headline,
     content: `<p>${message}</p>`,
     type: "confirm",
@@ -41,7 +41,7 @@ export async function showAddFolderDialog() {
       </select>
     </div>
   `;
-  return await modal.show({
+  return modal.show({
     title: "Add Folder",
     content: html,
     type: "confirm",
@@ -73,7 +73,7 @@ export async function showEditFolderDialog(folder) {
       </select>
     </div>
   `;
-  return await modal.show({
+  return modal.show({
     title: "Edit Folder",
     content: html,
     type: "confirm",
@@ -98,18 +98,26 @@ export async function showAddFeedDialog(folders) {
     </select>
   `;
 
-  return await modal.show({
+  return modal.show({
     title: "Add Feed",
     content: html,
     type: "confirm",
     onValidate: async (data, bodyEl) => {
       if (!data.feedUrl || data.feedUrl.trim() === "") {
-        alert("Please enter a URL.");
+        modal.show({
+          title: "Error",
+          content: "Please enter a URL",
+          type: "alert"
+        });
         return;
       }
       const response = await dataService.checkFeed(data.feedUrl);
       if (!Array.isArray(response) || response.length === 0) {
-        alert("No feeds found.");
+        modal.show({
+          title: "Error",
+          content: "No feeds found.",
+          type: "alert"
+        });
         return;
       }
 
@@ -119,11 +127,11 @@ export async function showAddFeedDialog(folders) {
 
       // Multiple feeds found, show selector
       const feedOptions = response
-        .map(
-          (feed, index) =>
-            `<option value="${feed.feedUrl}">${feed.name} (${feed.feedUrl})</option>`
-        )
-        .join("");
+          .map(
+              (feed, index) =>
+                  `<option value="${feed.feedUrl}">${feed.name} (${feed.feedUrl})</option>`
+          )
+          .join("");
 
       bodyEl.innerHTML = `
         <label class="field" for="feed-selector">Multiple feeds found. Please select one:</label>
