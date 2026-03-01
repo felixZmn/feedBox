@@ -67,14 +67,18 @@ class DataService {
     try {
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error(`Error fetching data from ${url}: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Request failed with status ${response.status}: ${errorText || response.statusText}`);
       }
       if (response.status === 204) {
-        return [];
+        return []; // No Content
       }
+
       return await response.json();
     } catch (error) {
-      throw new Error(`Error fetching data from ${url}: ${error.message}`);
+      const enhancedError = new Error(`Failed to fetch data from ${url}: ${error.message}`);
+      enhancedError.originalError = error;
+      throw enhancedError;
     }
   }
 
@@ -88,11 +92,14 @@ class DataService {
         body: JSON.stringify(body),
       });
       if (!response.ok) {
-        throw new Error(`Error posting data to ${url}: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Request failed with status ${response.status}: ${errorText || response.statusText}`);
       }
       return await response.json();
     } catch (error) {
-      throw new Error(`Error posting data to ${url}: ${error.message}`);
+      const enhancedError = new Error(`Failed to fetch data from ${url}: ${error.message}`);
+      enhancedError.originalError = error;
+      throw enhancedError;
     }
   }
 
@@ -106,11 +113,14 @@ class DataService {
         body: JSON.stringify(body),
       });
       if (!response.ok) {
-        throw new Error(`Error putting data to ${url}: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Request failed with status ${response.status}: ${errorText || response.statusText}`);
       }
       return await response.json();
     } catch (error) {
-      throw new Error(`Error putting data to ${url}: ${error.message}`);
+      const enhancedError = new Error(`Failed to fetch data from ${url}: ${error.message}`);
+      enhancedError.originalError = error;
+      throw enhancedError;
     }
   }
 
@@ -120,10 +130,13 @@ class DataService {
         method: "DELETE",
       });
       if (!response.ok) {
-        throw new Error(`Error deleting data from ${url}: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Request failed with status ${response.status}: ${errorText || response.statusText}`);
       }
     } catch (error) {
-      throw new Error(`Error deleting data from ${url}: ${error.message}`);
+      const enhancedError = new Error(`Failed to fetch data from ${url}: ${error.message}`);
+      enhancedError.originalError = error;
+      throw enhancedError;
     }
   }
 }

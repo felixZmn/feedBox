@@ -8,6 +8,12 @@ import {
 } from "./main.js";
 import { getRelativeTime, parseDate } from "./util.js";
 
+/**
+ * Renders a list of articles to the DOM.
+ *
+ * @param {Article[]} articles - The array of articles to render.
+ * @returns {void}
+ */
 export function renderArticlesList(articles) {
   const container = document.querySelector(
     "#articles-list #articles-container"
@@ -54,6 +60,10 @@ export function renderArticlesList(articles) {
   }
 }
 
+/**
+ * @param {Article} article - The array of articles to render.
+ * @returns {void}
+ */
 export function renderReaderView(article) {
   const title = document.querySelector("#reader .title");
   const content = document.querySelector("#reader .content");
@@ -90,7 +100,7 @@ export function clearReaderView() {
 
 /**
  * helper to create a feed element for the feed list
- * @param {*} feed
+ * @param {Feed} feed
  * @returns
  */
 function createFeedElement(feed) {
@@ -119,7 +129,7 @@ function createFeedElement(feed) {
   li.appendChild(icon);
   li.appendChild(nameSpan);
   li.appendChild(options);
-  li.dataset.feedId = feed.id;
+  li.dataset.feedId = feed.id.toString();
   return li;
 }
 
@@ -136,7 +146,7 @@ export function removeFeedElement(feedId) {
 
 /**
  * renders the folder and feed list in the feeds column on the left
- * @param {*} folders
+ * @param {Folder[]} folders
  */
 export function renderFoldersList(folders) {
   const container = document.getElementById("folder-container");
@@ -179,6 +189,11 @@ export function renderFoldersList(folders) {
   container.appendChild(addElement());
 }
 
+/**
+ *
+ * @param {Folder} folder
+ * @returns {HTMLElement}
+ */
 function createFolderElement(folder) {
   const summary = document.createElement("summary");
   const img = document.createElement("img");
@@ -211,7 +226,7 @@ function createFolderElement(folder) {
 
 /**
  * Creates the "Add Feed/Folder" "Button"
- * @returns
+ * @returns {HTMLDivElement}
  */
 function addElement() {
   const img = document.createElement("img");
@@ -234,26 +249,4 @@ function addElement() {
   summary.appendChild(span);
   details.appendChild(summary);
   return details;
-}
-
-/**
- * this method gets called after the folder list is recieved from the backend
- * to populate the folder dropdown in the "add feed" dialog
- *
- * ToDo: this method could only store the folders in a global state
- * and the dropdown could use this as source of data
- */
-export function folderDropdownOptions(folders) {
-  const select = document.getElementById("feed-folder");
-  select.innerHTML = '<option value="0">No Folder</option>'; // Reset options
-
-  folders.forEach((folder) => {
-    if (folder.id === 0) {
-      return; // Skip "no folder" option
-    }
-    const option = document.createElement("option");
-    option.value = folder.id;
-    option.textContent = folder.name;
-    select.appendChild(option);
-  });
 }

@@ -80,40 +80,40 @@ window.addEventListener("DOMContentLoaded", async () => {
  * Helper to set up all event listeners in a single place
  */
 function initEventListeners() {
-  document.addEventListener("click", (e) => {
+  document.addEventListener("click", () => {
     dom.contextMenu.style.display = "none";
   });
 
   dom.button.next.addEventListener("click", () => navigateArticle(1));
   dom.button.previous.addEventListener("click", () => navigateArticle(-1));
-  dom.button.showAllFeeds.addEventListener("click", (e) =>
+  dom.button.showAllFeeds.addEventListener("click", () =>
     allFeedsClickListener()
   );
-  dom.button.refresh.addEventListener("click", (e) => refreshFeeds());
-  dom.button.import.addEventListener("click", (e) => importFeeds());
-  dom.button.addFolder.addEventListener("click", async (e) => {
+  dom.button.refresh.addEventListener("click", () => refreshFeeds());
+  dom.button.import.addEventListener("click", () => importFeeds());
+  dom.button.addFolder.addEventListener("click", async () => {
     let newFolder = await showAddFolderDialog();
     if (newFolder) await createFolder(newFolder);
   });
-  dom.button.editFolder.addEventListener("click", async (e) => {
+  dom.button.editFolder.addEventListener("click", async () => {
     let editedFolder = await showEditFolderDialog(state.lastClickedItem.obj);
     if (editedFolder) {
       editedFolder.id = state.lastClickedItem.obj.id;
       await editFolder(editedFolder);
     }
   });
-  dom.button.deleteFolder.addEventListener("click", async (e) => {
+  dom.button.deleteFolder.addEventListener("click", async () => {
     let headline = "Delete";
     let message = `Are you sure you want to delete the folder "${state.lastClickedItem.obj.name}"? All contained feeds will be deleted.`;
     let response = await showConfirmDialog(headline, message);
     if (response) await deleteFolder(state.lastClickedItem.obj);
   });
 
-  dom.button.addFeed.addEventListener("click", async (e) => {
+  dom.button.addFeed.addEventListener("click", async () => {
     let newFeed = await showAddFeedDialog(state.folders);
     if (newFeed) await createFeed(newFeed);
   });
-  dom.button.editFeed.addEventListener("click", async (e) => {
+  dom.button.editFeed.addEventListener("click", async () => {
     let response = await showEditFeedDialog(
       state.folders,
       state.lastClickedItem.obj
@@ -125,13 +125,13 @@ function initEventListeners() {
     }
     if (editedFeed) await editFeed(editedFeed);
   });
-  dom.button.deleteFeed.addEventListener("click", async (e) => {
+  dom.button.deleteFeed.addEventListener("click", async () => {
     let headline = "Delete";
     let message = `Are you sure you want to delete the feed "${state.lastClickedItem.obj.name}"?`;
     let response = await showConfirmDialog(headline, message);
-    if (response) deleteFeed(state.lastClickedItem.obj);
+    if (response) await deleteFeed(state.lastClickedItem.obj);
   });
-  dom.button.close.addEventListener("click", (e) => {
+  dom.button.close.addEventListener("click", () => {
     clearReaderView();
     navigationService.navigateTo(columns.ARTICLES);
   });
@@ -181,7 +181,7 @@ function setupScrollObserver() {
   const sentinel = document.getElementById("articles-sentinel");
 
   const observer = new IntersectionObserver(
-    (entries, obs) => {
+    (entries) => {
       const entry = entries[0];
       if (!entry) return;
       if (entry.isIntersecting && !state.filter.isActive) {
