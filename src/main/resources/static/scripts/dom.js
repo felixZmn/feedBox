@@ -189,6 +189,7 @@ function createFolderElement(folder) {
   nameSpan.textContent = folder.name || "";
   nameSpan.className = "tree-name";
   nameSpan.addEventListener("click", (e) => {
+    e.preventDefault();
     folderClickListener(folder);
   });
 
