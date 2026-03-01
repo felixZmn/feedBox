@@ -31,7 +31,7 @@ spec:
             - name: http
               containerPort: {{ .Values.service.port }}
           env:
-          - name: PG_USER
+          - name: PG_USERNAME
             valueFrom:
               secretKeyRef:
                 name: {{ .Values.dbSecretName }}
