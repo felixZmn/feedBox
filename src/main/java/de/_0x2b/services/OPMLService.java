@@ -78,7 +78,10 @@ public class OPMLService {
     public void importOPML(InputStream stream) throws XMLStreamException, InterruptedException {
         logger.debug("importOPML");
 
-        XMLEventReader reader = XMLInputFactory.newInstance().createXMLEventReader(stream);
+        XMLInputFactory xmlFactory = XMLInputFactory.newInstance();
+        xmlFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+        xmlFactory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+        XMLEventReader reader = xmlFactory.createXMLEventReader(stream);
 
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
             List<Future<?>> futures = new ArrayList<>();

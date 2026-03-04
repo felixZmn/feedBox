@@ -119,7 +119,7 @@ mvn clean install
 Run the application:
 
 ```bash
-PG_USER=user \
+PG_USERNAME=user \
 PG_PASSWORD=password \
 PG_HOST=127.0.0.1 \
 PG_PORT=5432 \

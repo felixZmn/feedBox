@@ -47,7 +47,11 @@ public class HTTPSService {
                 return Optional.empty();
             }
             return Optional.of(response);
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
+            logger.error("Could not fetch URI: {}", uri, e);
+            return Optional.empty();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             logger.error("Could not fetch URI: {}", uri, e);
             return Optional.empty();
         }
@@ -72,7 +76,11 @@ public class HTTPSService {
                 return Optional.empty();
             }
             return Optional.of(response);
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
+            logger.error("Could not fetch URI: {}", uri, e);
+            return Optional.empty();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             logger.error("Could not fetch URI: {}", uri, e);
             return Optional.empty();
         }

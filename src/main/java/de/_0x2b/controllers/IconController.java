@@ -23,9 +23,10 @@ public class IconController {
             return;
         }
 
-        ctx.header("Content-Type", icon.getFirst().getMimeType());
-        ctx.header("Cache-Control", "max-age: public, max-age=86400");
-        ctx.result(icon.getFirst().getImage());
+        var firstIcon = icon.getFirst();
+        ctx.header("Content-Type", firstIcon.getMimeType());
+        ctx.header("Cache-Control", "public, max-age=86400");
+        ctx.result(firstIcon.getImage());
         ctx.status(200);
     }
 }

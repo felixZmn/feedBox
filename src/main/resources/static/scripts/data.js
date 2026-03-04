@@ -39,12 +39,12 @@ class DataService {
 
   async checkFeed(feedUrl) {
     return this._getRequest(
-      `./api/feeds/check?url=${encodeURIComponent(feedUrl)}`
+      `./api/feeds/check?url=${encodeURIComponent(feedUrl)}`,
     );
   }
 
   async refreshFeeds() {
-    return this._getRequest("./api/feeds/refresh");
+    return this._postRequest("./api/feeds/refresh");
   }
 
   getArticles() {
@@ -68,7 +68,9 @@ class DataService {
       const response = await fetch(url);
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Request failed with status ${response.status}: ${errorText || response.statusText}`);
+        throw new Error(
+          `Request failed with status ${response.status}: ${errorText || response.statusText}`,
+        );
       }
       if (response.status === 204) {
         return []; // No Content
@@ -76,7 +78,9 @@ class DataService {
 
       return await response.json();
     } catch (error) {
-      const enhancedError = new Error(`Failed to fetch data from ${url}: ${error.message}`);
+      const enhancedError = new Error(
+        `Failed to fetch data from ${url}: ${error.message}`,
+      );
       enhancedError.originalError = error;
       throw enhancedError;
     }
@@ -93,11 +97,15 @@ class DataService {
       });
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Request failed with status ${response.status}: ${errorText || response.statusText}`);
+        throw new Error(
+          `Request failed with status ${response.status}: ${errorText || response.statusText}`,
+        );
       }
       return await response.json();
     } catch (error) {
-      const enhancedError = new Error(`Failed to fetch data from ${url}: ${error.message}`);
+      const enhancedError = new Error(
+        `Failed to fetch data from ${url}: ${error.message}`,
+      );
       enhancedError.originalError = error;
       throw enhancedError;
     }
@@ -114,11 +122,15 @@ class DataService {
       });
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Request failed with status ${response.status}: ${errorText || response.statusText}`);
+        throw new Error(
+          `Request failed with status ${response.status}: ${errorText || response.statusText}`,
+        );
       }
       return await response.json();
     } catch (error) {
-      const enhancedError = new Error(`Failed to fetch data from ${url}: ${error.message}`);
+      const enhancedError = new Error(
+        `Failed to fetch data from ${url}: ${error.message}`,
+      );
       enhancedError.originalError = error;
       throw enhancedError;
     }
@@ -131,10 +143,14 @@ class DataService {
       });
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Request failed with status ${response.status}: ${errorText || response.statusText}`);
+        throw new Error(
+          `Request failed with status ${response.status}: ${errorText || response.statusText}`,
+        );
       }
     } catch (error) {
-      const enhancedError = new Error(`Failed to fetch data from ${url}: ${error.message}`);
+      const enhancedError = new Error(
+        `Failed to fetch data from ${url}: ${error.message}`,
+      );
       enhancedError.originalError = error;
       throw enhancedError;
     }

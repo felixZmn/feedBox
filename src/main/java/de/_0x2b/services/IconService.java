@@ -153,7 +153,10 @@ public class IconService {
             }
 
             // try <icon></icon>
-            return URI.create(doc.selectFirst("icon").childNode(0).toString());
+            Element iconEl = doc.selectFirst("icon");
+            if (iconEl != null && iconEl.childNodeSize() > 0) {
+                return URI.create(iconEl.childNode(0).toString());
+            }
         } catch (Exception e) {
             logger.error("Error while searching html for icon url, error: {}", e.getMessage());
         }
@@ -176,7 +179,7 @@ public class IconService {
 
         var response = optional.get();
         icon.setImage(response.body());
-        icon.setMimeType(response.headers().map().get("content-type").getFirst());
+        icon.setMimeType(response.headers().firstValue("content-type").orElse("application/octet-stream"));
         return icon;
     }
 

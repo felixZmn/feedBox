@@ -22,7 +22,11 @@ public class OPMLController {
         try {
             InputStream bodyStream = ctx.bodyInputStream();
             opmlService.importOPML(bodyStream);
-        } catch (XMLStreamException | InterruptedException e) {
+        } catch (XMLStreamException e) {
+            logger.error("Error while importing opml file", e);
+            ctx.status(HttpStatus.INTERNAL_SERVER_ERROR);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             logger.error("Error while importing opml file", e);
             ctx.status(HttpStatus.INTERNAL_SERVER_ERROR);
         }

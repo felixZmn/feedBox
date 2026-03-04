@@ -55,6 +55,7 @@ public class FeedBox {
             config.concurrency.useVirtualThreads = true;
             config.staticFiles.add("/static", Location.CLASSPATH);
             config.jetty.host = "0.0.0.0";
+            config.http.maxRequestSize = 10_000_000L; // 10 MB cap to guard against oversized uploads
 
             config.requestLogger.http((ctx, ms) -> {
                 // GET http://localhost:8080/style.css HTTP/1.1" from [::1]:44872 - 200 in
@@ -77,7 +78,7 @@ public class FeedBox {
                             delete(feedController::delete);
                         });
                         path("/refresh", () -> {
-                            get(feedController::refresh);
+                            post(feedController::refresh);
                         });
                         path("/check", () -> {
                             get(feedController::check);
