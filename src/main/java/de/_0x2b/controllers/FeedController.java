@@ -27,7 +27,7 @@ public class FeedController {
         var feed = ctx.bodyAsClass(de._0x2b.models.Feed.class);
         feed.setId(Integer.parseInt(ctx.pathParam("id")));
         int result = feedService.update(feed);
-        ctx.status(HttpStatus.CREATED).json(result);
+        ctx.status(HttpStatus.OK).json(result);
     }
 
     public void refresh(Context ctx) {
@@ -41,7 +41,7 @@ public class FeedController {
         int feedId = Integer.parseInt(ctx.pathParam("id"));
         var result = feedService.deleteFeed(feedId);
         if (result == -1) {
-            ctx.status(500).result("Failed to delete feed");
+            ctx.status(HttpStatus.INTERNAL_SERVER_ERROR).result("Failed to delete feed");
             return;
         }
         ctx.status(HttpStatus.NO_CONTENT);
@@ -51,7 +51,7 @@ public class FeedController {
         String urlToCheck = ctx.queryParam("url");
 
         if (urlToCheck == null || urlToCheck.isBlank()) {
-            ctx.status(400).result("Missing 'url' query parameter");
+            ctx.status(HttpStatus.BAD_REQUEST).result("Missing 'url' query parameter");
             return;
         }
 

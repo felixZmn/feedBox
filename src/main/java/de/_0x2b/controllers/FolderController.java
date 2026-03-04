@@ -28,11 +28,11 @@ public class FolderController {
         try {
             result = folderService.create(ctx.bodyAsClass(Folder.class));
         } catch (DuplicateEntityException e) {
-            ctx.status(409).result("Folder already exists");
+            ctx.status(HttpStatus.CONFLICT).result("Folder already exists");
             return;
         }
 
-        ctx.status(201).json(result);
+        ctx.status(HttpStatus.CREATED).json(result);
     }
 
     public void update(Context ctx) {
@@ -44,10 +44,10 @@ public class FolderController {
         try {
             result = folderService.update(folder);
         } catch (DuplicateEntityException e) {
-            ctx.status(409).result("Folder with this name already exists");
+            ctx.status(HttpStatus.CONFLICT).result("Folder with this name already exists");
             return;
         }
-        ctx.status(201).json(result);
+        ctx.status(HttpStatus.OK).json(result);
     }
 
     public void delete(Context ctx) {
@@ -55,7 +55,7 @@ public class FolderController {
         int folderId = Integer.parseInt(ctx.pathParam("id"));
         var result = folderService.delete(folderId);
         if (result == -1) {
-            ctx.status(500).result("Failed to delete folder");
+            ctx.status(HttpStatus.INTERNAL_SERVER_ERROR).result("Failed to delete folder");
             return;
         }
         ctx.status(HttpStatus.NO_CONTENT);

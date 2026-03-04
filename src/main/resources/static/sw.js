@@ -1,4 +1,4 @@
-const VERSION = "v1::2026-03-01::001";
+const VERSION = "v1::2026-03-04::001";
 const CACHE_NAME = `feedbox-${VERSION}`;
 
 const CACHE_FILES = [
@@ -31,7 +31,7 @@ self.addEventListener("install", (event) => {
     caches
       .open(CACHE_NAME)
       .then((cache) => cache.addAll(CACHE_FILES))
-      .then(() => self.skipWaiting())
+      .then(() => self.skipWaiting()),
   );
 });
 
@@ -42,11 +42,11 @@ self.addEventListener("activate", (event) => {
       .then((cacheNames) =>
         Promise.all(
           cacheNames.map((name) =>
-            name !== CACHE_NAME ? caches.delete(name) : null
-          )
-        )
+            name !== CACHE_NAME ? caches.delete(name) : null,
+          ),
+        ),
       )
-      .then(() => self.clients.claim())
+      .then(() => self.clients.claim()),
   );
 });
 
@@ -60,7 +60,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       caches
         .match(event.request)
-        .then((cached) => cached || fetch(event.request))
+        .then((cached) => cached || fetch(event.request)),
     );
   } else {
     event.respondWith(fetch(event.request));

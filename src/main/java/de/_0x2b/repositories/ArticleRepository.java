@@ -31,7 +31,7 @@ public class ArticleRepository extends AbstractRepository<Article> {
             ON CONFLICT (link) DO NOTHING
             """;
     private static final String DELETE_BY_FEED_SQL = "DELETE FROM article WHERE feed_id = ?";
-    private final RowMapper<Article> articleMapper = rs -> new Article(rs.getInt("id"), rs.getInt("feed_id"),
+    private final RowMapper<Article> articleMapper = rs -> new Article(rs.getLong("id"), rs.getInt("feed_id"),
             rs.getString("publisher"), rs.getString("title"), rs.getString("description"), rs.getString("content"),
             rs.getString("link"), rs.getString("published"), rs.getString("authors"), rs.getString("image_url"),
             rs.getString("categories"));

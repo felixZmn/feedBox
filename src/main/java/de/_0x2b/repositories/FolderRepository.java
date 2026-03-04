@@ -1,7 +1,3 @@
-// Repo Errors:
-//- -1: General error
-//- -2: duplicate key violation
-
 package de._0x2b.repositories;
 
 import de._0x2b.exceptions.DuplicateEntityException;

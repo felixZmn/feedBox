@@ -124,7 +124,7 @@ public class FeedService {
             feed.setName(channel.getTitle());
         } catch (Exception e) {
             logger.error("Error querying feed [{}] \n {}\n", feed.getFeedURI(), e.getMessage());
-            throw new NotFoundException("Error creating feed " + feed.getFeedURI());
+            throw new NotFoundException("Feed not reachable or not a valid RSS/Atom feed: " + feed.getFeedURI());
         }
         return feed;
     }
@@ -153,8 +153,7 @@ public class FeedService {
                 logger.debug("URL is a direct feed: {}", url);
                 validFeeds.add(new Feed(-1, -1, "", null, URI.create(url)));
             } else {
-                Document doc = null;
-                doc = queryResponse.parse();
+                Document doc = queryResponse.parse();
 
                 Elements links = doc.select(
                         "link[rel=alternate][type=application/rss+xml], link[rel=alternate][type=application/atom+xml]");
@@ -227,7 +226,7 @@ public class FeedService {
                 var link = item.getLink().orElse("");
                 var datetime = item.getPubDateZonedDateTime()
                         .map(zdt -> zdt.withZoneSameInstant(ZoneOffset.UTC).format(formatter))
-                        .orElse("unknown pub date");
+                        .orElse(null);
                 var author = item.getAuthor().orElse("");
                 var imageUrl = "";
                 if (item.getMediaThumbnail().isPresent()) {
