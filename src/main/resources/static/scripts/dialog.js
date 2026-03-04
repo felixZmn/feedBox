@@ -123,6 +123,10 @@ export async function showAddFeedDialog(folders) {
       }
 
       if (response.length === 1) {
+        const feedUrlInput = bodyEl.querySelector("#feed-url");
+        if (feedUrlInput) {
+          feedUrlInput.value = response[0].feedUrl;
+        }
         return true;
       }
 
