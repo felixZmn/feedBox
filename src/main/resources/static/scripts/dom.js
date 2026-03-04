@@ -6,7 +6,7 @@ import {
   folderContextMenu,
   openAddContextMenu,
 } from "./main.js";
-import { getRelativeTime, parseDate } from "./util.js";
+import { getRelativeTime, parseDate, sanitizeHTML } from "./util.js";
 
 /**
  * Renders a list of articles to the DOM.
@@ -16,7 +16,7 @@ import { getRelativeTime, parseDate } from "./util.js";
  */
 export function renderArticlesList(articles) {
   const container = document.querySelector(
-    "#articles-list #articles-container"
+    "#articles-list #articles-container",
   );
   container.innerHTML = ""; // Clear previous content
 
@@ -72,7 +72,8 @@ export function renderReaderView(article) {
   const externalLink = document.querySelector("#trigger-external-open");
 
   title.innerText = article.title || "No Title";
-  content.innerHTML = article.content || article.description || "No Content";
+  content.innerHTML =
+    sanitizeHTML(article.content || article.description || "") || "No Content";
   date.innerText = `${parseDate(article.published) || "Unknown"} by ${
     article.authors || "Unknown"
   }`;
@@ -123,7 +124,7 @@ function createFeedElement(feed) {
   options.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    feedContextMenu(e.pageX, e.pageY, feed);
+    feedContextMenu(e.clientX, e.clientY, feed);
   });
 
   li.appendChild(icon);
@@ -183,9 +184,9 @@ export function renderFoldersList(folders) {
     feedsContainer.appendChild(ul);
     details.appendChild(feedsContainer);
     container.appendChild(details);
-    container.appendChild(noFolderFeeds);
   });
 
+  container.appendChild(noFolderFeeds);
   container.appendChild(addElement());
 }
 
@@ -214,7 +215,7 @@ function createFolderElement(folder) {
   options.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    folderContextMenu(e.pageX, e.pageY, folder);
+    folderContextMenu(e.clientX, e.clientY, folder);
   });
 
   summary.appendChild(img);
@@ -241,7 +242,7 @@ function addElement() {
   details.classList.add("space-top", "details");
   details.addEventListener("click", (e) => {
     e.stopPropagation();
-    openAddContextMenu(e.pageX, e.pageY);
+    openAddContextMenu(e.clientX, e.clientY);
   });
   const summary = document.createElement("div");
   summary.className = "summary";

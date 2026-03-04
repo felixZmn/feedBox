@@ -1,10 +1,51 @@
 /**
+ * Escapes a string for safe insertion into HTML attribute values or text nodes.
+ * @param {*} str
+ * @returns {string}
+ */
+export function escapeHtml(str) {
+  return String(str == null ? "" : str)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/**
+ * Sanitizes an HTML string by removing scripts, event handlers, and
+ * dangerous elements before inserting into the DOM.
+ * @param {string} html
+ * @returns {string} sanitized HTML string
+ */
+export function sanitizeHTML(html) {
+  if (!html) return "";
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  tmp
+    .querySelectorAll("script, object, embed, form, iframe, meta, link")
+    .forEach((el) => el.remove());
+  tmp.querySelectorAll("*").forEach((el) => {
+    [...el.attributes].forEach((attr) => {
+      if (
+        attr.name.startsWith("on") ||
+        attr.value.toLowerCase().startsWith("javascript:")
+      ) {
+        el.removeAttribute(attr.name);
+      }
+    });
+  });
+  return tmp.innerHTML;
+}
+
+/**
  * Transforms a date string into a relative time format, e.g. "5m", "2h", "3d".
  * If the date is in the future, prefixes with a '-'.
  * @param {*} dateStr the date string to transform
  * @returns {string|null} the relative time string or null if invalid date
  */
 export function getRelativeTime(dateStr) {
+  if (!dateStr) return null;
   const date = new Date(dateStr);
   if (isNaN(date)) return null;
 
@@ -48,6 +89,7 @@ export function getRelativeTime(dateStr) {
 }
 
 export function parseDate(dateStr) {
+  if (!dateStr) return null;
   const date = new Date(dateStr);
 
   const options = {

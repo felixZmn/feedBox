@@ -1,5 +1,6 @@
 import { dataService } from "./data.js";
 import { modal } from "./modal.js";
+import { escapeHtml } from "./util.js";
 
 const colorOptions = [
   { value: "f-base", label: "Grey" },
@@ -62,7 +63,7 @@ export async function showEditFolderDialog(folder) {
       id="folder-name"
       name="name" 
       type="text"
-      value="${folder.name}"
+      value="${escapeHtml(folder.name)}"
       required
     />
     
@@ -93,7 +94,7 @@ export async function showAddFeedDialog(folders) {
     <label class="field" for="feed-folder">Folder</label>
     <select id="feed-folder" name="folderId">
       ${folders.map((folder) => {
-        return `<option value="${folder.id}">${folder.name}</option>`;
+        return `<option value="${folder.id}">${escapeHtml(folder.name)}</option>`;
       })}
     </select>
   `;
@@ -107,18 +108,18 @@ export async function showAddFeedDialog(folders) {
         modal.show({
           title: "Error",
           content: "Please enter a URL",
-          type: "alert"
+          type: "alert",
         });
-        return;
+        return false;
       }
       const response = await dataService.checkFeed(data.feedUrl);
       if (!Array.isArray(response) || response.length === 0) {
         modal.show({
           title: "Error",
           content: "No feeds found.",
-          type: "alert"
+          type: "alert",
         });
-        return;
+        return false;
       }
 
       if (response.length === 1) {
@@ -127,18 +128,18 @@ export async function showAddFeedDialog(folders) {
 
       // Multiple feeds found, show selector
       const feedOptions = response
-          .map(
-              (feed, index) =>
-                  `<option value="${feed.feedUrl}">${feed.name} (${feed.feedUrl})</option>`
-          )
-          .join("");
+        .map(
+          (feed, index) =>
+            `<option value="${escapeHtml(feed.feedUrl)}">${escapeHtml(feed.name)} (${escapeHtml(feed.feedUrl)})</option>`,
+        )
+        .join("");
 
       bodyEl.innerHTML = `
         <label class="field" for="feed-selector">Multiple feeds found. Please select one:</label>
         <select id="feed-selector" name="feedUrl">
           ${feedOptions}
         </select>
-        <input type="hidden" name="folderId" value="${data.folderId}" />
+        <input type="hidden" name="folderId" value="${escapeHtml(data.folderId)}" />
       `;
 
       return false; // Keep dialog open
@@ -153,7 +154,7 @@ export function showEditFeedDialog(folders, feed) {
       id="feed-url"
       name="feedUrl"
       type="url"
-      value="${feed.feedUrl}"
+      value="${escapeHtml(feed.feedUrl)}"
       required
     />
     <label class="field" for="feed-folder">Folder</label>
@@ -161,7 +162,7 @@ export function showEditFeedDialog(folders, feed) {
       <option value="">No folder</option>
       ${folders.map((folder) => {
         const isSelected = folder.id === feed.folderId ? "selected" : "";
-        return `<option value="${folder.id}" ${isSelected}>${folder.name}</option>`;
+        return `<option value="${folder.id}" ${isSelected}>${escapeHtml(folder.name)}</option>`;
       })}
     </select>
   `;
