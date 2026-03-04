@@ -15,12 +15,6 @@ class ModalService {
     this.dialog.addEventListener("click", (e) => {
       if (e.target === this.dialog) this.close(null);
     });
-
-    this.confirmBtn.addEventListener("click", () => {
-      // collect form data
-      const data = this._collectFormData();
-      this.close(data);
-    });
   }
 
   /**

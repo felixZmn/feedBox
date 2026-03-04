@@ -1,4 +1,4 @@
-const VERSION = "v1::2026-03-04::001";
+const VERSION = "v1::2026-03-04::002";
 const CACHE_NAME = `feedbox-${VERSION}`;
 
 const CACHE_FILES = [
@@ -23,6 +23,7 @@ const CACHE_FILES = [
   "/scripts/dom.js",
   "/scripts/main.js",
   "/scripts/nav.js",
+  "/scripts/types.js",
   "/scripts/util.js",
 ];
 

@@ -15,6 +15,7 @@ import {
   renderReaderView,
 } from "./dom.js";
 import { NavigationService, columns } from "./nav.js";
+import { escapeHtml } from "./util.js";
 
 const itemType = Object.freeze({
   ALL: "",
@@ -35,9 +36,7 @@ const state = {
 
 // Cache DOM elements for later use
 const dom = {
-  modal: document.getElementById("modal"),
   contextMenu: document.getElementById("context-menu"),
-  articlesList: document.querySelector("#articles-list .container"),
   refreshSpinner: document.getElementById("refresh-spinner"),
   searchInput: document.getElementById("search-input"),
   button: {
@@ -87,7 +86,7 @@ function initEventListeners() {
   dom.button.next.addEventListener("click", () => navigateArticle(1));
   dom.button.previous.addEventListener("click", () => navigateArticle(-1));
   dom.button.showAllFeeds.addEventListener("click", () =>
-    allFeedsClickListener()
+    allFeedsClickListener(),
   );
   dom.button.refresh.addEventListener("click", () => refreshFeeds());
   dom.button.import.addEventListener("click", () => importFeeds());
@@ -104,7 +103,7 @@ function initEventListeners() {
   });
   dom.button.deleteFolder.addEventListener("click", async () => {
     let headline = "Delete";
-    let message = `Are you sure you want to delete the folder "${state.lastClickedItem.obj.name}"? All contained feeds will be deleted.`;
+    let message = `Are you sure you want to delete the folder "${escapeHtml(state.lastClickedItem.obj.name)}"? All contained feeds will be deleted.`;
     let response = await showConfirmDialog(headline, message);
     if (response) await deleteFolder(state.lastClickedItem.obj);
   });
@@ -116,18 +115,18 @@ function initEventListeners() {
   dom.button.editFeed.addEventListener("click", async () => {
     let response = await showEditFeedDialog(
       state.folders,
-      state.lastClickedItem.obj
+      state.lastClickedItem.obj,
     );
-    let editedFeed = state.lastClickedItem.obj;
     if (response) {
+      let editedFeed = state.lastClickedItem.obj;
       editedFeed.feedUrl = response.feedUrl;
       editedFeed.folderId = response.folderId;
+      await editFeed(editedFeed);
     }
-    if (editedFeed) await editFeed(editedFeed);
   });
   dom.button.deleteFeed.addEventListener("click", async () => {
     let headline = "Delete";
-    let message = `Are you sure you want to delete the feed "${state.lastClickedItem.obj.name}"?`;
+    let message = `Are you sure you want to delete the feed "${escapeHtml(state.lastClickedItem.obj.name)}"?`;
     let response = await showConfirmDialog(headline, message);
     if (response) await deleteFeed(state.lastClickedItem.obj);
   });
@@ -150,7 +149,7 @@ function initEventListeners() {
     }
     state.filter.lastSearchTerm = searchTerm;
     state.articles = state.articles.filter((article) =>
-      article.title.toLowerCase().includes(searchTerm)
+      (article.title ?? "").toLowerCase().includes(searchTerm),
     );
     state.filter.isActive = true;
     renderArticlesList(state.articles);
@@ -189,11 +188,10 @@ function setupScrollObserver() {
       }
     },
     {
-      root: dom.articlesList,
-      rootMargin: "0px",
-      scrollMargin: "325px", // 5 articles with about 65px height each
+      root: document.getElementById("articles-list"),
+      rootMargin: "325px",
       threshold: 0.1,
-    }
+    },
   );
   observer.observe(sentinel);
   return {
@@ -225,7 +223,7 @@ function navigateArticle(direction) {
   if (!state.selectedArticle) return;
 
   const idx = state.articles.findIndex(
-    (a) => a.id === state.selectedArticle.id
+    (a) => a.id === state.selectedArticle.id,
   );
   if (idx === -1) return;
 
@@ -419,7 +417,7 @@ async function deleteFeed(feed) {
     await dataService.deleteFeed(feed.id);
     removeFeedElement(feed.id);
     state.articles = state.articles.filter(
-      (article) => article.feedId !== feed.id
+      (article) => article.feedId !== feed.id,
     );
     renderArticlesList(state.articles);
   } catch (error) {
@@ -482,11 +480,13 @@ async function refreshFeeds() {
 
   state.status.isRefreshing = true;
   dom.refreshSpinner.classList.add("spinner");
-  dataService.refreshFeeds().then(() => {
+  try {
+    await dataService.refreshFeeds();
+    await allFeedsClickListener();
+  } finally {
     dom.refreshSpinner.classList.remove("spinner");
-    allFeedsClickListener();
     state.status.isRefreshing = false;
-  });
+  }
 }
 
 async function loadArticles() {

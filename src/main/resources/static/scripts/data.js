@@ -101,6 +101,9 @@ class DataService {
           `Request failed with status ${response.status}: ${errorText || response.statusText}`,
         );
       }
+      if (response.status === 204) {
+        return null; // No Content
+      }
       return await response.json();
     } catch (error) {
       const enhancedError = new Error(
