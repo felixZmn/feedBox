@@ -97,9 +97,12 @@ class DataService {
       });
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(
+        const err = new Error(
           `Request failed with status ${response.status}: ${errorText || response.statusText}`,
         );
+        err.status = response.status;
+        err.serverMessage = errorText;
+        throw err;
       }
       if (response.status === 204) {
         return null; // No Content

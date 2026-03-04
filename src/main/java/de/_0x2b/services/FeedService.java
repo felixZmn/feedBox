@@ -9,6 +9,7 @@ import de._0x2b.models.Feed;
 import de._0x2b.repositories.ArticleRepository;
 import de._0x2b.repositories.FeedRepository;
 import org.jsoup.Connection;
+import org.jsoup.HttpStatusException;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -159,7 +160,7 @@ public class FeedService {
                         "link[rel=alternate][type=application/rss+xml], link[rel=alternate][type=application/atom+xml]");
 
                 for (Element link : links) {
-                    String feedUrl = link.attr("abs:href");
+                    String feedUrl = extractFeedUrl(link);
                     String feedName = link.attr("title");
                     if (!feedUrl.isBlank()) {
                         validFeeds.add(new Feed(-1, -1, feedName.isBlank() ? feedUrl : feedName, URI.create(url),
@@ -168,12 +169,46 @@ public class FeedService {
                 }
             }
 
+        } catch (HttpStatusException e) {
+            logger.warn("Remote server returned HTTP {} for URL: {}", e.getStatusCode(), url);
+            validFeeds = Collections.emptyList();
         } catch (IOException e) {
             logger.error("Error fetching URL: {}", url, e);
+            validFeeds = Collections.emptyList();
+        } catch (IllegalArgumentException e) {
+            logger.warn("Malformed or non-absolute URL provided: {}", url);
             validFeeds = Collections.emptyList();
         }
 
         return validFeeds;
+    }
+
+    /**
+     * Extracts and normalises a feed URL from a &lt;link&gt; element.
+     * Handles the legacy {@code feed://} and {@code feed:https://} URI schemes
+     * used by some RSS readers, converting them to a usable {@code https://} URL.
+     * Falls back to Jsoup's abs:href resolution for ordinary relative/absolute
+     * URLs.
+     *
+     * @param link the &lt;link&gt; element to extract the URL from
+     * @return a normalised, absolute URL string, or blank if one cannot be
+     *         determined
+     */
+    private String extractFeedUrl(Element link) {
+        String href = link.attr("href").trim();
+        String lower = href.toLowerCase();
+        // feed://example.com/rss.xml -> https://example.com/rss.xml
+        if (lower.startsWith("feed://")) {
+            href = "https://" + href.substring("feed://".length());
+            // feed:https://example.com/rss.xml or feed:http://example.com/rss.xml
+        } else if (lower.startsWith("feed:http://") || lower.startsWith("feed:https://")) {
+            href = href.substring("feed:".length());
+        }
+        if (href.startsWith("http://") || href.startsWith("https://")) {
+            return href;
+        }
+        // Relative URL: let Jsoup resolve it against the document base URI
+        return link.attr("abs:href");
     }
 
     /**

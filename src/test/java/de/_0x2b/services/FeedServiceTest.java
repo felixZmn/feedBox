@@ -24,7 +24,7 @@ public class FeedServiceTest {
     private FeedService feedServce;
 
     @BeforeEach
-    void setUp(){
+    void setUp() {
         var mockHttpsService = mock(HTTPSService.class);
         var mockIconService = mock(IconService.class);
         var mockFeedRepository = mock(FeedRepository.class);
@@ -42,20 +42,20 @@ public class FeedServiceTest {
                 "https://html.without.feed.example",
                 "https://feed.example",
                 "https://html.with.feed.example",
-                "https://html.with.multiple.feeds.example"
-        ));
+                "https://html.with.multiple.feeds.example",
+                "https://bjango.com/articles/macexternaldisplays2/"));
         List<String> fileContents = new ArrayList<>(List.of(
                 Files.readString(Path.of(getClass().getResource("/services/noLink.html").toURI())),
                 Files.readString(Path.of(getClass().getResource("/services/feed.html").toURI())),
                 Files.readString(Path.of(getClass().getResource("/services/oneLink.html").toURI())),
-                Files.readString(Path.of(getClass().getResource("/services/twoLinks.html").toURI()))
-        ));
+                Files.readString(Path.of(getClass().getResource("/services/twoLinks.html").toURI())),
+                Files.readString(Path.of(getClass().getResource("/services/feedProtocol.html").toURI()))));
         List<String> contentTypes = new ArrayList<>(List.of(
                 "text/html; charset=UTF-8",
                 "application/xml; charset=utf-8",
                 "text/html; charset=utf-8",
-                "text/html; charset=UTF-8"
-        ));
+                "text/html; charset=UTF-8",
+                "text/html; charset=UTF-8"));
 
         // do
         List<List<Feed>> result = new ArrayList<>();
@@ -75,10 +75,18 @@ public class FeedServiceTest {
         assertEquals(result.get(2).getFirst().getFeedURI(), URI.create("https://example.com/feed"));
         assertEquals(result.get(3).get(0).getFeedURI(), URI.create("https://example.com/feed/"));
         assertEquals(result.get(3).get(1).getFeedURI(), URI.create("https://example.com/comments/feed/"));
+        // feed:// and feed:https:// schemes must be normalised to https://
+        assertEquals(2, result.get(4).size());
+        assertEquals(result.get(4).get(0).getFeedURI(), URI.create("https://bjango.com/rss/articles.xml"));
+        assertEquals(result.get(4).get(1).getFeedURI(), URI.create("https://example.com/rss/feed.xml"));
 
-//        assertArrayEquals(result.get(0).toArray(), List.of().toArray());
-//        assertArrayEquals(result.get(1).toArray(), List.of("https://feed.example").toArray());
-//        assertArrayEquals(result.get(2).toArray(), List.of("https://example.com/feed").toArray());
-//        assertArrayEquals(result.get(3).toArray(), List.of("https://example.com/comments/feed/", "https://example.com/feed/").toArray());
+        // assertArrayEquals(result.get(0).toArray(), List.of().toArray());
+        // assertArrayEquals(result.get(1).toArray(),
+        // List.of("https://feed.example").toArray());
+        // assertArrayEquals(result.get(2).toArray(),
+        // List.of("https://example.com/feed").toArray());
+        // assertArrayEquals(result.get(3).toArray(),
+        // List.of("https://example.com/comments/feed/",
+        // "https://example.com/feed/").toArray());
     }
 }

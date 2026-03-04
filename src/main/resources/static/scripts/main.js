@@ -388,9 +388,12 @@ async function createFeed(feed) {
     await loadFolders();
   } catch (error) {
     console.error(error);
+    const isDuplicate = error.originalError?.status === 409;
     await modal.show({
       title: "Error",
-      content: "Error saving feed.",
+      content: isDuplicate
+        ? "This feed already exists."
+        : "Error saving feed.",
       type: "alert",
     });
   }
