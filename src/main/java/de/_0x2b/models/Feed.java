@@ -1,5 +1,6 @@
 package de._0x2b.models;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
@@ -22,7 +23,12 @@ public class Feed {
     URI feedUrl;
     Icon icon;
 
-    public Feed(int id, int folderId, String name, URI url, URI feedUrl) {
+    @JsonCreator
+    public Feed(@JsonProperty("id") int id,
+            @JsonProperty("folderId") int folderId,
+            @JsonProperty("name") String name,
+            @JsonProperty("url") URI url,
+            @JsonProperty("feedUrl") URI feedUrl) {
         this.id = id;
         this.folderId = folderId;
         this.name = name;
