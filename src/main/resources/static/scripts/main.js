@@ -29,7 +29,7 @@ const state = {
   folders: [],
   pagination: { id: null, published: null },
   filter: { isActive: false, lastSearchTerm: "" },
-  status: { isRefreshing: false },
+  status: { isRefreshing: false, isLoadingArticles: false },
   selectedArticle: null,
   lastClickedItem: { type: itemType.ALL, obj: null },
 };
@@ -183,12 +183,16 @@ function setupScrollObserver() {
     (entries) => {
       const entry = entries[0];
       if (!entry) return;
-      if (entry.isIntersecting && !state.filter.isActive) {
+      if (
+        entry.isIntersecting &&
+        !state.filter.isActive &&
+        !state.status.isLoadingArticles
+      ) {
         loadArticles();
       }
     },
     {
-      root: document.getElementById("articles-list"),
+      root: document.querySelector("#articles-list .column"),
       rootMargin: "325px",
       threshold: 0.1,
     },
@@ -391,9 +395,7 @@ async function createFeed(feed) {
     const isDuplicate = error.originalError?.status === 409;
     await modal.show({
       title: "Error",
-      content: isDuplicate
-        ? "This feed already exists."
-        : "Error saving feed.",
+      content: isDuplicate ? "This feed already exists." : "Error saving feed.",
       type: "alert",
     });
   }
@@ -493,40 +495,44 @@ async function refreshFeeds() {
 }
 
 async function loadArticles() {
-  const params = {};
-  switch (state.lastClickedItem.type) {
-    case itemType.FEED:
-      if (!state.lastClickedItem.obj) return;
-      params.feed = state.lastClickedItem.obj.id;
-      break;
-    case itemType.FOLDER:
-      if (!state.lastClickedItem.obj) return;
-      params.folder = state.lastClickedItem.obj.id;
-      break;
-    case itemType.ALL:
-    // no additional param
-    default:
+  if (state.status.isLoadingArticles) return;
+  state.status.isLoadingArticles = true;
+  try {
+    const params = {};
+    switch (state.lastClickedItem.type) {
+      case itemType.FEED:
+        if (!state.lastClickedItem.obj) return;
+        params.feed = state.lastClickedItem.obj.id;
+        break;
+      case itemType.FOLDER:
+        if (!state.lastClickedItem.obj) return;
+        params.folder = state.lastClickedItem.obj.id;
+        break;
+      case itemType.ALL:
       // no additional param
-      break;
+      default:
+        // no additional param
+        break;
+    }
+    if (state.pagination.id != null) {
+      params.pagination_id = state.pagination.id;
+    }
+    if (state.pagination.published != null) {
+      params.pagination_date = state.pagination.published;
+    }
+
+    const newArticles = await dataService.loadArticles(params);
+    if (!newArticles || newArticles.length === 0) return;
+
+    state.articles = dataService.getArticles();
+
+    // update pagination
+    const lastArticle = newArticles[newArticles.length - 1];
+    state.pagination.id = lastArticle.id;
+    state.pagination.published = lastArticle.published;
+
+    renderArticlesList(state.articles);
+  } finally {
+    state.status.isLoadingArticles = false;
   }
-  if (state.pagination.id != null) {
-    params.pagination_id = state.pagination.id;
-  }
-  if (state.pagination.published != null) {
-    params.pagination_date = state.pagination.published;
-  }
-
-  await dataService.loadArticles(params);
-
-  const newArticles = dataService.getArticles();
-  if (!newArticles || newArticles.length === 0) return;
-
-  state.articles = newArticles;
-
-  // update pagination
-  const lastArticle = newArticles[newArticles.length - 1];
-  state.pagination.id = lastArticle.id;
-  state.pagination.published = lastArticle.published;
-
-  renderArticlesList(state.articles);
 }
