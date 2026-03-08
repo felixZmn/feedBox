@@ -48,7 +48,8 @@ Feature highlights include:
 
 # Installation
 
-It is possible to run FeedBox via Docker or deploy it to a Kubernetes cluster using the provided Helm chart. In both cases, a PostgreSQL database is required.
+It is possible to run FeedBox via Docker or deploy it to a Kubernetes cluster using the provided Helm chart. In both
+cases, a PostgreSQL database is required.
 The following environment variables need to be set for database connectivity:
 
 | Variable      | Description       |
@@ -63,7 +64,9 @@ Additionally, the application port can be configured using the `PORT` variable (
 
 ## Docker
 
-To run FeedBox using Docker, first start a PostgreSQL container, then run the FeedBox container. For testing purposes, you can use the following commands - for production, make sure to follow best practices regarding security and data persistence.
+To run FeedBox using Docker, first start a PostgreSQL container, then run the FeedBox container. For testing purposes,
+you can use the following commands - for production, make sure to follow best practices regarding security and data
+persistence.
 
 ```bash
 docker network create appnet
@@ -119,6 +122,11 @@ mvn clean install
 Run the application:
 
 ```bash
+OIDC_ISSUER_URI=https://example.com \
+OIDC_CLIENT_ID=asdfasdf \
+OIDC_CLIENT_SECRET=asdfasdf \
+OIDC_REDIRECT_URI=http://localhost:7070/auth/callback \
+OIDC_SCOPES=openid,profile,email \
 PG_USERNAME=user \
 PG_PASSWORD=password \
 PG_HOST=127.0.0.1 \
@@ -147,16 +155,18 @@ helm push feedbox-*.tgz oci://ghcr.io/felixzmn/helm
 
 # Release Process
 
-Versions follow the pattern `MAJOR.MINOR.PATCH`. During development, both `pom.xml` and `chart/Chart.yaml` carry a `-SNAPSHOT` suffix. The Helm chart has two separate version fields: `version` (the chart itself) and `appVersion` (the application it ships).
+Versions follow the pattern `MAJOR.MINOR.PATCH`. During development, both `pom.xml` and `chart/Chart.yaml` carry a
+`-SNAPSHOT` suffix. The Helm chart has two separate version fields: `version` (the chart itself) and `appVersion` (the
+application it ships).
 
 ## 1. Prepare the release
 
 Remove the `-SNAPSHOT` suffix from all version fields:
 
-- **`pom.xml`** – e.g. `1.0.3-SNAPSHOT` → `1.0.3`
+- **`pom.xml`** - e.g. `1.0.3-SNAPSHOT` -> `1.0.3`
 - **`chart/Chart.yaml`**:
-  - `appVersion` – e.g. `"1.0.3-SNAPSHOT"` → `"1.0.3"` (must match `pom.xml`)
-  - `version` – e.g. `1.1.6-SNAPSHOT` → `1.1.6` (bump the patch if not already done)
+  - `appVersion` - e.g. `"1.0.3-SNAPSHOT"` -> `"1.0.3"` (must match `pom.xml`)
+  - `version` - e.g. `1.1.6-SNAPSHOT` -> `1.1.6` (bump the patch if not already done)
 
 ## 2. Commit the release
 
@@ -187,10 +197,10 @@ helm push feedbox-*.tgz oci://ghcr.io/felixzmn/helm
 
 After the release artifacts are published, advance to the next development version:
 
-- **`pom.xml`** – increment the patch version and add `-SNAPSHOT`, e.g. `1.0.3` → `1.0.4-SNAPSHOT`
+- **`pom.xml`** - increment the patch version and add `-SNAPSHOT`, e.g. `1.0.3` -> `1.0.4-SNAPSHOT`
 - **`chart/Chart.yaml`**:
-  - `appVersion` – match the new `pom.xml` version, e.g. `"1.0.4-SNAPSHOT"`
-  - `version` – increment the patch version and add `-SNAPSHOT`, e.g. `1.1.6` → `1.1.7-SNAPSHOT`
+  - `appVersion` - match the new `pom.xml` version, e.g. `"1.0.4-SNAPSHOT"`
+  - `version` - increment the patch version and add `-SNAPSHOT`, e.g. `1.1.6` -> `1.1.7-SNAPSHOT`
 
 Commit the result:
 

@@ -4,6 +4,8 @@
  * Additionally, this class cares about things like caching, so that this is centrally managed.
  */
 
+import { authService } from "./auth.js";
+
 class DataService {
   constructor() {
     this.cache = [];
@@ -63,9 +65,46 @@ class DataService {
     return data;
   }
 
-  async _getRequest(url) {
+  /**
+   * Add authentication headers to request options
+   */
+  async _getAuthHeaders() {
+    const accessToken = await authService.getValidAccessToken();
+    if (!accessToken) {
+      throw new Error("No valid access token available");
+    }
+    return {
+      Authorization: `Bearer ${accessToken}`,
+    };
+  }
+
+  /**
+   * Handle 401 response - refresh token and retry
+   */
+  async _handleUnauthorized() {
+    console.warn("Received 401 Unauthorized, attempting token refresh");
+    const refreshed = await authService.refreshAccessToken();
+    if (!refreshed) {
+      // Refresh failed, redirect to login
+      authService.login();
+      throw new Error("Session expired, redirecting to login");
+    }
+    return true;
+  }
+
+  async _getRequest(url, shouldRetry = true) {
     try {
-      const response = await fetch(url);
+      const headers = await this._getAuthHeaders();
+      const response = await fetch(url, {
+        headers,
+      });
+
+      if (response.status === 401 && shouldRetry) {
+        await this._handleUnauthorized();
+        // Retry the request with new token
+        return this._getRequest(url, false);
+      }
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(
@@ -86,15 +125,25 @@ class DataService {
     }
   }
 
-  async _postRequest(url, body) {
+  async _postRequest(url, body, shouldRetry = true) {
     try {
+      const headers = {
+        "Content-Type": "application/json",
+        ...(await this._getAuthHeaders()),
+      };
+
       const response = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify(body),
       });
+
+      if (response.status === 401 && shouldRetry) {
+        await this._handleUnauthorized();
+        // Retry the request with new token
+        return this._postRequest(url, body, false);
+      }
+
       if (!response.ok) {
         const errorText = await response.text();
         const err = new Error(
@@ -117,15 +166,25 @@ class DataService {
     }
   }
 
-  async _putRequest(url, body) {
+  async _putRequest(url, body, shouldRetry = true) {
     try {
+      const headers = {
+        "Content-Type": "application/json",
+        ...(await this._getAuthHeaders()),
+      };
+
       const response = await fetch(url, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify(body),
       });
+
+      if (response.status === 401 && shouldRetry) {
+        await this._handleUnauthorized();
+        // Retry the request with new token
+        return this._putRequest(url, body, false);
+      }
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(
@@ -142,11 +201,21 @@ class DataService {
     }
   }
 
-  async _deleteRequest(url) {
+  async _deleteRequest(url, shouldRetry = true) {
     try {
+      const headers = await this._getAuthHeaders();
+
       const response = await fetch(url, {
         method: "DELETE",
+        headers,
       });
+
+      if (response.status === 401 && shouldRetry) {
+        await this._handleUnauthorized();
+        // Retry the request with new token
+        return this._deleteRequest(url, false);
+      }
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(

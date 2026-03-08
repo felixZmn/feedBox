@@ -2,6 +2,7 @@ package de._0x2b.services;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import de._0x2b.config.DbConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,25 +16,25 @@ public class DatabaseService {
     private final HikariDataSource dataSource;
 
     // Constructor initiates connection pool immediately
-    public DatabaseService(String host, int port, String dbName, String username, String password) {
-        HikariConfig config = new HikariConfig();
-        config.setJdbcUrl(String.format("jdbc:postgresql://%s:%d/%s", host, port, dbName));
-        config.setUsername(username);
-        config.setPassword(password);
+    public DatabaseService(DbConfig config) {
+        HikariConfig hikariConfig = new HikariConfig();
+        hikariConfig.setJdbcUrl(String.format("jdbc:postgresql://%s:%d/%s", config.host(), config.port(), config.dbName()));
+        hikariConfig.setUsername(config.username());
+        hikariConfig.setPassword(config.password());
 
-        config.setInitializationFailTimeout(10000);
-        config.setMaximumPoolSize(10);
-        config.setMinimumIdle(2);
-        config.setConnectionTimeout(30000);
-        config.setPoolName("FeedBoxPool");
+        hikariConfig.setInitializationFailTimeout(10000);
+        hikariConfig.setMaximumPoolSize(10);
+        hikariConfig.setMinimumIdle(2);
+        hikariConfig.setConnectionTimeout(30000);
+        hikariConfig.setPoolName("FeedBoxPool");
 
-        this.dataSource = new HikariDataSource(config);
-        logger.info("Database pool initialized connected to {}", host);
+        this.dataSource = new HikariDataSource(hikariConfig);
+        logger.info("Database pool initialized connected to {}", config.host());
     }
 
     /**
      * Get a connection from the pool
-     * 
+     *
      * @return
      * @throws SQLException
      */
@@ -43,7 +44,7 @@ public class DatabaseService {
 
     /**
      * Get the DataSource
-     * 
+     *
      * @return
      */
     public DataSource getDataSource() {
@@ -62,13 +63,13 @@ public class DatabaseService {
 
     /**
      * Perform database schema migration
-     * 
+     *
      * @throws SQLException
      */
     public void migrate() throws SQLException {
         logger.info("Checking database schema...");
 
-        String[] migrationStatements = { """
+        String[] migrationStatements = {"""
                 CREATE TABLE IF NOT EXISTS folder (
                     id SERIAL PRIMARY KEY,
                     name VARCHAR(255) UNIQUE NOT NULL,
@@ -106,7 +107,7 @@ public class DatabaseService {
                     categories TEXT NULL,
                     FOREIGN KEY (feed_id) REFERENCES feed(id) ON DELETE CASCADE
                 )
-                """, "INSERT INTO folder (id, name) VALUES (0,'root') ON CONFLICT DO NOTHING" };
+                """, "INSERT INTO folder (id, name) VALUES (0,'root') ON CONFLICT DO NOTHING"};
 
         try (Connection conn = getConnection()) {
             conn.setAutoCommit(false); // Start Transaction

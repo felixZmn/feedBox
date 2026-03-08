@@ -1,5 +1,6 @@
 package de._0x2b.feedBox;
 
+import de._0x2b.config.Config;
 import de._0x2b.controllers.*;
 import de._0x2b.exceptions.DuplicateEntityException;
 import de._0x2b.exceptions.NotFoundException;
@@ -13,7 +14,6 @@ import io.javalin.http.staticfiles.Location;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.SQLException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -22,13 +22,12 @@ import static io.javalin.apibuilder.ApiBuilder.*;
 public class FeedBox {
     private static final Logger logger = LoggerFactory.getLogger(FeedBox.class);
 
-    public static void main(String[] args) throws SQLException {
+    public static void main(String[] args) throws Exception {
         System.setProperty("jdk.xml.totalEntitySizeLimit", "500000");
         System.setProperty("jdk.xml.maxGeneralEntitySizeLimit", "500000");
-        AppConfig appConfig = AppConfig.fromEnvironment();
+        Config config = Config.load();
 
-        var databaseService = new DatabaseService(appConfig.dbHost(), appConfig.dbPort(), appConfig.dbName(),
-                appConfig.dbUsername(), appConfig.dbPassword());
+        var databaseService = new DatabaseService(config.db());
 
         databaseService.migrate();
 
@@ -37,7 +36,7 @@ public class FeedBox {
         var folderRepository = new FolderRepository(databaseService);
         var iconRepository = new IconRepository(databaseService);
 
-        var httpService = new HTTPSService(appConfig.userAgent(), appConfig.networkTimeout());
+        var httpService = new HTTPSService(config.app().userAgent(), config.app().timeout());
         var articleService = new ArticleService(articleRepository);
         var folderService = new FolderService(folderRepository);
         var iconService = new IconService(httpService, iconRepository);
@@ -51,22 +50,55 @@ public class FeedBox {
         var opmlController = new OPMLController(opmlService);
         var iconController = new IconController(iconService);
 
-        var app = Javalin.create(config -> {
-            config.concurrency.useVirtualThreads = true;
-            config.staticFiles.add("/static", Location.CLASSPATH);
-            config.jetty.host = "0.0.0.0";
-            config.http.maxRequestSize = 10_000_000L; // 10 MB cap to guard against oversized uploads
+        AuthController authController;
+        if (config.oidc().isPresent()) {
+            logger.info("Enabling OIDC");
+            var oidcService = new OidcService(config.oidc().get());
+            authController = new AuthController(oidcService);
+        } else {
+            authController = null;
+        }
 
-            config.requestLogger.http((ctx, ms) -> {
+        var app = Javalin.create(javalinConfig -> {
+            javalinConfig.concurrency.useVirtualThreads = true;
+            javalinConfig.staticFiles.add("/static", Location.CLASSPATH);
+            javalinConfig.jetty.host = "0.0.0.0";
+            javalinConfig.http.maxRequestSize = 10_000_000L; // 10 MB cap to guard against oversized uploads
+
+            javalinConfig.requestLogger.http((ctx, ms) -> {
                 // GET http://localhost:8080/style.css HTTP/1.1" from [::1]:44872 - 200 in
                 // 526.042 ms
                 logger.info("{} {} {} from {}:{} - {} in {} ms", ctx.method(), ctx.url(), ctx.protocol(),
                         ctx.req().getRemoteAddr(), ctx.req().getRemotePort(), ctx.status().getCode(), ms);
             });
-            config.routes.apiBuilder(() -> {
+
+            javalinConfig.routes.beforeMatched(ctx -> {
+
+                // handle login
+            });
+
+            javalinConfig.routes.apiBuilder(() -> {
+                if (config.oidc().isPresent()) {
+                    path("/auth", () -> {
+                        path("/login", () -> {
+                            get(authController::login);
+                        });
+                        path("/callback", () -> {
+                            get(authController::callback);
+                        });
+                        path("/refresh", () -> {
+                            get(authController::refresh);
+                        });
+                        path("/logout", () -> {
+                            get(authController::logout);
+                        });
+                    });
+                }
+
                 path("/healthz", () -> {
                     get(healthController::healthz);
                 });
+
                 path("/api", () -> {
                     path("/articles", () -> {
                         get(articleController::getAllArticles);
@@ -103,21 +135,21 @@ public class FeedBox {
                     });
                 });
             });
-            config.routes.exception(DuplicateEntityException.class, (e, ctx) -> {
+            javalinConfig.routes.exception(DuplicateEntityException.class, (e, ctx) -> {
                 ctx.status(409).result(e.getMessage());
             });
-            config.routes.exception(NotFoundException.class, (e, ctx) -> {
+            javalinConfig.routes.exception(NotFoundException.class, (e, ctx) -> {
                 ctx.status(404).result(e.getMessage());
             });
-            config.routes.exception(NumberFormatException.class, (e, ctx) -> {
+            javalinConfig.routes.exception(NumberFormatException.class, (e, ctx) -> {
                 ctx.status(400).result("Invalid parameter format");
             });
         });
 
-        app.start(appConfig.appPort());
+        app.start(config.app().port());
 
         // set up periodic refresh; for now only via env var configurable
-        if (appConfig.refreshInterval() > 0) {
+        if (config.app().refreshInterval() > 0) {
             var scheduler = Executors.newScheduledThreadPool(1);
 
             // Wrap task to prevent scheduler death on Exception
@@ -130,7 +162,7 @@ public class FeedBox {
                     logger.error("Periodic refresh failed", t);
                 }
             };
-            scheduler.scheduleAtFixedRate(task, 30, appConfig.refreshInterval() * 60L, TimeUnit.SECONDS);
+            scheduler.scheduleAtFixedRate(task, 30 * 30, config.app().refreshInterval() * 60L, TimeUnit.SECONDS);
             logger.info("Feed refresh scheduled to start in 30 seconds.");
         }
 

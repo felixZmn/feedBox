@@ -1,4 +1,5 @@
 import { dataService } from "./data.js";
+import { authService } from "./auth.js";
 import { modal } from "./modal.js";
 import {
   showAddFeedDialog,
@@ -69,10 +70,28 @@ if ("serviceWorker" in navigator) {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
-  await loadFolders();
-  await loadArticles();
-  lazyLoadObserver = setupScrollObserver();
-  initEventListeners();
+  console.log("[app] DOMContentLoaded fired");
+
+  try {
+    // Check if user is authenticated
+    const accessToken = authService.getAccessToken();
+    if (!accessToken) {
+      console.log("[app] No access token found, redirecting to login");
+      // Redirect to login if no token
+      authService.login();
+      return;
+    }
+
+    console.log("[app] Access token found, loading application");
+    // Load application data
+    await loadFolders();
+    await loadArticles();
+    lazyLoadObserver = setupScrollObserver();
+    initEventListeners();
+  } catch (error) {
+    console.error("[app] Error during initialization:", error);
+    throw error;
+  }
 });
 
 /**
