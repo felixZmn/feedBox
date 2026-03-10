@@ -1,0 +1,90 @@
+package de._0x2b.services;
+
+import de._0x2b.model.Feed;
+import de._0x2b.service.FeedService;
+import de._0x2b.service.JsoupProvider;
+import jakarta.inject.Inject;
+
+import org.jsoup.Connection;
+import org.jsoup.Jsoup;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+public class FeedServiceTest {
+    @Inject
+    private FeedService feedServce;
+
+    @BeforeEach
+    void setUp() {
+    }
+
+    @Test
+    void checkFeedTest() throws URISyntaxException, IOException {
+        // mock'n'prepare
+        JsoupProvider mockProvider = mock(JsoupProvider.class);
+        Connection.Response mockResponse = mock(Connection.Response.class);
+
+        List<String> urls = new ArrayList<>(List.of(
+                "https://html.without.feed.example",
+                "https://feed.example",
+                "https://html.with.feed.example",
+                "https://html.with.multiple.feeds.example",
+                "https://bjango.com/articles/macexternaldisplays2/"));
+        List<String> fileContents = new ArrayList<>(List.of(
+                Files.readString(Path.of(getClass().getResource("/services/noLink.html").toURI())),
+                Files.readString(Path.of(getClass().getResource("/services/feed.html").toURI())),
+                Files.readString(Path.of(getClass().getResource("/services/oneLink.html").toURI())),
+                Files.readString(Path.of(getClass().getResource("/services/twoLinks.html").toURI())),
+                Files.readString(Path.of(getClass().getResource("/services/feedProtocol.html").toURI()))));
+        List<String> contentTypes = new ArrayList<>(List.of(
+                "text/html; charset=UTF-8",
+                "application/xml; charset=utf-8",
+                "text/html; charset=utf-8",
+                "text/html; charset=UTF-8",
+                "text/html; charset=UTF-8"));
+
+        // do
+        List<List<Feed>> result = new ArrayList<>();
+
+        for (int i = 0; i < urls.size(); i++) {
+            when(mockProvider.execute(urls.get(i))).thenReturn(mockResponse);
+            when(mockResponse.parse()).thenReturn(Jsoup.parse(fileContents.get(i)));
+            when(mockResponse.body()).thenReturn(fileContents.get(i));
+            when(mockResponse.contentType()).thenReturn(contentTypes.get(i));
+
+            result.add(feedServce.checkFeedUrl(urls.get(i), mockProvider));
+        }
+
+        // assert
+        assertEquals(result.get(0).size(), 0);
+        assertEquals(result.get(1).getFirst().getFeedUrl(), URI.create("https://feed.example"));
+        assertEquals(result.get(2).getFirst().getFeedUrl(), URI.create("https://example.com/feed"));
+        assertEquals(result.get(3).get(0).getFeedUrl(), URI.create("https://example.com/feed/"));
+        assertEquals(result.get(3).get(1).getFeedUrl(), URI.create("https://example.com/comments/feed/"));
+        // feed:// and feed:https:// schemes must be normalised to https://
+        assertEquals(2, result.get(4).size());
+        assertEquals(result.get(4).get(0).getFeedUrl(), URI.create("https://bjango.com/rss/articles.xml"));
+        assertEquals(result.get(4).get(1).getFeedUrl(), URI.create("https://example.com/rss/feed.xml"));
+
+        // assertArrayEquals(result.get(0).toArray(), List.of().toArray());
+        // assertArrayEquals(result.get(1).toArray(),
+        // List.of("https://feed.example").toArray());
+        // assertArrayEquals(result.get(2).toArray(),
+        // List.of("https://example.com/feed").toArray());
+        // assertArrayEquals(result.get(3).toArray(),
+        // List.of("https://example.com/comments/feed/",
+        // "https://example.com/feed/").toArray());
+    }
+}
