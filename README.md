@@ -113,18 +113,14 @@ Further configuration options can be found having a look at the `values.yaml` fi
 ## Build the application
 
 ```bash
-mvn clean install
+mvn install -Dnative
+
 ```
 
 Run the application:
 
 ```bash
-PG_USERNAME=user \
-PG_PASSWORD=password \
-PG_HOST=127.0.0.1 \
-PG_PORT=5432 \
-PG_DB=postgres \
-java -jar target/feedBox.jar
+java -jar target/*-runner.jar
 ```
 
 ## Build and push the Docker image:
@@ -132,7 +128,7 @@ java -jar target/feedBox.jar
 ```bash
 VERSION=$(grep -m1 '<version>' pom.xml | sed -E 's/.*<version>([^<]+)<\/version>.*/\1/')
 
-docker build -t ghcr.io/felixzmn/docker/feedbox:$VERSION -t ghcr.io/felixzmn/docker/feedbox:latest .
+docker build -f src/main/docker/Dockerfile.native-micro -t ghcr.io/felixzmn/docker/feedbox:latest . -t ghcr.io/felixzmn/docker/feedbox:$VERSION
 docker push ghcr.io/felixzmn/docker/feedbox:$VERSION
 docker push ghcr.io/felixzmn/docker/feedbox:latest
 ```

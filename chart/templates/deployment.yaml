@@ -31,31 +31,11 @@ spec:
             - name: http
               containerPort: {{ .Values.service.port }}
           env:
-          - name: PG_USERNAME
+          - name: QUARKUS_DATASOURCE_JDBC_URL
             valueFrom:
               secretKeyRef:
                 name: {{ .Values.dbSecretName }}
-                key: {{ .Values.database.userKey }}
-          - name: PG_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: {{ .Values.dbSecretName }}
-                key: {{ .Values.database.passwordKey }}
-          - name: PG_HOST
-            valueFrom:
-              secretKeyRef:
-                name: {{ .Values.dbSecretName }}
-                key: {{ .Values.database.hostKey }}
-          - name: PG_PORT
-            valueFrom:
-              secretKeyRef:
-                name: {{ .Values.dbSecretName }}
-                key: {{ .Values.database.portKey }}
-          - name: PG_DB
-            valueFrom:
-              secretKeyRef:
-                name: {{ .Values.dbSecretName }}
-                key: {{ .Values.database.dbNameKey }}
+                key: {{ .Values.database.jdbcUrlKey }}
           envFrom:
           - configMapRef:
               name: {{ include "feedbox.fullname" . }}
@@ -63,20 +43,23 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           securityContext:
             {{- toYaml .Values.containerSecurityContext | nindent 12 }}
-          readinessProbe:
-            httpGet:
-              path: /healthz
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 5
-            timeoutSeconds: 5
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 5
-            timeoutSeconds: 5
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp/
+          # readinessProbe:
+          #   httpGet:
+          #     path: /healthz
+          #     port: http
+          #   initialDelaySeconds: 5
+          #   periodSeconds: 5
+          #   timeoutSeconds: 5
+          # livenessProbe:
+          #   httpGet:
+          #     path: /healthz
+          #     port: http
+          #   initialDelaySeconds: 5
+          #   periodSeconds: 5
+          #   timeoutSeconds: 5
       
       {{- with .Values.nodeSelector }}
       nodeSelector:
@@ -90,3 +73,6 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}

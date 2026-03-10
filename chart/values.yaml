@@ -30,7 +30,7 @@ containerSecurityContext:
 
 service:
   type: ClusterIP
-  port: 7070
+  port: 8080
 
 resources:
   requests:
@@ -40,16 +40,12 @@ resources:
     memory: "256Mi"
     cpu: "250m"
 
-config:
-  JAVA_TOOL_OPTIONS: "-XX:InitialRAMPercentage=75.0 -XX:MaxRAMPercentage=75.0 -XX:MinRAMPercentage=75.0"
+config: {}
+
 
 dbSecretName: newsfeed-pguser-newsfeed
 database:
-  userKey: user
-  passwordKey: password
-  hostKey: host
-  portKey: port
-  dbNameKey: dbname
+  jdbcUrlKey: jdbc-uri
 
 ingress:
   enabled: false
@@ -82,11 +78,11 @@ oauth2Proxy:
   image:
     repository: "quay.io/oauth2-proxy"
     name: "oauth2-proxy"
-    tag: "v7.12.0-alpine"
+    tag: "v7.14.3-alpine"
     pullPolicy: IfNotPresent
   service:
     port: 4180
-  secretName: feedbox-oauth2-proxy-secret
+  secretName: feedbox-oidc-secret
   config:
     provider: oidc
     # Issuer URL for OIDC
