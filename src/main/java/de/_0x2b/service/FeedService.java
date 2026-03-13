@@ -38,15 +38,16 @@ public class FeedService {
 
     @Inject
     HTTPSService httpsService;
-
     @Inject
     IconService iconService;
-
     @Inject
     FeedRepository feedRepository;
-
     @Inject
     ArticleRepository articleRepository;
+    @Inject
+    MediaRssParser mediaRssParser;
+    @Inject
+    ArticleMapper articleMapper;
 
     /**
      * Store a new feed in the database
@@ -202,7 +203,7 @@ public class FeedService {
      *
      * @param link the &lt;link&gt; element to extract the URL from
      * @return a normalised, absolute URL string, or blank if one cannot be
-     *         determined
+     * determined
      */
     private String extractFeedUrl(Element link) {
         String href = link.attr("href").trim();
@@ -252,43 +253,19 @@ public class FeedService {
      *
      * @param feed
      */
-    private void parseFeed(Feed feed) {
-        logger.debug("parseFeed");
-        MediaRssReader rssReader = new MediaRssReader();
+    void parseFeed(Feed feed) { // consider package-private instead of private for direct testing
         var optional = httpsService.fetchUriAsStream(feed.getFeedUrl());
-        if (optional.isEmpty() || optional.get().statusCode() != 200) {
-            return;
-        }
+        if (optional.isEmpty() || optional.get().statusCode() != 200) return;
+
         var response = optional.get();
-        var items = rssReader.read(response.body()).toList();
-        List<Article> articles = new ArrayList<>();
+        var items = mediaRssParser.parse(response.body());
 
-        for (MediaRssItem item : items) {
+        var articles = new java.util.ArrayList<de._0x2b.model.Article>(items.size());
+        for (var item : items) {
             try {
-                var title = item.getTitle().orElse("");
-                var description = item.getDescription().orElse("");
-                var content = item.getContent().orElse("");
-                var link = item.getLink().orElse("");
-                var datetime = item.getPubDateZonedDateTime()
-                        .map(zdt -> zdt.withZoneSameInstant(ZoneOffset.UTC).format(formatter))
-                        .orElse(null);
-                var author = item.getAuthor().orElse("");
-                var imageUrl = "";
-                if (item.getMediaThumbnail().isPresent()) {
-                    imageUrl = item.getMediaThumbnail().get().getUrl();
-                }
-                if (imageUrl.equals("") && item.getEnclosure().isPresent()
-                        && item.getEnclosure().get().getType().startsWith("image/")) {
-                    imageUrl = item.getEnclosure().get().getUrl();
-                }
-
-                var categories = item.getCategories().toString();
-
-                Article article = new Article(-1, feed.getId(), feed.getName(), title, description, content, link,
-                        datetime, author, imageUrl, categories);
-                articles.add(article);
+                articles.add(articleMapper.toArticle(feed, item));
             } catch (Exception e) {
-                logger.error("Error refreshing feed [{}] \n {}\n", feed.getName(), e.getMessage());
+                // log and continue
             }
         }
         articleRepository.create(articles);
