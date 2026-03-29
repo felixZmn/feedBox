@@ -49,17 +49,17 @@ Feature highlights include:
 # Installation
 
 It is possible to run FeedBox via Docker or deploy it to a Kubernetes cluster using the provided Helm chart. In both cases, a PostgreSQL database is required.
-The following environment variables need to be set for database connectivity:
 
-| Variable      | Description       |
-| ------------- | ----------------- |
-| `PG_USER`     | Database user     |
-| `PG_PASSWORD` | Database password |
-| `PG_HOST`     | Database host     |
-| `PG_PORT`     | Database port     |
-| `PG_DB`       | Database name     |
+FeedBox uses Quarkus configuration directly. Set the JDBC URL in the environment (or via config files):
 
-Additionally, the application port can be configured using the `PORT` variable (default is 7070).
+- `QUARKUS_DATASOURCE_JDBC_URL`: e.g. `jdbc:postgresql://<host>:<port>/<db>?user=<user>&password=<password>`
+
+Optional overrides:
+
+- `QUARKUS_HTTP_PORT`: HTTP port (default `8080`)
+- `APP_HTTP_USER_AGENT` / `app.http.user-agent` in `src/main/resources/application.properties`
+
+If you use the Helm chart, the default service port is `8080`.
 
 ## Docker
 
@@ -77,7 +77,7 @@ docker run -d --name postgres \
   postgres
 
 docker run --rm --name feedbox \
-  -p 7070:7070 \
+  -p 8080:8080 \
   --network appnet \
   ghcr.io/felixzmn/docker/feedbox:latest
 ```
@@ -90,7 +90,18 @@ For installing via Helm, use the following command:
 helm install feedbox oci://ghcr.io/felixzmn/helm/feedbox --version <VERSION>
 ```
 
-Further configuration options can be found having a look at the `values.yaml` file in the `chart` directory.
+Default service port is configured as `8080` in `chart/values.yaml` (matching Quarkus `quarkus.http.port`).
+
+Database credentials are expected through a secret referenced by `chart/values.yaml`:
+
+- `dbSecretName` (`newsfeed-pguser-newsfeed` by default)
+- `database.jdbcUrlKey` (`jdbc-uri` by default, used as `QUARKUS_DATASOURCE_JDBC_URL`)
+
+You can also configure app settings in the chart configmap via `chart/values.yaml`:
+
+- `config.quarkus.http.host` = `0.0.0.0`
+- `config.quarkus.http.port` = `8080`
+- `config.app.http.user-agent` = `FeedBox/2.0.1-SNAPSHOT`
 
 # Local Development
 
@@ -128,7 +139,7 @@ java -jar target/*-runner.jar
 ```bash
 VERSION=$(grep -m1 '<version>' pom.xml | sed -E 's/.*<version>([^<]+)<\/version>.*/\1/')
 
-docker build -f src/main/docker/Dockerfile.native-micro -t ghcr.io/felixzmn/docker/feedbox:latest . -t ghcr.io/felixzmn/docker/feedbox:$VERSION
+docker build -f src/main/docker/Dockerfile.native-micro -t ghcr.io/felixzmn/docker/feedbox:latest -t ghcr.io/felixzmn/docker/feedbox:$VERSION .
 docker push ghcr.io/felixzmn/docker/feedbox:$VERSION
 docker push ghcr.io/felixzmn/docker/feedbox:latest
 ```
@@ -143,58 +154,7 @@ helm push feedbox-*.tgz oci://ghcr.io/felixzmn/helm
 
 # Release Process
 
-Versions follow the pattern `MAJOR.MINOR.PATCH`. During development, both `pom.xml` and `chart/Chart.yaml` carry a `-SNAPSHOT` suffix. The Helm chart has two separate version fields: `version` (the chart itself) and `appVersion` (the application it ships).
-
-## 1. Prepare the release
-
-Remove the `-SNAPSHOT` suffix from all version fields:
-
-- **`pom.xml`** – e.g. `1.0.3-SNAPSHOT` → `1.0.3`
-- **`chart/Chart.yaml`**:
-  - `appVersion` – e.g. `"1.0.3-SNAPSHOT"` → `"1.0.3"` (must match `pom.xml`)
-  - `version` – e.g. `1.1.6-SNAPSHOT` → `1.1.6` (bump the patch if not already done)
-- **`src/main/resources/application.properties`** – e.g. `app.http.user-agent=FeedBox/1.0.3-SNAPSHOT` → `app.http.user-agent=FeedBox/1.0.3`
-
-## 2. Commit the release
-
-```bash
-git add pom.xml chart/Chart.yaml
-git commit -m "chore: release <VERSION>"
-```
-
-## 3. Build and push the Docker image
-
-```bash
-VERSION=$(grep -m1 '<version>' pom.xml | sed -E 's/.*<version>([^<]+)<\/version>.*/\1/')
-
-docker build -t ghcr.io/felixzmn/docker/feedbox:$VERSION -t ghcr.io/felixzmn/docker/feedbox:latest .
-docker push ghcr.io/felixzmn/docker/feedbox:$VERSION
-docker push ghcr.io/felixzmn/docker/feedbox:latest
-```
-
-## 4. Build and push the Helm chart
-
-```bash
-cd chart
-helm package .
-helm push feedbox-*.tgz oci://ghcr.io/felixzmn/helm
-```
-
-## 5. Bump versions back to the next snapshot
-
-After the release artifacts are published, advance to the next development version:
-
-- **`pom.xml`** – increment the patch version and add `-SNAPSHOT`, e.g. `1.0.3` → `1.0.4-SNAPSHOT`
-- **`chart/Chart.yaml`**:
-  - `appVersion` – match the new `pom.xml` version, e.g. `"1.0.4-SNAPSHOT"`
-  - `version` – increment the patch version and add `-SNAPSHOT`, e.g. `1.1.6` → `1.1.7-SNAPSHOT`
-
-Commit the result:
-
-```bash
-git add pom.xml chart/Chart.yaml
-git commit -m "chore: bump version to <NEXT_VERSION>-SNAPSHOT"
-```
+The release process is documented in [release.md](./release.md).
 
 # Icons
 

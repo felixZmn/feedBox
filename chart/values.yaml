@@ -40,7 +40,12 @@ resources:
     memory: "256Mi"
     cpu: "250m"
 
-config: {}
+# Optional application config (configmap entries).
+# Use the DB secret key for QUARKUS_DATASOURCE_JDBC_URL in Deployment env.
+config:
+  quarkus.http.host: "0.0.0.0"
+  quarkus.http.port: "8080"
+  app.http.user-agent: "FeedBox/2.0.1-SNAPSHOT"
 
 
 dbSecretName: newsfeed-pguser-newsfeed
