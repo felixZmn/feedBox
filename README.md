@@ -153,6 +153,7 @@ Remove the `-SNAPSHOT` suffix from all version fields:
 - **`chart/Chart.yaml`**:
   - `appVersion` – e.g. `"1.0.3-SNAPSHOT"` → `"1.0.3"` (must match `pom.xml`)
   - `version` – e.g. `1.1.6-SNAPSHOT` → `1.1.6` (bump the patch if not already done)
+- **`src/main/resources/application.properties`** – e.g. `app.http.user-agent=FeedBox/1.0.3-SNAPSHOT` → `app.http.user-agent=FeedBox/1.0.3`
 
 ## 2. Commit the release
 
