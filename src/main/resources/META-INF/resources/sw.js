@@ -1,4 +1,4 @@
-const VERSION = "v1::2026-03-18::001";
+const VERSION = "v1::2026-03-29::001";
 const CACHE_NAME = `feedbox-${VERSION}`;
 
 const CACHE_FILES = [

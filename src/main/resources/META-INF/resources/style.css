@@ -354,6 +354,15 @@ details[open] summary img {
   height: auto;
 }
 
+.reader .content video {
+  width: 100% !important;
+  height: auto;
+}
+
+.reader .content a {
+  color: var(--font-color-highlight);
+}
+
 .column-header {
   position: relative;
   display: grid;
