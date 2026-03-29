@@ -22,8 +22,6 @@
  * @property {string} url - Primary URL of the feed source
  * @property {string} feedUrl - URL of the RSS/Atom feed
  * @property {string|null} icon - URL of the feed icon, or null if not available
- * @property {string} uri - Alternative representation of the primary URL
- * @property {string} feedUrl - Alternative representation of the feed URL
  */
 
 /**

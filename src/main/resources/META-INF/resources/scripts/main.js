@@ -49,6 +49,7 @@ const dom = {
     addFeed: document.getElementById("trigger-feed-add"),
     editFeed: document.getElementById("trigger-feed-edit"),
     deleteFeed: document.getElementById("trigger-feed-delete"),
+    openWebsite: document.getElementById("trigger-open-website"),
     addFolder: document.getElementById("trigger-folder-add"),
     editFolder: document.getElementById("trigger-folder-edit"),
     deleteFolder: document.getElementById("trigger-folder-delete"),
@@ -127,6 +128,13 @@ function initEventListeners() {
       editedFeed.feedUrl = response.feedUrl;
       editedFeed.folderId = response.folderId;
       await editFeed(editedFeed);
+    }
+  });
+  dom.button.openWebsite.addEventListener("click", async () => {
+    if (!state.lastClickedItem.obj) return;
+    let websiteUrl = state.lastClickedItem.obj.url;
+    if (websiteUrl) {
+      window.open(websiteUrl, "_blank");
     }
   });
   dom.button.deleteFeed.addEventListener("click", async () => {
