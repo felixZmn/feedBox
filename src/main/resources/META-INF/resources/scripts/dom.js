@@ -8,6 +8,39 @@ import {
 } from "./main.js";
 import { getRelativeTime, parseDate, sanitizeHTML } from "./util.js";
 
+const FOLDER_STATE_KEY = "folder-state";
+
+function loadFolderOpenStates() {
+  try {
+    const raw = localStorage.getItem(FOLDER_STATE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (err) {
+    console.warn("Could not load folder open state", err);
+    return {};
+  }
+}
+
+function saveFolderOpenStates(state) {
+  try {
+    localStorage.setItem(FOLDER_STATE_KEY, JSON.stringify(state));
+  } catch (err) {
+    console.warn("Could not save folder open state", err);
+  }
+}
+
+function setFolderOpenState(folderId, isOpen) {
+  const state = loadFolderOpenStates();
+  state[folderId] = !!isOpen;
+  saveFolderOpenStates(state);
+}
+
+function getFolderOpenState(folderId) {
+  const state = loadFolderOpenStates();
+  return Object.prototype.hasOwnProperty.call(state, folderId)
+    ? !!state[folderId]
+    : undefined;
+}
+
 /**
  * Renders a list of articles to the DOM.
  *
@@ -166,7 +199,16 @@ export function renderFoldersList(folders) {
     }
 
     const details = document.createElement("details");
+    const persistedOpen = getFolderOpenState(folder.id);
+    if (persistedOpen !== undefined) {
+      details.open = persistedOpen;
+    }
+
     details.appendChild(createFolderElement(folder));
+
+    details.addEventListener("toggle", () => {
+      setFolderOpenState(folder.id, details.open);
+    });
 
     const feedsContainer = document.createElement("div");
     feedsContainer.className = "folder-container";
