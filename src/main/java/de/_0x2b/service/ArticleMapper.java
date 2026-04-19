@@ -5,7 +5,6 @@ import de._0x2b.model.Article;
 import de._0x2b.model.Feed;
 import jakarta.enterprise.context.ApplicationScoped;
 
-import java.sql.Date;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -20,7 +19,8 @@ public class ArticleMapper {
         var content = item.getContent().orElse("");
         var link = item.getLink().orElse("");
         var datetime = item.getPubDateAsZonedDateTime()
-                .map(zdt -> zdt.withZoneSameInstant(ZoneOffset.UTC).format(formatter)).orElse(ZonedDateTime.now(ZoneOffset.UTC).format(formatter));
+                .map(zdt -> zdt.withZoneSameInstant(ZoneOffset.UTC).format(formatter))
+                .orElse(ZonedDateTime.now(ZoneOffset.UTC).format(formatter));
         var author = item.getAuthor().orElse("");
 
         var imageUrl = "";

@@ -1,10 +1,7 @@
 package de._0x2b.service;
 
 import com.apptasticsoftware.rssreader.RssReader;
-import com.apptasticsoftware.rssreader.module.mediarss.MediaRssItem;
-import com.apptasticsoftware.rssreader.module.mediarss.MediaRssReader;
 import de._0x2b.exception.NotFoundException;
-import de._0x2b.model.Article;
 import de._0x2b.model.Feed;
 import de._0x2b.model.Icon;
 import de._0x2b.repository.ArticleRepository;
@@ -24,8 +21,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.sql.SQLException;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -34,7 +29,6 @@ import java.util.concurrent.Executors;
 @ApplicationScoped
 public class FeedService {
     private static final Logger logger = LoggerFactory.getLogger(FeedService.class);
-    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'");
 
     @Inject
     HTTPSService httpsService;
@@ -203,7 +197,7 @@ public class FeedService {
      *
      * @param link the &lt;link&gt; element to extract the URL from
      * @return a normalised, absolute URL string, or blank if one cannot be
-     * determined
+     *         determined
      */
     private String extractFeedUrl(Element link) {
         String href = link.attr("href").trim();
@@ -255,7 +249,8 @@ public class FeedService {
      */
     void parseFeed(Feed feed) { // consider package-private instead of private for direct testing
         var optional = httpsService.fetchUriAsStream(feed.getFeedUrl());
-        if (optional.isEmpty() || optional.get().statusCode() != 200) return;
+        if (optional.isEmpty() || optional.get().statusCode() != 200)
+            return;
 
         var response = optional.get();
         var items = mediaRssParser.parse(response.body());
