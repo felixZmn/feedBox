@@ -9,6 +9,9 @@ import {
 import { getRelativeTime, parseDate, sanitizeHTML } from "./util.js";
 
 const FOLDER_STATE_KEY = "folder-state";
+const articlesContainer = document.querySelector(
+  "#articles-list #articles-container",
+);
 
 function loadFolderOpenStates() {
   try {
@@ -42,54 +45,75 @@ function getFolderOpenState(folderId) {
 }
 
 /**
- * Renders a list of articles to the DOM.
- *
- * @param {Article[]} articles - The array of articles to render.
+ * Creates a single article DOM element
+ * @param {Article} article - The article to create an element for
+ * @returns {HTMLElement} The article div element
+ */
+function createArticleElement(article) {
+  const articleDiv = document.createElement("div");
+  const headerDiv = document.createElement("div");
+  const imageDiv = document.createElement("div");
+  const titleDiv = document.createElement("div");
+  const sourceSpan = document.createElement("span");
+  const ageSpan = document.createElement("span");
+
+  articleDiv.className = "article";
+  headerDiv.className = "article-header";
+  imageDiv.className = "article-image";
+  titleDiv.className = "article-title";
+  sourceSpan.className = "source";
+  ageSpan.className = "age";
+
+  titleDiv.innerText = article.title || "No Title";
+  sourceSpan.innerText = article.feedName || "Unknown";
+  ageSpan.innerText = getRelativeTime(article.published);
+
+  headerDiv.appendChild(sourceSpan);
+  headerDiv.appendChild(ageSpan);
+
+  articleDiv.appendChild(headerDiv);
+  if (article.imageUrl) {
+    const image = document.createElement("img");
+    image.src = article.imageUrl;
+    imageDiv.appendChild(image);
+    articleDiv.appendChild(imageDiv);
+  }
+  articleDiv.appendChild(titleDiv);
+
+  articleDiv.addEventListener("click", () => {
+    articleClickListener(article);
+  });
+
+  return articleDiv;
+}
+
+/**
+ * Clears the articles container
  * @returns {void}
  */
-export function renderArticlesList(articles) {
-  const container = document.querySelector(
-    "#articles-list #articles-container",
-  );
-  container.innerHTML = ""; // Clear previous content
+export function clearArticlesList() {
+  articlesContainer.innerHTML = "";
+}
 
-  for (let i = 0; i < articles.length; i++) {
-    const article = articles[i];
-    const articleDiv = document.createElement("div");
-    const headerDiv = document.createElement("div");
-    const imageDiv = document.createElement("div");
-    const titleDiv = document.createElement("div");
-    const sourceSpan = document.createElement("span");
-    const ageSpan = document.createElement("span");
+/**
+ * Replaces all articles in the DOM (full re-render)
+ * @param {Article[]} articles - The articles to render
+ * @returns {void}
+ */
+export function replaceArticlesList(articles) {
+  clearArticlesList();
+  appendArticlesList(articles);
+}
 
-    articleDiv.className = "article";
-    headerDiv.className = "article-header";
-    imageDiv.className = "article-image";
-    titleDiv.className = "article-title";
-    sourceSpan.className = "source";
-    ageSpan.className = "age";
-
-    titleDiv.innerText = article.title || "No Title";
-    sourceSpan.innerText = article.feedName || "Unknown";
-    ageSpan.innerText = getRelativeTime(article.published);
-
-    headerDiv.appendChild(sourceSpan);
-    headerDiv.appendChild(ageSpan);
-
-    articleDiv.appendChild(headerDiv);
-    if (article.imageUrl) {
-      const image = document.createElement("img");
-      image.src = article.imageUrl;
-      imageDiv.appendChild(image);
-      articleDiv.appendChild(imageDiv);
-    }
-    articleDiv.appendChild(titleDiv);
-
-    articleDiv.addEventListener("click", () => {
-      articleClickListener(article);
-    });
-
-    container.appendChild(articleDiv);
+/**
+ * Appends articles to the DOM (incremental update)
+ * @param {Article[]} articles - The articles to append
+ * @returns {void}
+ */
+export function appendArticlesList(articles) {
+  for (const article of articles) {
+    const articleEl = createArticleElement(article);
+    articlesContainer.appendChild(articleEl);
   }
 }
 

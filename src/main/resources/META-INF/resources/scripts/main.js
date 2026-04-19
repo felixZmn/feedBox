@@ -8,11 +8,13 @@ import {
   showEditFolderDialog,
 } from "./dialog.js";
 import {
+  appendArticlesList,
   clearReaderView,
   removeFeedElement,
-  renderArticlesList,
+  replaceArticlesList,
   renderFoldersList,
   renderReaderView,
+  clearArticlesList,
 } from "./dom.js";
 import { NavigationService, columns } from "./nav.js";
 import { escapeHtml } from "./util.js";
@@ -154,7 +156,7 @@ function initEventListeners() {
       state.filter.isActive = false;
       state.filter.lastSearchTerm = "";
       state.articles = dataService.getArticles();
-      renderArticlesList(state.articles);
+      replaceArticlesList(state.articles);
       return;
     }
     if (!searchTerm.startsWith(state.filter.lastSearchTerm)) {
@@ -165,7 +167,7 @@ function initEventListeners() {
       (article.title ?? "").toLowerCase().includes(searchTerm),
     );
     state.filter.isActive = true;
-    renderArticlesList(state.articles);
+    replaceArticlesList(state.articles);
   });
 }
 
@@ -294,7 +296,7 @@ export async function allFeedsClickListener() {
   state.lastClickedItem.type = itemType.ALL;
   state.lastClickedItem.obj = null;
   lazyLoadObserver.pause();
-  clearArticlesList();
+  clearArticles();
   await loadArticles();
   lazyLoadObserver.resume();
 }
@@ -309,7 +311,7 @@ export async function feedClickListener(feed) {
   state.lastClickedItem.type = itemType.FEED;
   state.lastClickedItem.obj = feed;
   lazyLoadObserver.pause();
-  clearArticlesList();
+  clearArticles();
   await loadArticles();
   lazyLoadObserver.resume();
 }
@@ -324,7 +326,7 @@ export async function folderClickListener(folder) {
   state.lastClickedItem.type = itemType.FOLDER;
   state.lastClickedItem.obj = folder;
   lazyLoadObserver.pause();
-  clearArticlesList();
+  clearArticles();
   await loadArticles();
   lazyLoadObserver.resume();
 }
@@ -338,10 +340,10 @@ export function articleClickListener(article) {
   navigationService.navigateTo(columns.READER);
 }
 
-function clearArticlesList() {
+function clearArticles() {
   state.articles = [];
   dataService.clearArticles();
-  document.querySelector("#articles-list #articles-container").innerHTML = "";
+  clearArticlesList();
 }
 
 function resetPagination() {
@@ -437,7 +439,7 @@ async function deleteFeed(feed) {
     state.articles = state.articles.filter(
       (article) => article.feedId !== feed.id,
     );
-    renderArticlesList(state.articles);
+    replaceArticlesList(state.articles);
   } catch (error) {
     console.error(error.message);
     await modal.show({
@@ -544,7 +546,7 @@ async function loadArticles() {
     state.pagination.id = lastArticle.id;
     state.pagination.published = lastArticle.published;
 
-    renderArticlesList(state.articles);
+    appendArticlesList(newArticles);
   } finally {
     state.status.isLoadingArticles = false;
   }
