@@ -1,3 +1,5 @@
+"use strict";
+
 export const columns = Object.freeze({
   FEEDS: "feeds-list",
   ARTICLES: "articles-list",

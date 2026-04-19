@@ -1,3 +1,5 @@
+"use strict";
+
 /*
  * Following Idea:
  * This class is responsible for loading data from the backend.

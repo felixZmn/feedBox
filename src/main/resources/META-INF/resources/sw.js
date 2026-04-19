@@ -1,3 +1,5 @@
+"use strict";
+
 const VERSION = "v1::2026-04-19::001";
 const CACHE_NAME = `feedbox-${VERSION}`;
 

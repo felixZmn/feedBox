@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * Escapes a string for safe insertion into HTML attribute values or text nodes.
  * @param {*} str

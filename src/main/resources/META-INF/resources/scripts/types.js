@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * @typedef {Object} Article
  * @property {number} id - The unique identifier of the article.

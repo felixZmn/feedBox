@@ -1,3 +1,5 @@
+"use strict";
+
 class ModalService {
   constructor() {
     this.dialog = document.getElementById("generic-modal");

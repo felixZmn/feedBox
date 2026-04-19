@@ -1,3 +1,5 @@
+"use strict";
+
 import { dataService } from "./data.js";
 import { modal } from "./modal.js";
 import {
