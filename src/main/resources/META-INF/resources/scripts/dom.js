@@ -113,10 +113,12 @@ export function replaceArticlesList(articles) {
  * @returns {void}
  */
 export function appendArticlesList(articles) {
+  const fragment = document.createDocumentFragment();
   for (const article of articles) {
     const articleEl = createArticleElement(article);
-    articlesContainer.appendChild(articleEl);
+    fragment.appendChild(articleEl);
   }
+  articlesContainer.appendChild(fragment);
 }
 
 /**
