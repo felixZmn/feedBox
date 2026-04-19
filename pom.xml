@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>de._0x2b</groupId>
     <artifactId>feedbox</artifactId>
-    <version>2.0.1-SNAPSHOT</version>
+    <version>2.0.1</version>
     <packaging>quarkus</packaging>
 
     <properties>
