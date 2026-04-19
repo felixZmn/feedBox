@@ -16,7 +16,7 @@ export class NavigationService {
     this.#renderColumn(this.currentState.column);
 
     window.addEventListener("popstate", (event) => {
-      this.currentState = event.state || {column: columns.FEEDS};
+      this.currentState = event.state || { column: columns.FEEDS };
       this.#renderColumn(this.currentState.column);
     });
   }
@@ -37,7 +37,7 @@ export class NavigationService {
 
   #renderColumn(column) {
     [this.feedsEl, this.articlesEl, this.readerEl].forEach((el) =>
-      el.classList.remove("active", "primary")
+      el.classList.remove("active", "primary"),
     );
 
     switch (column) {
