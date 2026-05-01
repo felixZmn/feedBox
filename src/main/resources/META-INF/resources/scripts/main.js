@@ -20,6 +20,13 @@ import {
 } from "./dom.js";
 import { NavigationService, columns } from "./nav.js";
 import { escapeHtml } from "./util.js";
+import {
+  initializeAuth,
+  initSSOConfig,
+  redirectToAuthProvider,
+  isAuthenticated,
+  logout,
+} from "./pkce.js";
 
 const itemType = Object.freeze({
   ALL: "",
@@ -57,6 +64,7 @@ const dom = {
     addFolder: document.getElementById("trigger-folder-add"),
     editFolder: document.getElementById("trigger-folder-edit"),
     deleteFolder: document.getElementById("trigger-folder-delete"),
+    logout: document.getElementById("trigger-logout"),
   },
 };
 
@@ -75,6 +83,17 @@ if ("serviceWorker" in navigator) {
 
 window.addEventListener("DOMContentLoaded", async () => {
   try {
+    // Initialize authentication (handles OAuth callback if present)
+    await initSSOConfig();
+    await initializeAuth();
+
+    // Check if user is authenticated
+    if (!isAuthenticated()) {
+      // Redirect to login provider
+      await redirectToAuthProvider();
+      return;
+    }
+
     await loadFolders();
     await loadArticles();
     lazyLoadObserver = setupScrollObserver();
@@ -151,6 +170,11 @@ function initEventListeners() {
     clearReaderView();
     navigationService.navigateTo(columns.ARTICLES);
   });
+  if (dom.button.logout) {
+    dom.button.logout.addEventListener("click", () => {
+      logout();
+    });
+  }
   dom.searchInput.addEventListener("input", (e) => {
     let searchTerm = e.target.value.trim().toLowerCase();
     // filter empty -> reset
