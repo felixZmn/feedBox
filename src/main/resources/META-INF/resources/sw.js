@@ -1,6 +1,6 @@
 "use strict";
 
-const VERSION = "v1::2026-04-19::001";
+const VERSION = "v1::2026-04-30::007";
 const CACHE_NAME = `feedbox-${VERSION}`;
 
 const CACHE_FILES = [
@@ -26,6 +26,7 @@ const CACHE_FILES = [
   "/scripts/main.js",
   "/scripts/modal.js",
   "/scripts/nav.js",
+  "/scripts/pkce.js",
   "/scripts/types.js",
   "/scripts/util.js",
 ];
