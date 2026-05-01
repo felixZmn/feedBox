@@ -26,6 +26,7 @@ import {
   redirectToAuthProvider,
   isAuthenticated,
   logout,
+  fetchWithAuth,
 } from "./pkce.js";
 
 const itemType = Object.freeze({
@@ -494,7 +495,7 @@ async function importFeeds() {
     }
     const file = fileInput.files[0];
 
-    const response = await fetch("./api/opml", {
+    const response = await fetchWithAuth("./api/opml", {
       method: "POST",
       body: file,
       headers: {
