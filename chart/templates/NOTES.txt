@@ -1,4 +1,42 @@
-Feedbox is deployed!
+{{- $svcName := include "feedbox.fullname" . }}
+{{- $namespace := .Release.Namespace }}
+{{- $svcPort := .Values.service.port }}
 
-- Access via: https://{{ (index .Values.ingress.hosts 0).host }}
-- OIDC Proxy enabled: {{ .Values.oauth2Proxy.enabled }}
+Congratulations! You have successfully deployed {{ .Chart.Name }} (Release: {{ .Release.Name }}).
+
+1. Access the Application:
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+{{- range .paths }}
+   http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}{{ .path }}
+{{- end }}
+{{- end }}
+{{- else if .Values.httpRoute.enabled }}
+   Kubernetes HTTPRoute is active.
+   Hostname: {{ index .Values.httpRoute.hostnames 0 }}
+   Gateway:  {{ with index .Values.httpRoute.parentRefs 0 }}{{ .name }}/{{ .sectionName }}{{ end }}
+{{- else if contains "ClusterIP" $.Values.service.type }}
+   The service is internal (ClusterIP). To access it locally, run:
+     export POD_NAME=$(kubectl get pods --namespace {{ $namespace }} -l "app.kubernetes.io/name={{ include "chart.name" . }},app.kubernetes.io/instance={{ $.Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+     kubectl --namespace {{ $namespace }} port-forward $POD_NAME {{ $svcPort }}:{{ $svcPort }}
+   Then visit: http://127.0.0.1:{{ $svcPort }}
+{{- end }}
+
+2. Configuration & Security Notes:
+   • SSO Status: {{ if .Values.sso.enabled }}ENABLED{{ else }}DISABLED{{ end }}
+   {{- if .Values.sso.enabled }}
+     ⚠️  Ensure `clientId`, `redirectUri`, `authServerUrl`, and `jwtPublicKeyLocation` are properly configured in values.yaml.
+   {{- end }}
+   • Database: Credentials are sourced from Kubernetes Secret: `{{ .Values.dbSecretName }}` (key: `{{ .Values.database.jdbcUrlKey }}`)
+   • Security Context: Pods enforce `runAsNonRoot` (UID 1000), `readOnlyRootFilesystem`, `seccompProfile: RuntimeDefault`, and all Linux capabilities are dropped.
+   • Networking: {{ if and .Values.ingress.enabled .Values.httpRoute.enabled }}⚠️  WARNING: Both Ingress and HTTPRoute are enabled! Kubernetes does not enforce mutual exclusivity. Disable one to prevent routing conflicts.{{ else if .Values.httpRoute.enabled }}HTTPRoute is enabled by default.{{ else if .Values.ingress.enabled }}Ingress is enabled.{{ else }}No external routing is configured.{{ end }}
+
+3. Troubleshooting & Next Steps:
+   • Check rollout status: kubectl rollout status deployment/{{ $svcName }} -n {{ $namespace }}
+   • View application logs:  kubectl logs -n {{ $namespace }} -l app.kubernetes.io/instance={{ $.Release.Name }} -f
+   • Verify probes & security context: kubectl describe pod -n {{ $namespace }} -l app.kubernetes.io/instance={{ $.Release.Name }}
+   • Restart after config/env changes: kubectl rollout restart deployment/{{ $svcName }} -n {{ $namespace }}
+
+{{- if or .Values.extraEnv .Values.extraEnvFrom }}
+💡 Tip: Custom environment variables or `envFrom` sources were injected. Restart pods if they reference newly created ConfigMaps/Secrets.
+{{- end }}

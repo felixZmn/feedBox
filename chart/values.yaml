@@ -2,19 +2,24 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/felixzmn/docker
-  name: "feedbox"
+  name: feedbox
   tag: ""
-  pullPolicy: Always
+  pullPolicy: IfNotPresent  # Changed to best practice default
 
-imagePullSecrets: 
-- name: regcred
+imagePullSecrets: []
+# - name: regcred
 
 nameOverride: ""
 fullnameOverride: ""
 
 serviceAccount:
   create: true
+  annotations: {}
+  automount: false
   name: ""
+
+# Add custom pod annotations if needed (e.g., Prometheus scrape)
+podAnnotations: {}
 
 podSecurityContext:
   runAsNonRoot: true
@@ -31,6 +36,13 @@ containerSecurityContext:
 service:
   type: ClusterIP
   port: 8080
+  annotations: {}
+
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 25%
+    maxUnavailable: 25%
 
 resources:
   requests:
@@ -40,65 +52,86 @@ resources:
     memory: "256Mi"
     cpu: "250m"
 
-# Optional application config (configmap entries).
-# Use the DB secret key for QUARKUS_DATASOURCE_JDBC_URL in Deployment env.
+# Probes are now fully configurable
+startupProbe:
+  enabled: true
+  periodSeconds: 10
+  failureThreshold: 30
+
+readinessProbe:
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+
+livenessProbe:
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 5
+
+# Application ConfigMap data
 config:
   quarkus.http.host: "0.0.0.0"
   quarkus.http.port: "8080"
-  app.http.user-agent: "FeedBox/2.0.1-SNAPSHOT"
+  app.http.user-agent: "FeedBox/2.0.2-SNAPSHOT"
 
+# Extend environment variables easily
+extraEnv: []
+# - name: MY_CUSTOM_VAR
+#   value: "custom"
+# - name: MY_SECRET
+#   valueFrom:
+#     secretKeyRef:
+#       name: my-secret
+#       key: my-key
+
+# Extend envFrom sources
+extraEnvFrom: []
+# - configMapRef:
+#     name: extra-configmap
+# - secretRef:
+#     name: extra-secret
+
+sso:
+  enabled: true
+  clientId: ""
+  redirectUri: ""
+  authServerUrl: ""
+  jwtPublicKeyLocation: ""
 
 dbSecretName: newsfeed-pguser-newsfeed
 database:
   jdbcUrlKey: jdbc-uri
 
+# NOTE: Only enable ONE of ingress or httpRoute. Kubernetes does not enforce mutual exclusivity.
 ingress:
   enabled: false
   className: nginx
   annotations: {}
   hosts:
-    - host: news.example.com
+    - host: feedbox.example.com
       paths:
         - path: /
           pathType: Prefix
   tls: []
+  # - secretName: feedbox-tls
+  #   hosts:
+  #     - feedbox.example.com
 
 httpRoute:
   enabled: true
   annotations: {}
   parentRefs:
-  - name: gateway
-    sectionName: http
-    namespace: default
+    - name: gateway
+      sectionName: http
+      namespace: default
   hostnames:
-  - chart-example.local
+    - feedbox.example.com
   rules:
-  - matches:
-    - path:
-        type: PathPrefix
-        value: /
-
-oauth2Proxy:
-  enabled: true
-  image:
-    repository: "quay.io/oauth2-proxy"
-    name: "oauth2-proxy"
-    tag: "v7.14.3-alpine"
-    pullPolicy: IfNotPresent
-  service:
-    port: 4180
-  secretName: feedbox-oidc-secret
-  config:
-    provider: oidc
-    # Issuer URL for OIDC
-    oidcIssuerUrl: https://auth.example.com/application/o/feedbox/
-    clientId: feedbox
-    clientSecretKey: client_secret
-    cookieSecretKey: cookie_secret
-    emailDomains: ["*"]
-    cookieSecure: true
-    redirectUri: https://news.example.com/oauth2/callback
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
 
 nodeSelector: {}
 tolerations: []
-affinity: {}  
+affinity: {}
