@@ -1,9 +1,4 @@
-{{- if .Values.httpRoute.enabled -}}
-{{- $svcName := include "feedbox.fullname" . -}}
-{{- if .Values.oauth2Proxy.enabled -}}
-{{- $svcName = printf "%s-oauth2-proxy" $svcName -}}
-{{- end -}}
-{{- $svcPort := ternary .Values.oauth2Proxy.service.port .Values.service.port .Values.oauth2Proxy.enabled -}}
+{{- if .Values.httpRoute.enabled }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -17,25 +12,23 @@ metadata:
 spec:
   parentRefs:
     {{- with .Values.httpRoute.parentRefs }}
-      {{- toYaml . | nindent 4 }}
+    {{- toYaml . | nindent 4 }}
     {{- end }}
   {{- with .Values.httpRoute.hostnames }}
   hostnames:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   rules:
-    {{- range .Values.httpRoute.rules }}
-    {{- with .matches }}
-    - matches:
-      {{- toYaml . | nindent 8 }}
-    {{- end }}
+  {{- range .Values.httpRoute.rules }}
+  - matches:
+      {{- toYaml .matches | default list | nindent 6 }}
     {{- with .filters }}
-      filters:
-      {{- toYaml . | nindent 8 }}
+    filters:
+      {{- toYaml . | nindent 6 }}
     {{- end }}
-      backendRefs:
-        - name: {{ $svcName }}
-          port: {{ $svcPort }}
-          weight: 1
-    {{- end }}
+    backendRefs:
+      - name: {{ include "feedbox.fullname" $ }}
+        port: {{ $.Values.service.port }}
+        weight: 1
+  {{- end }}
 {{- end }}

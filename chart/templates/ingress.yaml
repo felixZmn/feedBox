@@ -1,4 +1,4 @@
-{{- if .Values.ingress.enabled -}}
+{{- if .Values.ingress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -15,7 +15,7 @@ spec:
   {{- end }}
   rules:
   {{- range .Values.ingress.hosts }}
-    - host: {{ .host }}
+    - host: {{ .host | quote }}
       http:
         paths:
         {{- range .paths }}
@@ -23,22 +23,18 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ include "feedbox.fullname" $ }}{{- if $.Values.oauth2Proxy.enabled }}-oauth2-proxy{{ end }}
+                name: {{ include "feedbox.fullname" $ }}
                 port:
-                  number: {{ if $.Values.oauth2Proxy.enabled -}}
-                          {{ $.Values.oauth2Proxy.service.port }}
-                          {{- else -}}
-                          {{ $.Values.service.port }}
-                          {{- end }}
+                  number: {{ $.Values.service.port }}
         {{- end }}
   {{- end }}
   {{- if .Values.ingress.tls }}
   tls:
   {{- range .Values.ingress.tls }}
     - hosts:
-        {{- range .hosts }}
-        - {{ . }}
-        {{- end }}
+      {{- range .hosts }}
+        - {{ . | quote }}
+      {{- end }}
       secretName: {{ .secretName }}
   {{- end }}
   {{- end }}

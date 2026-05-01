@@ -6,61 +6,96 @@ metadata:
     {{- include "feedbox.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  strategy: {{- toYaml .Values.updateStrategy | nindent 4 }}
   selector:
     matchLabels:
       {{- include "feedbox.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      annotations:
+        # Automatically restart pods when ConfigMap changes
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       labels:
         {{- include "feedbox.selectorLabels" . | nindent 8 }}
     spec:
-      serviceAccountName: {{ include "feedbox.serviceAccountName" . }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      serviceAccountName: {{ include "feedbox.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automount }}
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-        - name: feedbox
+        - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}/{{ .Values.image.name }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
-          env:
-          - name: QUARKUS_DATASOURCE_JDBC_URL
-            valueFrom:
-              secretKeyRef:
-                name: {{ .Values.dbSecretName }}
-                key: {{ .Values.database.jdbcUrlKey }}
+              protocol: TCP
           envFrom:
-          - configMapRef:
-              name: {{ include "feedbox.fullname" . }}
+            - configMapRef:
+                name: {{ include "feedbox.fullname" . }}
+          {{- with .Values.extraEnvFrom }}
+          envFrom: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            - name: QUARKUS_DATASOURCE_JDBC_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.dbSecretName }}
+                  key: {{ .Values.database.jdbcUrlKey }}
+            - name: MP_JWT_VERIFY_PUBLICKEY_LOCATION
+              value: {{ .Values.sso.jwtPublicKeyLocation | quote }}
+            - name: SSO_CLIENTID
+              value: {{ .Values.sso.clientId | quote }}
+            - name: SSO_REDIRECTURI
+              value: {{ .Values.sso.redirectUri | quote }}
+            - name: SSO_AUTHSERVERURL
+              value: {{ .Values.sso.authServerUrl | quote }}
+          {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          {{- with .Values.containerSecurityContext }}
           securityContext:
-            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: tmp
-              mountPath: /tmp/
+              mountPath: /tmp
+          {{- if .Values.startupProbe.enabled }}
+          startupProbe:
+            httpGet:
+              path: /q/health/started
+              port: http
+            failureThreshold: {{ .Values.startupProbe.failureThreshold }}
+            periodSeconds: {{ .Values.startupProbe.periodSeconds }}
+          {{- end }}
           readinessProbe:
             httpGet:
               path: /q/health/ready
               port: http
-            initialDelaySeconds: 5
-            periodSeconds: 1
-            timeoutSeconds: 5
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
           livenessProbe:
             httpGet:
               path: /q/health/live
               port: http
-            initialDelaySeconds: 5
-            periodSeconds: 1
-            timeoutSeconds: 5
-      
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -73,6 +108,3 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      volumes:
-        - name: tmp
-          emptyDir: {}
