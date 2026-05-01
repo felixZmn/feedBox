@@ -33,25 +33,25 @@ const CACHE_FILES = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => cache.addAll(CACHE_FILES))
-      .then(() => self.skipWaiting()),
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.addAll(CACHE_FILES);
+      self.skipWaiting();
+    })(),
   );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((cacheNames) =>
-        Promise.all(
-          cacheNames.map((name) =>
-            name !== CACHE_NAME ? caches.delete(name) : null,
-          ),
+    (async () => {
+      const cacheNames = await caches.keys();
+      await Promise.all(
+        cacheNames.map((name) =>
+          name !== CACHE_NAME ? caches.delete(name) : null,
         ),
-      )
-      .then(() => self.clients.claim()),
+      );
+      self.clients.claim();
+    })(),
   );
 });
 
@@ -61,16 +61,35 @@ self.addEventListener("fetch", (event) => {
 
   if (isAppFile) {
     event.respondWith(
-      caches
-        .match(event.request)
-        .then((cached) => cached || fetch(event.request))
-        .catch(() => new Response("Offline", { status: 503 })),
+      (async () => {
+        const cache = await caches.open(CACHE_NAME);
+        const cachedResponse = await cache.match(event.request);
+
+        // Start network fetch in the background to update the cache
+        const networkFetch = (async () => {
+          try {
+            const networkResponse = await fetch(event.request);
+            cache.put(event.request, networkResponse.clone());
+            return networkResponse;
+          } catch {
+            return cachedResponse || new Response("Offline", { status: 503 });
+          }
+        })();
+
+        // Return cached response immediately if available, otherwise wait for network
+        return cachedResponse || networkFetch;
+      })(),
     );
   } else {
+    // For API calls, go network only and provide a generic error
     event.respondWith(
-      fetch(event.request).catch(
-        () => new Response("Network error", { status: 503 }),
-      ),
+      (async () => {
+        try {
+          return await fetch(event.request);
+        } catch {
+          return new Response("Network error", { status: 503 });
+        }
+      })(),
     );
   }
 });
