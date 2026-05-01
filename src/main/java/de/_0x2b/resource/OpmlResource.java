@@ -1,6 +1,7 @@
 package de._0x2b.resource;
 
 import de._0x2b.service.OPMLService;
+import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -20,6 +21,7 @@ public class OpmlResource {
     OPMLService opmlService;
 
     @POST
+    @Authenticated
     public Response importOpml(InputStream bodyStream) {
         logger.debug("importOPML");
         try {
@@ -36,6 +38,7 @@ public class OpmlResource {
     }
 
     @GET
+    @Authenticated
     public Response exportOpml() {
         logger.debug("exportOPML");
         String opmlContent = opmlService.exportOpml();

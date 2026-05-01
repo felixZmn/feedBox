@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import de._0x2b.model.Feed;
 import de._0x2b.service.FeedService;
+import io.quarkus.security.Authenticated;
 
 @Path("/api/feed")
 @Produces(MediaType.APPLICATION_JSON)
@@ -21,6 +22,7 @@ public class FeedResource {
     FeedService feedService;
 
     @POST
+    @Authenticated
     public Response createFeed(Feed feed) {
         logger.debug("createFeed");
         return Response.ok(feedService.create(feed)).build();
@@ -28,6 +30,7 @@ public class FeedResource {
 
     @PUT
     @Path("/{id}")
+    @Authenticated
     public Response updateFeed(@PathParam("id") int id, Feed feed) {
         logger.debug("updateFeed");
         feed.setId(id);
@@ -36,6 +39,7 @@ public class FeedResource {
 
     @DELETE
     @Path("/{id}")
+    @Authenticated
     public Response deleteFeed(@PathParam("id") int id) {
         logger.debug("deleteFeed");
         feedService.delete(id);
@@ -44,6 +48,7 @@ public class FeedResource {
 
     @POST
     @Path("/refresh")
+    @Authenticated
     public Response refreshFeeds() {
         logger.debug("refreshFeeds");
         feedService.refresh();
@@ -52,6 +57,7 @@ public class FeedResource {
 
     @GET
     @Path("/check")
+    @Authenticated
     @Produces(MediaType.APPLICATION_JSON)
     public Response checkFeedUrl(@QueryParam("url") String url) {
         logger.debug("checkFeedUrl: {}", url);

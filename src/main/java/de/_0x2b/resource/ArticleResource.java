@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import de._0x2b.model.Article;
 import de._0x2b.service.ArticleService;
+import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -22,6 +23,7 @@ public class ArticleResource {
     ArticleService articleService;
 
     @GET
+    @Authenticated
     public Response getAllArticles(
             @QueryParam("folder") Integer folderId,
             @QueryParam("feed") Integer feedId,
