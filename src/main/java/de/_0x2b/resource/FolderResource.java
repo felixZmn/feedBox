@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import de._0x2b.model.Folder;
 import de._0x2b.service.FolderService;
+import io.quarkus.security.Authenticated;
 
 @Path("/api/folder")
 public class FolderResource {
@@ -27,6 +28,7 @@ public class FolderResource {
     FolderService folderService;
 
     @GET
+    @Authenticated
     @Produces(MediaType.APPLICATION_JSON)
     public Response getFolders() {
         logger.debug("getFolders");
@@ -34,6 +36,7 @@ public class FolderResource {
     }
 
     @POST
+    @Authenticated
     @Transactional
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
@@ -44,6 +47,7 @@ public class FolderResource {
 
     @PUT()
     @Path("/{id}")
+    @Authenticated
     @Transactional
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
@@ -55,6 +59,7 @@ public class FolderResource {
 
     @DELETE()
     @Path("/{id}")
+    @Authenticated
     @Transactional
     public Response deleteFolder(@PathParam("id") int id) {
         logger.debug("deleteFolder");
