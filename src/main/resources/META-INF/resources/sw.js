@@ -1,6 +1,6 @@
 "use strict";
 
-const VERSION = "v1::2026-05-01::003";
+const VERSION = "v1::2026-05-16::001";
 const CACHE_NAME = `feedbox-${VERSION}`;
 
 const CACHE_FILES = [

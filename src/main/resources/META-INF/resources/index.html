@@ -46,6 +46,12 @@
       <aside id="feeds-list" class="feeds-list border-right">
         <div class="column-header">
           <div class="left">
+            <a class="item-spacer" id="trigger-profile" title="Profile"
+              ><img
+                class="icon f-base"
+                src="icons/profile_placeholder.svg"
+                alt="Profile"
+            /></a>
             <a class="item-spacer" href="./api/opml" download="feed-export.opml"
               ><img
                 class="icon f-base"
@@ -58,14 +64,17 @@
                 src="icons/import.svg"
                 alt="Import Feeds"
             /></a>
-          </div>
-          <div class="right">
             <a class="item-spacer" id="trigger-refresh"
               ><img
                 id="refresh-spinner"
                 class="icon f-base"
                 src="icons/refresh.svg"
                 alt="Refresh feeds"
+            /></a>
+          </div>
+          <div class="right">
+            <a class="item-spacer" id="trigger-logout"
+              ><img class="icon f-base" src="icons/logout.svg" alt="Logout"
             /></a>
           </div>
         </div>
