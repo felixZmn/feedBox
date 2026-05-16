@@ -66,6 +66,7 @@ const dom = {
     editFolder: document.getElementById("trigger-folder-edit"),
     deleteFolder: document.getElementById("trigger-folder-delete"),
     logout: document.getElementById("trigger-logout"),
+    profile: document.getElementById("trigger-profile"),
   },
 };
 
@@ -174,6 +175,11 @@ function initEventListeners() {
   if (dom.button.logout) {
     dom.button.logout.addEventListener("click", () => {
       logout();
+    });
+  }
+  if (dom.button.profile) {
+    dom.button.profile.addEventListener("click", () => {
+      // placeholder, no use atm
     });
   }
   dom.searchInput.addEventListener("input", (e) => {

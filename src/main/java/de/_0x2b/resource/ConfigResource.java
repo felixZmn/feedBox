@@ -18,21 +18,26 @@ public class ConfigResource {
     @ConfigProperty(name = "sso.authServerUrl")
     String authServerUrl;
 
+    @ConfigProperty(name = "sso.endSessionEndpoint")
+    String endSessionEndpoint;
+
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public ConfigResponse getConfig() {
-        return new ConfigResponse(clientId, redirectUri, authServerUrl);
+        return new ConfigResponse(clientId, redirectUri, authServerUrl, endSessionEndpoint);
     }
 
     public static class ConfigResponse {
         public String clientId;
         public String redirectUri;
         public String authServerUrl;
+        public String endSessionEndpoint;
 
-        public ConfigResponse(String clientId, String redirectUri, String authServerUrl) {
+        public ConfigResponse(String clientId, String redirectUri, String authServerUrl, String endSessionEndpoint) {
             this.clientId = clientId;
             this.redirectUri = redirectUri;
             this.authServerUrl = authServerUrl;
+            this.endSessionEndpoint = endSessionEndpoint;
         }
     }
 }
