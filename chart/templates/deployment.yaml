@@ -59,6 +59,8 @@ spec:
               value: {{ .Values.sso.redirectUri | quote }}
             - name: SSO_AUTHSERVERURL
               value: {{ .Values.sso.authServerUrl | quote }}
+            - name: SSO__ENDSESSIONENDPOINT
+              value: {{ .Values.sso.endSessionEndpoint | quote }}
           {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
           {{- end }}

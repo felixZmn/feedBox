@@ -97,6 +97,7 @@ sso:
   redirectUri: ""
   authServerUrl: ""
   jwtPublicKeyLocation: ""
+  endSessionEndpoint: ""
 
 dbSecretName: newsfeed-pguser-newsfeed
 database:
