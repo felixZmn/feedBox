@@ -25,6 +25,7 @@ async function initSSOConfig() {
       clientId: json.clientId,
       redirectUri: json.redirectUri,
       authServerUrl: json.authServerUrl,
+      endSessionEndpoint: json.endSessionEndpoint,
     };
   } catch (error) {
     console.error("Error fetching SSO configuration:", error);
@@ -63,7 +64,7 @@ async function generateCodeChallenge(verifier) {
 }
 
 /**
- * In-memory token store with sessionStorage persistence.
+ * In-memory token store.
  * Handles access token, refresh token, and expiration time.
  * Provides methods to restore, save, clear, and check expiration.
  */
@@ -74,8 +75,8 @@ const memoryStore = {
 
   restore() {
     this.access_token = sessionStorage.getItem("access_token") || null;
-    this.refresh_token = sessionStorage.getItem("refresh_token") || null;
     this.expires_at = Number(sessionStorage.getItem("expires_at")) || null;
+    this.refresh_token = localStorage.getItem("refresh_token") || null;
   },
 
   save(response) {
@@ -86,7 +87,7 @@ const memoryStore = {
     }
     if (refresh_token) {
       this.refresh_token = refresh_token;
-      sessionStorage.setItem("refresh_token", refresh_token);
+      localStorage.setItem("refresh_token", refresh_token);
     }
     if (expires_in) {
       this.expires_at = Date.now() + expires_in * 1000;
@@ -99,8 +100,8 @@ const memoryStore = {
     this.refresh_token = null;
     this.expires_at = null;
     sessionStorage.removeItem("access_token");
-    sessionStorage.removeItem("refresh_token");
     sessionStorage.removeItem("expires_at");
+    localStorage.removeItem("refresh_token");
   },
 
   isExpired() {
@@ -297,6 +298,15 @@ async function initializeAuth() {
       console.error("Authentication callback failed:", error);
       throw error;
     }
+  } else if (memoryStore.refresh_token && memoryStore.isExpired()) {
+    // Returning user: access token gone/expired, but refresh token survived
+    try {
+      await refreshAccessToken();
+    } catch (error) {
+      // Refresh token also expired or revoked → require login
+      console.warn("Silent refresh failed, login required:", error);
+      memoryStore.clear();
+    }
   }
 }
 
@@ -309,14 +319,23 @@ function isAuthenticated() {
 }
 
 /**
- * Logs the user out by clearing all token data from memory and sessionStorage, then redirects to the login page.
+ * Logs the user out by clearing all token data and redirecting to the OIDC provider's end_session_endpoint
+ * (if configured), or falling back to the local redirect URI.
  */
 function logout() {
   memoryStore.clear();
   sessionStorage.removeItem("code_verifier");
   sessionStorage.removeItem("oauth_state");
   sessionStorage.removeItem("oidc_nonce");
-  window.location.href = config.redirectUri;
+
+  if (config?.endSessionEndpoint) {
+    const url = new URL(config.endSessionEndpoint);
+    url.searchParams.set("client_id", config.clientId);
+    url.searchParams.set("post_logout_redirect_uri", config.redirectUri);
+    window.location.href = url.toString();
+  } else {
+    window.location.href = config?.redirectUri || "/";
+  }
 }
 
 /**
