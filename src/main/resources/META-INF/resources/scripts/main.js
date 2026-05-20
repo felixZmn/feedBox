@@ -52,6 +52,7 @@ const dom = {
   refreshSpinner: document.getElementById("refresh-spinner"),
   searchInput: document.getElementById("search-input"),
   button: {
+    export: document.getElementById("trigger-export"),
     import: document.getElementById("trigger-import"),
     refresh: document.getElementById("trigger-refresh"),
     previous: document.getElementById("trigger-previous"),
@@ -120,6 +121,10 @@ function initEventListeners() {
     allFeedsClickListener(),
   );
   dom.button.refresh.addEventListener("click", () => refreshFeeds());
+  dom.button.export.addEventListener("click", async (event) => {
+    event.preventDefault();
+    await exportFeeds();
+  });
   dom.button.import.addEventListener("click", () => importFeeds());
   dom.button.addFolder.addEventListener("click", async () => {
     let newFolder = await showAddFolderDialog();
@@ -524,6 +529,43 @@ async function importFeeds() {
   });
 
   fileInput.click();
+}
+
+async function exportFeeds() {
+  try {
+    const response = await fetchWithAuth("./api/opml");
+
+    if (!response.ok) {
+      throw new Error(
+        response.statusText || response.status || "Unknown error",
+      );
+    }
+
+    downloadBlob(await response.blob(), "feed-export.opml");
+  } catch (error) {
+    const isHttpError = error.message !== "Failed to fetch";
+    await modal.show({
+      title: "Error",
+      content: isHttpError
+        ? `Error exporting feeds: ${error.message}`
+        : "Error exporting feeds. Please try again.",
+      type: "alert",
+    });
+    console.error("Error exporting feeds:", error);
+  }
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = Object.assign(document.createElement("a"), {
+    href: url,
+    download: filename,
+  });
+
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 async function refreshFeeds() {
