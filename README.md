@@ -137,19 +137,11 @@ java -jar target/*-runner.jar
 ## Build and push the Docker image:
 
 ```bash
+mvn install -Dnative
 VERSION=$(grep -m1 '<version>' pom.xml | sed -E 's/.*<version>([^<]+)<\/version>.*/\1/')
-
 docker build -f src/main/docker/Dockerfile.native-micro -t ghcr.io/felixzmn/docker/feedbox:latest -t ghcr.io/felixzmn/docker/feedbox:$VERSION .
 docker push ghcr.io/felixzmn/docker/feedbox:$VERSION
 docker push ghcr.io/felixzmn/docker/feedbox:latest
-```
-
-## Build and push the Helm chart
-
-```bash
-cd chart
-helm package .
-helm push feedbox-*.tgz oci://ghcr.io/felixzmn/helm
 ```
 
 # Release Process
