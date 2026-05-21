@@ -90,18 +90,26 @@ For installing via Helm, use the following command:
 helm install feedbox oci://ghcr.io/felixzmn/helm/feedbox --version <VERSION>
 ```
 
-Default service port is configured as `8080` in `chart/values.yaml` (matching Quarkus `quarkus.http.port`).
+Default configuration values can be found in `values.yaml` in the Helm chart. You can override these values by providing a custom `values.yaml` file or using `--set` flags.
 
-Database credentials are expected through a secret referenced by `chart/values.yaml`:
+## Configuration Parameters
 
-- `dbSecretName` (`newsfeed-pguser-newsfeed` by default)
-- `database.jdbcUrlKey` (`jdbc-uri` by default, used as `QUARKUS_DATASOURCE_JDBC_URL`)
+The following environment variables / properties can be configured:
 
-You can also configure app settings in the chart configmap via `chart/values.yaml`:
-
-- `config.quarkus.http.host` = `0.0.0.0`
-- `config.quarkus.http.port` = `8080`
-- `config.app.http.user-agent` = `FeedBox/2.0.1-SNAPSHOT`
+| Parameter                          | Default         | Description                          |
+| ---------------------------------- | --------------- | ------------------------------------ |
+| `QUARKUS_DATASOURCE_JDBC_URL`      | -               | ! Database connection URL (required) |
+| `QUARKUS_DATASOURCE_JDBC_MAX_SIZE` | `16`            | Maximum connection pool size         |
+| `MP_JWT_VERIFY_PUBLICKEY_LOCATION` | -               | JWT public key URL                   |
+| `MP_JWT_VERIFY_ISSUER`             | -               | JWT issuer validation                |
+| `SSO_CLIENTID`                     | -               | SSO client ID                        |
+| `SSO_REDIRECTURI`                  | -               | SSO redirect URI after login         |
+| `SSO_AUTHSERVERURL`                | -               | SSO authorization server URL         |
+| `SSO_ENDSESSIONENDPOINT`           | -               | SSO logout endpoint                  |
+| `QUARKUS_HTTP_PORT`                | `8080`          | HTTP port for the application        |
+| `APP_HTTP_USER_AGENT`              | `FeedBox/2.0.5` | User agent string for HTTP requests  |
+| `REFRESH_JOB_INTERVAL`             | `1h`            | Background feed refresh interval     |
+| `APP_HTTP_TIMEOUT`                 | `30`            | HTTP request timeout in seconds      |
 
 # Local Development
 
@@ -117,7 +125,6 @@ You can also configure app settings in the chart configmap via `chart/values.yam
 | --------- | --------------------- |
 | `backend` | Java-code             |
 | `ui`      | Frontend related code |
-| `chart`   | Helm chart            |
 | `deps`    | Dependencies          |
 | `docs`    | Documentation         |
 
