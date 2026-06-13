@@ -17,6 +17,11 @@ import {
   renderFoldersList,
   renderReaderView,
   clearArticlesList,
+  renderSkeletons,
+  removeSkeletons,
+  renderEmptyState,
+  showFeedsSpinner,
+  hideFeedsSpinner,
 } from "./dom.js";
 import { NavigationService, columns } from "./nav.js";
 import { escapeHtml } from "./util.js";
@@ -382,6 +387,7 @@ function clearArticles() {
   state.articles = [];
   dataService.clearArticles();
   clearArticlesList();
+  removeSkeletons();
 }
 
 function resetPagination() {
@@ -390,9 +396,11 @@ function resetPagination() {
 }
 
 async function loadFolders() {
+  showFeedsSpinner();
   const foldersWithFeeds = await dataService.getFolders();
   renderFoldersList(foldersWithFeeds);
   state.folders = foldersWithFeeds;
+  hideFeedsSpinner();
 }
 
 async function createFolder(folder) {
@@ -587,6 +595,10 @@ async function refreshFeeds() {
 async function loadArticles() {
   if (state.status.isLoadingArticles) return;
   state.status.isLoadingArticles = true;
+
+  removeSkeletons();
+  renderSkeletons(6);
+
   try {
     const params = {};
     switch (state.lastClickedItem.type) {
@@ -612,7 +624,15 @@ async function loadArticles() {
     }
 
     const newArticles = await dataService.loadArticles(params);
-    if (!newArticles || newArticles.length === 0) return;
+
+    removeSkeletons();
+
+    if (!newArticles || newArticles.length === 0) {
+      if (dataService.getArticles().length === 0) {
+        renderEmptyState();
+      }
+      return;
+    }
 
     state.articles = dataService.getArticles();
 
@@ -623,6 +643,7 @@ async function loadArticles() {
 
     appendArticlesList(newArticles);
   } finally {
+    removeSkeletons();
     state.status.isLoadingArticles = false;
   }
 }

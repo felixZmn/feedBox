@@ -321,3 +321,85 @@ function addElement() {
   details.appendChild(summary);
   return details;
 }
+
+/**
+ * Renders skeleton placeholder articles during loading.
+ * Randomly varies title width (90% or 60%) per skeleton for a natural look,
+ * and includes an image placeholder for ~40% of items.
+ * @param {number} [count=6] - Number of skeleton articles to render
+ */
+export function renderSkeletons(count = 6) {
+  const fragment = document.createDocumentFragment();
+  for (let i = 0; i < count; i++) {
+    const articleDiv = document.createElement("div");
+    articleDiv.className = "skeleton-article";
+
+    // header row: source + age bars
+    const headerDiv = document.createElement("div");
+    headerDiv.className = "skeleton-header";
+    const sourceBar = document.createElement("div");
+    sourceBar.className = "skeleton skeleton-source";
+    const ageBar = document.createElement("div");
+    ageBar.className = "skeleton skeleton-age";
+    headerDiv.appendChild(sourceBar);
+    headerDiv.appendChild(ageBar);
+
+    articleDiv.appendChild(headerDiv);
+
+    // ~40% get an image placeholder
+    if (i % 3 === 0 || i % 4 === 0) {
+      const imageDiv = document.createElement("div");
+      imageDiv.className = "article-image";
+      const imageBar = document.createElement("div");
+      imageBar.className = "skeleton skeleton-image";
+      imageDiv.appendChild(imageBar);
+      articleDiv.appendChild(imageDiv);
+    }
+
+    // title bar
+    const titleDiv = document.createElement("div");
+    titleDiv.className = `skeleton ${
+      i % 2 === 0 ? "skeleton-title" : "skeleton-title-short"
+    }`;
+    articleDiv.appendChild(titleDiv);
+
+    fragment.appendChild(articleDiv);
+  }
+  articlesContainer.appendChild(fragment);
+}
+
+/**
+ * Removes all skeleton article placeholders from the articles container.
+ */
+export function removeSkeletons() {
+  articlesContainer
+    .querySelectorAll(".skeleton-article")
+    .forEach((el) => el.remove());
+}
+
+/**
+ * Renders an empty state message in the articles container.
+ * @param {string} [message="No articles found"] - The message to display
+ */
+export function renderEmptyState(message = "No articles found") {
+  const div = document.createElement("div");
+  div.className = "empty-state";
+  div.textContent = message;
+  articlesContainer.appendChild(div);
+}
+
+/**
+ * Shows the feeds sidebar loading spinner.
+ */
+export function showFeedsSpinner() {
+  const el = document.getElementById("feeds-loading");
+  if (el) el.classList.remove("d-none");
+}
+
+/**
+ * Hides the feeds sidebar loading spinner.
+ */
+export function hideFeedsSpinner() {
+  const el = document.getElementById("feeds-loading");
+  if (el) el.classList.add("d-none");
+}
