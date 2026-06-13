@@ -388,6 +388,7 @@ function clearArticles() {
   dataService.clearArticles();
   clearArticlesList();
   removeSkeletons();
+  document.querySelector("#articles-list .column").scrollTop = 0;
 }
 
 function resetPagination() {
