@@ -24,7 +24,11 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
+
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 @ApplicationScoped
 public class FeedService {
@@ -42,6 +46,9 @@ public class FeedService {
     MediaRssParser mediaRssParser;
     @Inject
     ArticleMapper articleMapper;
+
+    @ConfigProperty(name = "refresh.concurrency", defaultValue = "10")
+    int refreshConcurrency = 10;
 
     /**
      * Store a new feed in the database
@@ -103,14 +110,38 @@ public class FeedService {
     }
 
     /**
-     * Internal helper to refresh a list of feeds
+     * Internal helper to refresh a list of feeds with bounded concurrency using
+     * virtual threads.
      *
      * @param feeds
      */
     private void refresh(List<Feed> feeds) {
         logger.info("Refreshing Feeds...");
+        Semaphore semaphore = new Semaphore(refreshConcurrency);
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            feeds.forEach(feed -> executor.submit(() -> parseFeed(feed)));
+            List<CompletableFuture<Void>> futures = feeds.stream()
+                    .map(feed -> CompletableFuture.runAsync(() -> {
+                        try {
+                            semaphore.acquire();
+                            try {
+                                parseFeed(feed);
+                            } finally {
+                                semaphore.release();
+                            }
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            logger.warn("Feed refresh interrupted for {}", feed.getFeedUrl(), e);
+                        }
+                    }, executor))
+                    .toList();
+
+            for (var future : futures) {
+                try {
+                    future.join();
+                } catch (Exception e) {
+                    logger.error("Feed refresh failed", e);
+                }
+            }
         }
         logger.info("Feeds refreshed!");
     }
