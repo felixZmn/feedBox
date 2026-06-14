@@ -256,12 +256,19 @@ public class FeedService {
         var items = mediaRssParser.parse(response.body());
 
         var articles = new java.util.ArrayList<de._0x2b.model.Article>(items.size());
+        int skipped = 0;
         for (var item : items) {
             try {
                 articles.add(articleMapper.toArticle(feed, item));
             } catch (Exception e) {
-                // log and continue
+                skipped++;
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Skipping article in feed [{}]", feed.getFeedUrl(), e);
+                }
             }
+        }
+        if (skipped > 0) {
+            logger.warn("Skipped {} malformed article(s) in feed [{}]", skipped, feed.getFeedUrl());
         }
         articleRepository.create(articles);
     }
