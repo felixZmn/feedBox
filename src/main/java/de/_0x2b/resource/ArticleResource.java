@@ -27,7 +27,7 @@ public class ArticleResource {
     public Response getAllArticles(
             @QueryParam("folder") Integer folderId,
             @QueryParam("feed") Integer feedId,
-            @QueryParam("pagination_id") Integer paginationId,
+            @QueryParam("pagination_id") Long paginationId,
             @QueryParam("pagination_date") String paginationDate) {
 
         logger.debug("getAllArticles");
@@ -35,7 +35,7 @@ public class ArticleResource {
         // Set default values if parameters are null
         int folder = folderId != null ? folderId : -1;
         int feed = feedId != null ? feedId : -1;
-        int pagId = paginationId != null ? paginationId : -1;
+        long pagId = paginationId != null ? paginationId : -1L;
         String pagDate = paginationDate != null ? paginationDate : "";
 
         List<Article> result;

@@ -19,14 +19,14 @@ public class ArticleService {
 
     /**
      * Get all articles with pagination
-     * 
+     *
      * @param paginationId
      * @param paginationPublished
      * @return
      */
-    public List<Article> getAll(int paginationId, String paginationPublished) {
+    public List<Article> getAll(long paginationId, String paginationPublished) {
         logger.debug("getAll");
-        if (paginationId == -1 && "".equals(paginationPublished)) {
+        if (paginationId == -1L && "".equals(paginationPublished)) {
             return articleRepository.findAll();
 
         }
@@ -35,15 +35,15 @@ public class ArticleService {
 
     /**
      * Get articles by folder with pagination
-     * 
+     *
      * @param paginationId
      * @param paginationPublished
      * @param folderId
      * @return
      */
-    public List<Article> findByFolder(int paginationId, String paginationPublished, int folderId) {
+    public List<Article> findByFolder(long paginationId, String paginationPublished, int folderId) {
         logger.debug("findByFolder");
-        if (paginationId == -1 && "".equals(paginationPublished)) {
+        if (paginationId == -1L && "".equals(paginationPublished)) {
             return articleRepository.findByFolder(folderId);
         }
         return articleRepository.findByFolder(folderId, paginationId, paginationPublished);
@@ -51,15 +51,15 @@ public class ArticleService {
 
     /**
      * Get articles by feed with pagination
-     * 
+     *
      * @param paginationId
      * @param paginationPublished
      * @param feedId
      * @return
      */
-    public List<Article> findByFeed(int paginationId, String paginationPublished, int feedId) {
+    public List<Article> findByFeed(long paginationId, String paginationPublished, int feedId) {
         logger.debug("findByFeed");
-        if (paginationId == -1 && "".equals(paginationPublished)) {
+        if (paginationId == -1L && "".equals(paginationPublished)) {
             return articleRepository.findByFeed(feedId);
         }
         return articleRepository.findByFeed(feedId, paginationId, paginationPublished);

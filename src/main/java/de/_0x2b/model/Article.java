@@ -1,5 +1,6 @@
 package de._0x2b.model;
 
+import java.time.Instant;
 import java.util.Objects;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -13,7 +14,7 @@ public class Article {
     String description;
     String content;
     String link;
-    String published;
+    Instant published;
     String authors;
     String imageUrl;
     String categories;
@@ -22,7 +23,7 @@ public class Article {
     }
 
     public Article(long id, int feedId, String feedName, String title, String description, String content, String link,
-            String published, String authors, String imageUrl, String categories) {
+            Instant published, String authors, String imageUrl, String categories) {
         this.id = id;
         this.feedId = feedId;
         this.feedName = feedName;
@@ -82,7 +83,7 @@ public class Article {
         return link;
     }
 
-    public String getPublished() {
+    public Instant getPublished() {
         return published;
     }
 

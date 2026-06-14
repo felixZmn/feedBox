@@ -8,11 +8,11 @@ import de._0x2b.model.Feed;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -22,8 +22,9 @@ class ArticleMapperTest {
     private final ArticleMapper sut = new ArticleMapper();
 
     @Test
-    void toArticle_mapsBasicFields_andFormatsDateInUtc() {
-        Feed feed = new Feed(10, 1, "FeedName", URI.create("https://example.com"), URI.create("https://example.com/rss"));
+    void toArticle_mapsBasicFields_andStoresInstantPublicationDate() {
+        Feed feed = new Feed(10, 1, "FeedName", URI.create("https://example.com"),
+                URI.create("https://example.com/rss"));
 
         MediaRssItem item = mock(MediaRssItem.class);
         when(item.getTitle()).thenReturn(Optional.of("Title"));
@@ -50,7 +51,8 @@ class ArticleMapperTest {
         assertEquals("Content", a.getContent());
         assertEquals("https://example.com/a", a.getLink());
         assertEquals("Author", a.getAuthors());
-        assertEquals("2020-01-01 00:00:00 UTC", a.getPublished());
+        // Real Instant comparison instead of formatted string
+        assertEquals(Instant.parse("2020-01-01T00:00:00Z"), a.getPublished());
 
         // exact Set#toString order can vary; just assert it contains values
         assertNotNull(a.getCategories());
@@ -60,7 +62,8 @@ class ArticleMapperTest {
 
     @Test
     void toArticle_prefersMediaThumbnail_overEnclosureImage() {
-        Feed feed = new Feed(10, 1, "FeedName", URI.create("https://example.com"), URI.create("https://example.com/rss"));
+        Feed feed = new Feed(10, 1, "FeedName", URI.create("https://example.com"),
+                URI.create("https://example.com/rss"));
 
         MediaRssItem item = mock(MediaRssItem.class);
         when(item.getTitle()).thenReturn(Optional.of("Title"));
@@ -87,7 +90,8 @@ class ArticleMapperTest {
 
     @Test
     void toArticle_usesEnclosureImage_whenNoThumbnailAndEnclosureIsImage() {
-        Feed feed = new Feed(10, 1, "FeedName", URI.create("https://example.com"), URI.create("https://example.com/rss"));
+        Feed feed = new Feed(10, 1, "FeedName", URI.create("https://example.com"),
+                URI.create("https://example.com/rss"));
 
         MediaRssItem item = mock(MediaRssItem.class);
         when(item.getTitle()).thenReturn(Optional.of("Title"));

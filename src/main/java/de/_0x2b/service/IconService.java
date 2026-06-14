@@ -172,7 +172,10 @@ public class IconService {
      * Method to fetch a favicon from a given url
      *
      * @param icon Icon object that contains the url - other fields are not relevant
-     * @return Icon object that, in case of success is filled with icon data
+     * @return Icon object that, in case of success is filled with icon data.
+     *         If the response is not an image, the icon is returned with
+     *         a null image byte[] so the caller can try the next URL or
+     *         fall back to the default icon.
      */
     public Icon fetchFavicon(Icon icon) {
         var optional = httpsService.fetchAsBytes(URI.create(icon.getUrl()));
@@ -182,8 +185,20 @@ public class IconService {
         }
 
         var response = optional.get();
+        String mime = response.headers().firstValue("content-type").orElse("application/octet-stream");
+        // Security: a feed author could try to make us serve HTML or
+        // JavaScript as the "icon". Reject anything that doesn't look
+        // like an image MIME type. SVG is intentionally excluded here:
+        // an SVG can contain <script> and is a script-capable format
+        // when served as the document body. If you trust your feeds,
+        // add "image/svg+xml" to the allow list.
+        if (mime == null || !mime.toLowerCase().startsWith("image/") || mime.toLowerCase().startsWith("image/svg")) {
+            logger.warn("Refusing non-image favicon (content-type={}) from {}", mime, icon.getUrl());
+            icon.setImage(null);
+            return icon;
+        }
         icon.setImage(response.body());
-        icon.setMimeType(response.headers().firstValue("content-type").orElse("application/octet-stream"));
+        icon.setMimeType(mime);
         return icon;
     }
 

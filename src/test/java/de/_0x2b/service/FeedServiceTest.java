@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpResponse;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -55,7 +56,8 @@ class FeedServiceTest {
 
     @Test
     void create_withIcon_storesFeedAndIconAndReturnsFeedId() {
-        Feed feed = new Feed(-1, -1, "name", URI.create("https://site.example"), URI.create("https://site.example/rss"));
+        Feed feed = new Feed(-1, -1, "name", URI.create("https://site.example"),
+                URI.create("https://site.example/rss"));
         Icon icon = new Icon(); // adapt if your Icon needs ctor args
 
         when(feedRepository.create(feed)).thenReturn(42);
@@ -70,7 +72,8 @@ class FeedServiceTest {
 
     @Test
     void create_withNullIcon_onlyStoresFeed() {
-        Feed feed = new Feed(-1, -1, "name", URI.create("https://site.example"), URI.create("https://site.example/rss"));
+        Feed feed = new Feed(-1, -1, "name", URI.create("https://site.example"),
+                URI.create("https://site.example/rss"));
 
         when(feedRepository.create(feed)).thenReturn(7);
 
@@ -87,7 +90,8 @@ class FeedServiceTest {
         FeedService spy = spy(sut);
 
         Feed input = new Feed(-1, -1, "", null, URI.create("https://example.com/rss"));
-        Feed enriched = new Feed(-1, -1, "Feed Title", URI.create("https://example.com"), URI.create("https://example.com/rss"));
+        Feed enriched = new Feed(-1, -1, "Feed Title", URI.create("https://example.com"),
+                URI.create("https://example.com/rss"));
         Icon icon = new Icon();
 
         doReturn(enriched).when(spy).getFeedMetadata(input);
@@ -211,7 +215,7 @@ class FeedServiceTest {
     }
 
     @Test
-    void refresh_allFeeds_whenFetchEmpty_doesNotStoreArticles() {
+    void refresh_allFeeds_whenFetchEmpty_doesNotStoreArticles() throws SQLException {
         Feed feed = new Feed(1, 1, "n", URI.create("https://example.com"), URI.create("https://example.com/rss"));
 
         when(feedRepository.findAll()).thenReturn(List.of(feed));
@@ -220,15 +224,19 @@ class FeedServiceTest {
         sut.refresh();
 
         verify(articleRepository, never()).create(anyList());
+        // No HTTP response -> the new error-marking path should fire so
+        // the UI can surface a "broken since" state.
+        verify(feedRepository).markRefreshError(eq(1), anyString());
     }
 
     @Test
-    void refresh_singleFeed_whenStatusNot200_doesNotStoreArticles() {
+    void refresh_singleFeed_whenStatusNot200_doesNotStoreArticles() throws SQLException {
         Feed feed = new Feed(1, 1, "n", URI.create("https://example.com"), URI.create("https://example.com/rss"));
 
         when(feedRepository.findOne(1)).thenReturn(List.of(feed));
 
-        // You need to return whatever type HTTPSService returns; we mock it as Object with methods via deep stubs:
+        // You need to return whatever type HTTPSService returns; we mock it as Object
+        // with methods via deep stubs:
         var httpResponse = mock(java.net.http.HttpResponse.class, RETURNS_DEEP_STUBS);
         when(httpResponse.statusCode()).thenReturn(500);
 
@@ -237,20 +245,22 @@ class FeedServiceTest {
         sut.refresh(1);
 
         verify(articleRepository, never()).create(anyList());
+        verify(feedRepository).markRefreshError(eq(1), anyString());
     }
 
     @Test
-    void parseFeed_whenFetchEmpty_doesNothing() {
+    void parseFeed_whenFetchEmpty_doesNothing_andMarksError() throws SQLException {
         Feed feed = new Feed(1, 1, "Feed", URI.create("https://example.com"), URI.create("https://example.com/rss"));
         when(httpsService.fetchUriAsStream(feed.getFeedUrl())).thenReturn(Optional.empty());
 
         sut.parseFeed(feed);
 
         verifyNoInteractions(mediaRssParser, articleMapper, articleRepository);
+        verify(feedRepository).markRefreshError(eq(1), anyString());
     }
 
     @Test
-    void parseFeed_whenStatusNot200_doesNothing() {
+    void parseFeed_whenStatusNot200_doesNothing_andMarksError() throws SQLException {
         Feed feed = new Feed(1, 1, "Feed", URI.create("https://example.com"), URI.create("https://example.com/rss"));
 
         @SuppressWarnings("unchecked")
@@ -261,10 +271,11 @@ class FeedServiceTest {
         sut.parseFeed(feed);
 
         verifyNoInteractions(mediaRssParser, articleMapper, articleRepository);
+        verify(feedRepository).markRefreshError(eq(1), anyString());
     }
 
     @Test
-    void parseFeed_whenStatus200_parsesMapsAndStoresArticles() {
+    void parseFeed_whenStatus200_parsesMapsAndStoresArticles_andMarksSuccess() throws SQLException {
         Feed feed = new Feed(5, 1, "MyFeed", URI.create("https://example.com"), URI.create("https://example.com/rss"));
 
         // response body InputStream
@@ -281,7 +292,7 @@ class FeedServiceTest {
         when(mediaRssParser.parse(body)).thenReturn(List.of(item1, item2));
 
         Article a1 = new Article(-1, feed.getId(), feed.getName(),
-                "t1", "d1", "c1", "l1", "2020-01-01 00:00:00 UTC",
+                "t1", "d1", "c1", "l1", Instant.parse("2020-01-01T00:00:00Z"),
                 "auth1", "img1", "cats1");
         Article a2 = new Article(-1, feed.getId(), feed.getName(),
                 "t2", "d2", "c2", "l2", null,
@@ -303,10 +314,13 @@ class FeedServiceTest {
         verify(mediaRssParser).parse(body);
         verify(articleMapper).toArticle(feed, item1);
         verify(articleMapper).toArticle(feed, item2);
+        // Successful insert -> mark the feed as healthy.
+        verify(feedRepository).markRefreshSuccess(eq(feed.getId()), isNull());
+        verify(feedRepository, never()).markRefreshError(anyInt(), anyString());
     }
 
     @Test
-    void parseFeed_whenMapperThrowsForOneItem_continuesWithOthers() {
+    void parseFeed_whenMapperThrowsForOneItem_continuesWithOthers() throws SQLException {
         Feed feed = new Feed(5, 1, "MyFeed", URI.create("https://example.com"), URI.create("https://example.com/rss"));
 
         InputStream body = new ByteArrayInputStream("<rss/>".getBytes());
@@ -335,6 +349,36 @@ class FeedServiceTest {
         List<Article> stored = captor.getValue();
         assertEquals(1, stored.size());
         assertSame(aGood, stored.getFirst());
+        // Even with one bad item, the batch is still considered a success.
+        verify(feedRepository).markRefreshSuccess(eq(feed.getId()), isNull());
+    }
+
+    @Test
+    void parseFeed_whenArticleRepositoryCreateThrows_marksError() throws SQLException {
+        Feed feed = new Feed(5, 1, "MyFeed", URI.create("https://example.com"), URI.create("https://example.com/rss"));
+
+        InputStream body = new ByteArrayInputStream("<rss/>".getBytes());
+
+        @SuppressWarnings("unchecked")
+        HttpResponse<InputStream> resp = (HttpResponse<InputStream>) mock(HttpResponse.class);
+        when(resp.statusCode()).thenReturn(200);
+        when(resp.body()).thenReturn(body);
+        when(httpsService.fetchUriAsStream(feed.getFeedUrl())).thenReturn(Optional.of(resp));
+
+        MediaRssItem item = mock(MediaRssItem.class);
+        when(mediaRssParser.parse(body)).thenReturn(List.of(item));
+        when(articleMapper.toArticle(feed, item))
+                .thenReturn(new Article(-1, feed.getId(), feed.getName(), "t", "d", "c", "l", null, "", "", ""));
+
+        // Simulate a database failure during the batch insert. This is
+        // the new behaviour - the failure must NOT be swallowed.
+        doThrow(new de._0x2b.exception.DataAccessException("DB down", new SQLException("down")))
+                .when(articleRepository).create(anyList());
+
+        sut.parseFeed(feed);
+
+        verify(feedRepository).markRefreshError(eq(feed.getId()), contains("DB down"));
+        verify(feedRepository, never()).markRefreshSuccess(anyInt(), any());
     }
 
     @Test

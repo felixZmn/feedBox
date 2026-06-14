@@ -27,17 +27,17 @@ class ArticleServiceTest {
         List<Article> expected = List.of(mock(Article.class));
         when(articleRepository.findAll()).thenReturn(expected);
 
-        List<Article> result = service.getAll(-1, "");
+        List<Article> result = service.getAll(-1L, "");
 
         assertSame(expected, result);
         verify(articleRepository).findAll();
-        verify(articleRepository, never()).findAll(anyInt(), anyString());
+        verify(articleRepository, never()).findAll(anyLong(), anyString());
         verifyNoMoreInteractions(articleRepository);
     }
 
     @Test
     void getAll_withPagination_callsRepoFindAllWithArgs() {
-        int pagId = 123;
+        long pagId = 123L;
         String pagPublished = "2026-01-01T10:00:00Z";
 
         List<Article> expected = List.of(mock(Article.class));
@@ -58,18 +58,18 @@ class ArticleServiceTest {
         List<Article> expected = List.of(mock(Article.class));
         when(articleRepository.findByFolder(folderId)).thenReturn(expected);
 
-        List<Article> result = service.findByFolder(-1, "", folderId);
+        List<Article> result = service.findByFolder(-1L, "", folderId);
 
         assertSame(expected, result);
         verify(articleRepository).findByFolder(folderId);
-        verify(articleRepository, never()).findByFolder(anyInt(), anyInt(), anyString());
+        verify(articleRepository, never()).findByFolder(anyInt(), anyLong(), anyString());
         verifyNoMoreInteractions(articleRepository);
     }
 
     @Test
     void findByFolder_withPagination_callsRepoFindByFolderWithArgs() {
         int folderId = 7;
-        int pagId = 10;
+        long pagId = 10L;
         String pagPublished = "2026-01-01T10:00:00Z";
 
         List<Article> expected = List.of(mock(Article.class));
@@ -90,18 +90,18 @@ class ArticleServiceTest {
         List<Article> expected = List.of(mock(Article.class));
         when(articleRepository.findByFeed(feedId)).thenReturn(expected);
 
-        List<Article> result = service.findByFeed(-1, "", feedId);
+        List<Article> result = service.findByFeed(-1L, "", feedId);
 
         assertSame(expected, result);
         verify(articleRepository).findByFeed(feedId);
-        verify(articleRepository, never()).findByFeed(anyInt(), anyInt(), anyString());
+        verify(articleRepository, never()).findByFeed(anyInt(), anyLong(), anyString());
         verifyNoMoreInteractions(articleRepository);
     }
 
     @Test
     void findByFeed_withPagination_callsRepoFindByFeedWithArgs() {
         int feedId = 3;
-        int pagId = 10;
+        long pagId = 10L;
         String pagPublished = "2026-01-01T10:00:00Z";
 
         List<Article> expected = List.of(mock(Article.class));

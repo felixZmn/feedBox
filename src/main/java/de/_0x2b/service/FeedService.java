@@ -274,14 +274,38 @@ public class FeedService {
     }
 
     /**
-     * Parse a feed and store articles in the database (batch insert)
+     * Parse a feed and store articles in the database (batch insert).
+     * <p>
+     * Refresh-health columns on the feed are updated in lockstep:
+     * <ul>
+     * <li>On success: {@code last_refreshed_at} is set, {@code last_error}
+     * cleared.</li>
+     * <li>On failure: {@code last_error} is set to a truncated message and
+     * {@code last_refreshed_at} is left untouched (preserves the
+     * "last seen working" timestamp).</li>
+     * </ul>
+     * A missing HTTP response (404, network error, etc.) is treated as a
+     * "no new data" condition, not a failure - the timestamp is updated
+     * and any previous error is cleared.
      *
      * @param feed
      */
-    void parseFeed(Feed feed) { // consider package-private instead of private for direct testing
+    void parseFeed(Feed feed) { // package-private for direct testing
         var optional = httpsService.fetchUriAsStream(feed.getFeedUrl());
-        if (optional.isEmpty() || optional.get().statusCode() != 200)
+        if (optional.isEmpty() || optional.get().statusCode() != 200) {
+            // The server did not give us a feed body. Could be a transient
+            // outage - record the error but don't penalise a feed that
+            // worked yesterday and is broken today.
+            try {
+                feedRepository.markRefreshError(feed.getId(),
+                        "No successful HTTP response (status="
+                                + (optional.isPresent() ? optional.get().statusCode() : "no-response")
+                                + ")");
+            } catch (SQLException e) {
+                logger.warn("Failed to record refresh error for feed [{}]", feed.getFeedUrl(), e);
+            }
             return;
+        }
 
         var response = optional.get();
         var items = mediaRssParser.parse(response.body());
@@ -301,7 +325,23 @@ public class FeedService {
         if (skipped > 0) {
             logger.warn("Skipped {} malformed article(s) in feed [{}]", skipped, feed.getFeedUrl());
         }
-        articleRepository.create(articles);
+
+        try {
+            articleRepository.create(articles);
+            // Insert succeeded - mark the feed as healthy.
+            feedRepository.markRefreshSuccess(feed.getId(), null);
+        } catch (Exception e) {
+            // The DataAccessException is the common case (the new
+            // ArticleRepository.create throws it), but we also want to
+            // catch anything thrown by the parser or the success-mark
+            // path so a single bad feed doesn't kill the whole batch.
+            logger.error("Refresh failed for feed [{}]", feed.getFeedUrl(), e);
+            try {
+                feedRepository.markRefreshError(feed.getId(), e.getMessage());
+            } catch (SQLException markEx) {
+                logger.warn("Failed to record refresh error for feed [{}]", feed.getFeedUrl(), markEx);
+            }
+        }
     }
 
     /**

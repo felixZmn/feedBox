@@ -1,6 +1,7 @@
 package de._0x2b.model;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.Objects;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -13,6 +14,8 @@ public class Feed {
     URI url;
     URI feedUrl;
     Icon icon;
+    Instant lastRefreshedAt;
+    String lastError;
 
     public Feed() {
     }
@@ -41,12 +44,14 @@ public class Feed {
         Feed feed = (Feed) o;
         return id == feed.id && folderId == feed.folderId && Objects.equals(name, feed.name)
                 && Objects.equals(url, feed.url) && Objects.equals(feedUrl, feed.feedUrl)
-                && Objects.equals(icon, feed.icon);
+                && Objects.equals(icon, feed.icon)
+                && Objects.equals(lastRefreshedAt, feed.lastRefreshedAt)
+                && Objects.equals(lastError, feed.lastError);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, folderId, name, url, feedUrl, icon);
+        return Objects.hash(id, folderId, name, url, feedUrl, icon, lastRefreshedAt, lastError);
     }
 
     public int getId() {
@@ -95,5 +100,21 @@ public class Feed {
 
     public void setIcon(Icon icon) {
         this.icon = icon;
+    }
+
+    public Instant getLastRefreshedAt() {
+        return lastRefreshedAt;
+    }
+
+    public void setLastRefreshedAt(Instant lastRefreshedAt) {
+        this.lastRefreshedAt = lastRefreshedAt;
+    }
+
+    public String getLastError() {
+        return lastError;
+    }
+
+    public void setLastError(String lastError) {
+        this.lastError = lastError;
     }
 }

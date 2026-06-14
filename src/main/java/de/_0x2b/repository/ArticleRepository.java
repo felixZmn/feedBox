@@ -1,5 +1,6 @@
 package de._0x2b.repository;
 
+import de._0x2b.exception.DataAccessException;
 import de._0x2b.model.Article;
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -9,8 +10,13 @@ import org.slf4j.LoggerFactory;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.sql.Types;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
+import java.util.TimeZone;
 
 @ApplicationScoped
 public class ArticleRepository extends AbstractRepository<Article> {
@@ -25,6 +31,9 @@ public class ArticleRepository extends AbstractRepository<Article> {
             JOIN feed f ON f.id = a.feed_id
             """;
     private static final String JOIN_FOLDER = " JOIN folder fo on fo.id = f.folder_id ";
+    // The pagination cursor is now a real TIMESTAMPTZ. Articles with NULL
+    // pubDate are excluded from the read query entirely (see WHERE clause
+    // below) so we don't need NULLS FIRST/LAST gymnastics here.
     private static final String WHERE_PAGINATION = " AND ((a.published < ?) OR (a.published = ? AND a.id < ?)) ";
     private static final String ORDER_LIMIT = " ORDER BY a.published DESC, a.id DESC LIMIT 25";
     private static final String INSERT_SQL = """
@@ -33,10 +42,24 @@ public class ArticleRepository extends AbstractRepository<Article> {
             ON CONFLICT (link) DO NOTHING
             """;
     private static final String DELETE_BY_FEED_SQL = "DELETE FROM article WHERE feed_id = ?";
+    // The PostgreSQL JDBC driver does NOT support
+    // ResultSet.getObject(int, Class) for java.time.Instant on a
+    // timestamptz column - it raises
+    // "conversion to class java.time.Instant from timestamptz not
+    // supported". The supported path is getTimestamp(idx, Calendar)
+    // with a UTC calendar (so the driver doesn't re-project the stored
+    // UTC value into the JVM's default time zone), then
+    // Timestamp.toInstant().
+    private static final Calendar UTC = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
     private final RowMapper<Article> articleMapper = rs -> new Article(rs.getLong("id"), rs.getInt("feed_id"),
             rs.getString("publisher"), rs.getString("title"), rs.getString("description"), rs.getString("content"),
-            rs.getString("link"), rs.getString("published"), rs.getString("authors"), rs.getString("image_url"),
-            rs.getString("categories"));
+            rs.getString("link"), readPublished(rs), rs.getString("authors"),
+            rs.getString("image_url"), rs.getString("categories"));
+
+    private static Instant readPublished(java.sql.ResultSet rs) throws SQLException {
+        Timestamp ts = rs.getTimestamp("published", UTC);
+        return ts == null ? null : ts.toInstant();
+    }
 
     public ArticleRepository() {
     }
@@ -45,7 +68,7 @@ public class ArticleRepository extends AbstractRepository<Article> {
         return findInternal(null, null, null, null);
     }
 
-    public List<Article> findAll(int paginationId, String paginationDate) {
+    public List<Article> findAll(long paginationId, String paginationDate) {
         return findInternal(null, null, paginationId, paginationDate);
     }
 
@@ -53,7 +76,7 @@ public class ArticleRepository extends AbstractRepository<Article> {
         return findInternal("f.id = ?", List.of(feedId), null, null);
     }
 
-    public List<Article> findByFeed(int feedId, int paginationId, String paginationDate) {
+    public List<Article> findByFeed(int feedId, long paginationId, String paginationDate) {
         return findInternal("f.id = ?", List.of(feedId), paginationId, paginationDate);
     }
 
@@ -61,7 +84,7 @@ public class ArticleRepository extends AbstractRepository<Article> {
         return findInternal("fo.id = ?", List.of(folderId), null, null, true);
     }
 
-    public List<Article> findByFolder(int folderId, int paginationId, String paginationDate) {
+    public List<Article> findByFolder(int folderId, long paginationId, String paginationDate) {
         return findInternal("fo.id = ?", List.of(folderId), paginationId, paginationDate, true);
     }
 
@@ -86,7 +109,11 @@ public class ArticleRepository extends AbstractRepository<Article> {
                     stmt.setString(3, a.getDescription());
                     stmt.setString(4, a.getContent());
                     stmt.setString(5, a.getLink());
-                    stmt.setString(6, a.getPublished());
+                    if (a.getPublished() != null) {
+                        stmt.setTimestamp(6, Timestamp.from(a.getPublished()));
+                    } else {
+                        stmt.setNull(6, Types.TIMESTAMP_WITH_TIMEZONE);
+                    }
                     stmt.setString(7, a.getAuthors());
                     stmt.setString(8, a.getImageUrl());
                     stmt.setString(9, a.getCategories());
@@ -98,19 +125,27 @@ public class ArticleRepository extends AbstractRepository<Article> {
                 stmt.executeBatch(); // Execute remaining
                 conn.commit(); // Commit Transaction
             } catch (SQLException e) {
-                conn.rollback();
-                logger.error("Batch insert failed, rolled back", e);
+                // Roll back the open transaction before propagating the failure.
+                // The previous implementation swallowed this, which meant the
+                // scheduler would silently lose a batch of articles and the
+                // caller (FeedService.parseFeed) had no way to know.
+                try {
+                    conn.rollback();
+                } catch (SQLException rollbackEx) {
+                    e.addSuppressed(rollbackEx);
+                }
+                throw new DataAccessException("Batch insert failed for feed_id=" + articles.getFirst().getFeedId(), e);
             }
         } catch (SQLException e) {
-            logger.error("Database connection error", e);
+            throw new DataAccessException("Database connection error during batch insert", e);
         }
     }
 
-    private List<Article> findInternal(String whereClause, List<Object> params, Integer pagId, String pagDate) {
+    private List<Article> findInternal(String whereClause, List<Object> params, Long pagId, String pagDate) {
         return findInternal(whereClause, params, pagId, pagDate, false);
     }
 
-    private List<Article> findInternal(String whereClause, List<Object> initialParams, Integer pagId, String pagDate,
+    private List<Article> findInternal(String whereClause, List<Object> initialParams, Long pagId, String pagDate,
             boolean joinFolder) {
 
         StringBuilder sql = new StringBuilder(SELECT_COLS).append(FROM_JOIN);
@@ -124,17 +159,22 @@ public class ArticleRepository extends AbstractRepository<Article> {
             sql.append(JOIN_FOLDER);
         }
 
-        // Add where
-        sql.append(" WHERE 1=1 ");
+        // We exclude articles with NULL pubDate from the read query
+        // entirely: the pagination cursor relies on chronological
+        // ordering, and "no date" doesn't have a meaningful position
+        // relative to a real timestamp.
+        sql.append(" WHERE 1=1 AND a.published IS NOT NULL ");
         if (whereClause != null) {
             sql.append(" AND ").append(whereClause);
         }
 
-        // Add Pagination
+        // Add Pagination. The cursor is (published, id) and id is a
+        // bigint on the database - JDBC's setObject picks up the Long
+        // argument and binds it as BIGINT.
         if (pagId != null && pagDate != null) {
             sql.append(WHERE_PAGINATION);
-            params.add(pagDate);
-            params.add(pagDate);
+            params.add(java.time.Instant.parse(pagDate));
+            params.add(java.time.Instant.parse(pagDate));
             params.add(pagId);
         }
 

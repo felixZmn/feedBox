@@ -5,32 +5,20 @@ import de._0x2b.model.Article;
 import de._0x2b.model.Feed;
 import jakarta.enterprise.context.ApplicationScoped;
 
+import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @ApplicationScoped
 public class ArticleMapper {
-    private static final Logger logger = LoggerFactory.getLogger(ArticleMapper.class);
-    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'");
-
     public Article toArticle(Feed feed, MediaRssItem item) {
         var title = item.getTitle().orElse("");
         var description = item.getDescription().orElse("");
         var content = item.getContent().orElse("");
         var link = item.getLink().orElse("");
-        String datetime;
-        try {
-            datetime = item.getPubDateAsZonedDateTime()
-                    .map(zdt -> zdt.withZoneSameInstant(ZoneOffset.UTC).format(formatter))
-                    .orElse(ZonedDateTime.now(ZoneOffset.UTC).format(formatter));
-        } catch (Exception e) {
-            datetime = ZonedDateTime.now(ZoneOffset.UTC).format(formatter);
-            logger.debug("Failed to parse publication date for article '{}': {}", title, e.getMessage());
-        }
+        Instant published = item.getPubDateAsZonedDateTime()
+                .map(zdt -> zdt.toInstant())
+                .orElse(ZonedDateTime.now(ZoneOffset.UTC).toInstant());
         var author = item.getAuthor().orElse("");
 
         var imageUrl = "";
@@ -46,6 +34,6 @@ public class ArticleMapper {
 
         return new Article(
                 -1, feed.getId(), feed.getName(), title, description, content, link,
-                datetime, author, imageUrl, categories);
+                published, author, imageUrl, categories);
     }
 }
