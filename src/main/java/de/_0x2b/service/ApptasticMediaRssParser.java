@@ -9,10 +9,10 @@ import java.util.List;
 
 @ApplicationScoped
 public class ApptasticMediaRssParser implements MediaRssParser {
-    private final MediaRssReader reader = new MediaRssReader();
 
     @Override
     public List<MediaRssItem> parse(InputStream inputStream) {
-        return reader.read(inputStream).toList();
+        // MediaRssReader is NOT thread-safe
+        return new MediaRssReader().read(inputStream).toList();
     }
 }
