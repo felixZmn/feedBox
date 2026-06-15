@@ -543,11 +543,6 @@ li:hover,
   padding: var(--default-space);
 }
 
-.feeds-spinner .icon {
-  width: 16px;
-  height: 16px;
-}
-
 /* empty state */
 .empty-state {
   text-align: center;
@@ -626,7 +621,7 @@ dialog::backdrop {
 /* click menu */
 .context-menu {
   position: absolute;
-  background: white;
+  background: var(--background-color);
   border: 1px solid #ccc;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   list-style: none;

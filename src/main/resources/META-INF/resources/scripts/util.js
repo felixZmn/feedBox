@@ -92,18 +92,17 @@ export function getRelativeTime(dateStr) {
 
 export function parseDate(dateStr) {
   if (!dateStr) return null;
-  const date = new Date(dateStr);
 
-  const options = {
+  const date = new Date(dateStr);
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
     year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    hour12: false,
+    hour: "2-digit",
     minute: "2-digit",
-    timeZone: "UTC",
-    timeZoneName: "short",
-  };
-  const formatter = new Intl.DateTimeFormat(undefined, options);
-  return formatter.format(date);
+    second: "2-digit",
+  }).format(date);
 }
