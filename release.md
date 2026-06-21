@@ -33,7 +33,6 @@ docker push ghcr.io/felixzmn/docker/feedbox:latest
 After the release artifacts are published, advance to the next development version:
 
 - **`pom.xml`** – increment the patch version and add `-SNAPSHOT`, e.g. `1.0.3` → `1.0.4-SNAPSHOT`
-- **`src/main/resources/application.properties`** – update the user agent to match the new version, e.g. `app.http.user-agent=FeedBox/1.0.4-SNAPSHOT`
 
 Commit the result:
 

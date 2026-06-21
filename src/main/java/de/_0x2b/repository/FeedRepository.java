@@ -12,6 +12,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 import java.util.TimeZone;
@@ -27,7 +28,7 @@ public class FeedRepository extends AbstractRepository<Feed> {
             INSERT INTO feed (folder_id, name, url, feed_url) VALUES (?, ?, ?, ?) RETURNING id
             """;
     private static final String UPDATE = """
-            UPDATE feed set folder_id = ?, name = ?, url = ?, feed_url = ? WHERE id = ? RETURNING id
+            UPDATE feed set folder_id = ?, name = ?, url = ?, feed_url = ? WHERE id = ?
             """;
     private static final String DELETE = """
             DELETE FROM feed WHERE id = ?
@@ -43,7 +44,7 @@ public class FeedRepository extends AbstractRepository<Feed> {
     // getTimestamp(idx, UTC) and convert.
     private static final Calendar UTC = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
     private final RowMapper<Feed> feedMapper = rs -> {
-        Feed f = new Feed(rs.getInt("id"), rs.getInt("folder_id"),
+        Feed f = new Feed(rs.getInt("id"), rs.getObject("folder_id", Integer.class),
                 rs.getString("name"), URI.create(rs.getString("url")), URI.create(rs.getString("feed_url")));
         Timestamp ts = rs.getTimestamp("last_refreshed_at", UTC);
         f.setLastRefreshedAt(ts == null ? null : ts.toInstant());
@@ -56,7 +57,7 @@ public class FeedRepository extends AbstractRepository<Feed> {
 
     public int create(Feed feed) {
         try {
-            List<Object> params = List.of(feed.getFolderId(), feed.getName(), feed.getUrl().toString(),
+            List<Object> params = Arrays.asList(feed.getFolderId(), feed.getName(), feed.getUrl().toString(),
                     feed.getFeedUrl().toString());
 
             return super.insert(INSERT_SQL, params);
@@ -72,7 +73,7 @@ public class FeedRepository extends AbstractRepository<Feed> {
 
     public int update(Feed feed) {
         try {
-            List<Object> params = List.of(feed.getFolderId(), feed.getName(), feed.getUrl().toString(),
+            List<Object> params = Arrays.asList(feed.getFolderId(), feed.getName(), feed.getUrl().toString(),
                     feed.getFeedUrl().toString(), feed.getId());
 
             int rows = super.update(UPDATE, params);

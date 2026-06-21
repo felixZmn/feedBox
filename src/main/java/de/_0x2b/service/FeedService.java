@@ -188,7 +188,7 @@ public class FeedService {
 
             if (isFeed(contentType, body)) {
                 logger.debug("URL is a direct feed: {}", url);
-                validFeeds.add(new Feed(-1, -1, "", null, URI.create(url)));
+                validFeeds.add(new Feed(-1, null, "", null, URI.create(url)));
             } else {
                 Document doc = queryResponse.parse();
 
@@ -199,7 +199,7 @@ public class FeedService {
                     String feedUrl = extractFeedUrl(link);
                     String feedName = link.attr("title");
                     if (!feedUrl.isBlank()) {
-                        validFeeds.add(new Feed(-1, -1, feedName.isBlank() ? feedUrl : feedName, URI.create(url),
+                        validFeeds.add(new Feed(-1, null, feedName.isBlank() ? feedUrl : feedName, URI.create(url),
                                 URI.create(feedUrl)));
                     }
                 }

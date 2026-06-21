@@ -44,6 +44,7 @@ const itemType = Object.freeze({
 const state = {
   articles: [],
   folders: [],
+  unfiledFeeds: [],
   pagination: { id: null, published: null },
   filter: { isActive: false, lastSearchTerm: "" },
   status: { isRefreshing: false, isLoadingArticles: false },
@@ -151,7 +152,10 @@ function initEventListeners() {
 
   dom.button.addFeed.addEventListener("click", async () => {
     let newFeed = await showAddFeedDialog(state.folders);
-    if (newFeed) await createFeed(newFeed);
+    if (newFeed) {
+      newFeed.folderId = newFeed.folderId || null;
+      await createFeed(newFeed);
+    }
   });
   dom.button.editFeed.addEventListener("click", async () => {
     let response = await showEditFeedDialog(
@@ -161,7 +165,7 @@ function initEventListeners() {
     if (response) {
       let editedFeed = state.lastClickedItem.obj;
       editedFeed.feedUrl = response.feedUrl;
-      editedFeed.folderId = response.folderId;
+      editedFeed.folderId = response.folderId || null;
       await editFeed(editedFeed);
     }
   });
@@ -398,9 +402,12 @@ function resetPagination() {
 
 async function loadFolders() {
   showFeedsSpinner();
-  const foldersWithFeeds = await dataService.getFolders();
-  renderFoldersList(foldersWithFeeds);
+  const folderTree = await dataService.getFolders();
+  const foldersWithFeeds = folderTree.folders || [];
+  const unfiledFeeds = folderTree.unfiledFeeds || [];
+  renderFoldersList(foldersWithFeeds, unfiledFeeds);
   state.folders = foldersWithFeeds;
+  state.unfiledFeeds = unfiledFeeds;
   hideFeedsSpinner();
 }
 

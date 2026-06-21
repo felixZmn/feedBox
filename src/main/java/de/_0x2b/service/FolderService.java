@@ -1,6 +1,7 @@
 package de._0x2b.service;
 
 import de._0x2b.model.Folder;
+import de._0x2b.model.FolderTree;
 import de._0x2b.repository.FolderRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -20,11 +21,11 @@ public class FolderService {
     FolderRepository folderRepository;
 
     /**
-     * Get all folders
-     * 
-     * @return
+     * Get all folders and unfiled feeds
+     *
+     * @return FolderTree containing folders and unfiled feeds
      */
-    public List<Folder> findAll() {
+    public FolderTree findAll() {
         logger.debug("findAll");
         return folderRepository.findAll();
     }
