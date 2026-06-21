@@ -9,7 +9,7 @@ import io.quarkus.runtime.annotations.RegisterForReflection;
 @RegisterForReflection
 public class Feed {
     int id;
-    int folderId;
+    Integer folderId;
     String name;
     URI url;
     URI feedUrl;
@@ -20,7 +20,7 @@ public class Feed {
     public Feed() {
     }
 
-    public Feed(int id, int folderId, String name, URI url, URI feedUrl) {
+    public Feed(int id, Integer folderId, String name, URI url, URI feedUrl) {
         this.id = id;
         this.folderId = folderId;
         this.name = name;
@@ -28,7 +28,7 @@ public class Feed {
         this.feedUrl = feedUrl;
     }
 
-    public Feed(int id, int folderId, String name, URI url, URI feedUrl, Icon icon) {
+    public Feed(int id, Integer folderId, String name, URI url, URI feedUrl, Icon icon) {
         this.id = id;
         this.folderId = folderId;
         this.name = name;
@@ -42,7 +42,7 @@ public class Feed {
         if (o == null || getClass() != o.getClass())
             return false;
         Feed feed = (Feed) o;
-        return id == feed.id && folderId == feed.folderId && Objects.equals(name, feed.name)
+        return id == feed.id && Objects.equals(folderId, feed.folderId) && Objects.equals(name, feed.name)
                 && Objects.equals(url, feed.url) && Objects.equals(feedUrl, feed.feedUrl)
                 && Objects.equals(icon, feed.icon)
                 && Objects.equals(lastRefreshedAt, feed.lastRefreshedAt)
@@ -62,11 +62,11 @@ public class Feed {
         this.id = id;
     }
 
-    public int getFolderId() {
+    public Integer getFolderId() {
         return folderId;
     }
 
-    public void setFolderId(int folderId) {
+    public void setFolderId(Integer folderId) {
         this.folderId = folderId;
     }
 

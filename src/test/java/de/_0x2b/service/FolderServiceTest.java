@@ -1,6 +1,7 @@
 package de._0x2b.service;
 
 import de._0x2b.model.Folder;
+import de._0x2b.model.FolderTree;
 import de._0x2b.repository.FolderRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,13 +26,14 @@ class FolderServiceTest {
 
     @Test
     void findAll_delegatesToRepository() {
-        List<Folder> expected = List.of(
-                new Folder(1, "Tech", List.of(), ""),
-                new Folder(2, "News", List.of(), "")
-        );
+        FolderTree expected = new FolderTree(
+                List.of(
+                        new Folder(1, "Tech", List.of(), ""),
+                        new Folder(2, "News", List.of(), "")),
+                List.of());
         when(folderRepository.findAll()).thenReturn(expected);
 
-        List<Folder> result = sut.findAll();
+        FolderTree result = sut.findAll();
 
         assertSame(expected, result);
         verify(folderRepository).findAll();

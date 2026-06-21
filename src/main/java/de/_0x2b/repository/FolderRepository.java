@@ -3,6 +3,7 @@ package de._0x2b.repository;
 import de._0x2b.exception.DuplicateEntityException;
 import de._0x2b.model.Feed;
 import de._0x2b.model.Folder;
+import de._0x2b.model.FolderTree;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import org.slf4j.Logger;
@@ -41,25 +42,33 @@ public class FolderRepository extends AbstractRepository<Folder> {
             INSERT INTO folder (name, color) VALUES (?, ?) RETURNING id
             """;
     private static final String UPDATE = """
-            UPDATE folder set name = ?, color = ? WHERE id = ? RETURNING id
+            UPDATE folder set name = ?, color = ? WHERE id = ?
             """;
     private static final String DELETE = """
             DELETE FROM folder WHERE id = ?
+            """;
+    private static final String SELECT_UNFILED_FEEDS = """
+            SELECT id, folder_id, name, url, feed_url, last_refreshed_at, last_error
+            FROM feed
+            WHERE folder_id IS NULL
+            ORDER BY name
             """;
 
     public FolderRepository() {
     }
 
-    public List<Folder> findAll() {
+    public FolderTree findAll() {
         logger.debug("findAll");
-        try (Connection conn = dataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(SELECT_ALL)) {
-            try (ResultSet rs = stmt.executeQuery()) {
-                return parseResult(rs);
-            }
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(SELECT_ALL);
+                ResultSet rs = stmt.executeQuery()) {
+            List<Folder> folders = parseResult(rs);
+            List<Feed> unfiledFeeds = findUnfiledFeeds(conn);
+            return new FolderTree(folders, unfiledFeeds);
         } catch (SQLException e) {
             logger.error("Error executing SQL statement", e);
+            return new FolderTree(List.of(), List.of());
         }
-        return List.of();
     }
 
     public List<Folder> findByName(String name) {
@@ -128,5 +137,18 @@ public class FolderRepository extends AbstractRepository<Folder> {
             }
         }
         return new ArrayList<>(folders.values());
+    }
+
+    private List<Feed> findUnfiledFeeds(Connection conn) throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement(SELECT_UNFILED_FEEDS);
+                ResultSet rs = stmt.executeQuery()) {
+            List<Feed> feeds = new ArrayList<>();
+            while (rs.next()) {
+                Feed f = new Feed(rs.getInt("id"), null,
+                        rs.getString("name"), URI.create(rs.getString("url")), URI.create(rs.getString("feed_url")));
+                feeds.add(f);
+            }
+            return feeds;
+        }
     }
 }

@@ -95,6 +95,7 @@ export async function showAddFeedDialog(folders) {
     />
     <label class="field" for="feed-folder">Folder</label>
     <select id="feed-folder" name="folderId">
+      <option value="">No folder</option>
       ${folders.map((folder) => {
         return `<option value="${folder.id}">${escapeHtml(folder.name)}</option>`;
       })}
