@@ -3,6 +3,7 @@ package de._0x2b.service;
 import de._0x2b.exception.DuplicateEntityException;
 import de._0x2b.model.Feed;
 import de._0x2b.model.Folder;
+import de._0x2b.model.FolderTree;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -30,7 +31,6 @@ import java.io.StringWriter;
 import java.net.URI;
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -86,7 +86,7 @@ public class OPMLService {
 
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
             Deque<OutlineContext> contextStack = new ArrayDeque<>();
-            contextStack.push(new OutlineContext("root", 0));
+            contextStack.push(new OutlineContext("body", null));
 
             while (reader.hasNext()) {
                 var event = reader.nextEvent();
@@ -198,8 +198,6 @@ public class OPMLService {
 
     private void handleEndOutline(Deque<OutlineContext> contextStack) {
         if (contextStack.size() <= 1) {
-            // Never pop the root sentinel
-            logger.warn("End outline encountered but only root context remains; ignoring.");
             return;
         }
         contextStack.pop();
@@ -243,10 +241,10 @@ public class OPMLService {
      * @return
      */
     public String exportOpml() {
-        var result = folderService.findAll();
+        FolderTree folderTree = folderService.findAll();
         Document doc = null;
         try {
-            doc = createOPML(result);
+            doc = createOPML(folderTree);
             return documentToString(doc);
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -254,13 +252,13 @@ public class OPMLService {
     }
 
     /**
-     * Create OPML Document from folders and feeds
+     * Create OPML Document from a FolderTree (folders + unfiled feeds)
      * 
-     * @param folders list of folders to include in the OPML
+     * @param folderTree the folder tree containing folders and unfiled feeds
      * @return Document object representing the OPML
      * @throws ParserConfigurationException
      */
-    public Document createOPML(List<Folder> folders) throws ParserConfigurationException {
+    public Document createOPML(FolderTree folderTree) throws ParserConfigurationException {
         DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
 
@@ -281,21 +279,19 @@ public class OPMLService {
         Element body = doc.createElement("body");
         opml.appendChild(body);
 
-        for (Folder folder : folders) {
-            if (folder.getId() == 0) {
-                // Add all feeds directly under <body> without folder element
-                for (Feed feed : folder.getFeeds()) {
-                    Element feedOutline = createFeedElement(doc, feed);
-                    body.appendChild(feedOutline);
-                }
-            } else {
-                // Normal case: add folder as outline with feeds inside
-                Element folderOutline = createFolderElement(doc, folder);
-                body.appendChild(folderOutline);
-                for (Feed feed : folder.getFeeds()) {
-                    Element feedOutline = createFeedElement(doc, feed);
-                    folderOutline.appendChild(feedOutline);
-                }
+        // Add unfiled feeds directly under <body>
+        for (Feed feed : folderTree.getUnfiledFeeds()) {
+            Element feedOutline = createFeedElement(doc, feed);
+            body.appendChild(feedOutline);
+        }
+
+        // Add folders with their feeds
+        for (Folder folder : folderTree.getFolders()) {
+            Element folderOutline = createFolderElement(doc, folder);
+            body.appendChild(folderOutline);
+            for (Feed feed : folder.getFeeds()) {
+                Element feedOutline = createFeedElement(doc, feed);
+                folderOutline.appendChild(feedOutline);
             }
         }
 

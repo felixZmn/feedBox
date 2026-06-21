@@ -208,24 +208,15 @@ export function removeFeedElement(feedId) {
 
 /**
  * renders the folder and feed list in the feeds column on the left
- * @param {Folder[]} folders
+ * @param {Folder[]} folders - the list of folders with their feeds
+ * @param {Feed[]} unfiledFeeds - feeds not belonging to any folder
  */
-export function renderFoldersList(folders) {
+export function renderFoldersList(folders, unfiledFeeds) {
   const container = document.getElementById("folder-container");
-  const noFolderFeeds = document.createElement("ul");
 
   container.innerHTML = "";
 
   folders.forEach((folder) => {
-    if (folder.id === 0) {
-      // folder 0 => feeds without folder
-      noFolderFeeds.className = "feeds-ul";
-      folder.feeds.forEach((feed) => {
-        noFolderFeeds.appendChild(createFeedElement(feed));
-      });
-      return;
-    }
-
     const details = document.createElement("details");
     const persistedOpen = getFolderOpenState(folder.id);
     if (persistedOpen !== undefined) {
@@ -256,7 +247,16 @@ export function renderFoldersList(folders) {
     container.appendChild(details);
   });
 
-  container.appendChild(noFolderFeeds);
+  // Render unfiled feeds directly under the folder tree (no folder wrapper)
+  if (unfiledFeeds && unfiledFeeds.length > 0) {
+    const ul = document.createElement("ul");
+    ul.className = "feeds-ul";
+    unfiledFeeds.forEach((feed) => {
+      ul.appendChild(createFeedElement(feed));
+    });
+    container.appendChild(ul);
+  }
+
   container.appendChild(addElement());
 }
 

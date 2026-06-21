@@ -81,10 +81,16 @@ public class ArticleRepository extends AbstractRepository<Article> {
     }
 
     public List<Article> findByFolder(int folderId) {
+        if (folderId == 0) {
+            return findInternal("f.folder_id IS NULL", List.of(), null, null, false);
+        }
         return findInternal("fo.id = ?", List.of(folderId), null, null, true);
     }
 
     public List<Article> findByFolder(int folderId, long paginationId, String paginationDate) {
+        if (folderId == 0) {
+            return findInternal("f.folder_id IS NULL", List.of(), paginationId, paginationDate, false);
+        }
         return findInternal("fo.id = ?", List.of(folderId), paginationId, paginationDate, true);
     }
 
