@@ -7,14 +7,13 @@ Versions follow the pattern `MAJOR.MINOR.PATCH`. During development, `pom.xml` c
 Remove the `-SNAPSHOT` suffix from all version fields:
 
 - **`pom.xml`** – e.g. `1.0.3-SNAPSHOT` → `1.0.3`
-- **`src/main/resources/application.properties`** – e.g. `app.http.user-agent=FeedBox/1.0.3-SNAPSHOT` → `app.http.user-agent=FeedBox/1.0.3`
 
 ## 2. Commit the release
 
 ```bash
-git add pom.xml src/main/resources/application.properties
-git commit -m "chore: release 2.0.4"
-git tag 2.0.4
+git add pom.xml
+git commit -m "chore: release 3.1.0"
+git tag 3.1.0
 ```
 
 ## 3. Build and push the Docker image
