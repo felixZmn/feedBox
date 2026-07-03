@@ -36,6 +36,6 @@ After the release artifacts are published, advance to the next development versi
 Commit the result:
 
 ```bash
-git add pom.xml src/main/resources/application.properties
+git add pom.xml
 git commit -m "chore: bump version to 2.0.5-SNAPSHOT"
 ```
