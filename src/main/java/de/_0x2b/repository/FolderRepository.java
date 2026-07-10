@@ -1,43 +1,25 @@
 package de._0x2b.repository;
 
 import de._0x2b.exception.DuplicateEntityException;
-import de._0x2b.model.Feed;
 import de._0x2b.model.Folder;
-import de._0x2b.model.FolderTree;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.URI;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 @ApplicationScoped
 public class FolderRepository extends AbstractRepository<Folder> {
 
     private static final Logger logger = LoggerFactory.getLogger(FolderRepository.class);
-    private static final String SELECT_COLS = """
-            SELECT folder.id as "folder_id", folder.name as "folder_name", folder.color as "folder_color", feed.id  AS "feed_id", feed.name AS "feed_name", feed.url as "url", feed.feed_url AS "feed_url"
+    private static final String SELECT_ALL = """
+            SELECT id, name, color FROM folder ORDER BY name
             """;
-    private static final String FROM_JOIN = """
-            FROM folder
-            LEFT JOIN feed ON folder.id = feed.folder_id
+    private static final String SELECT_BY_NAME = """
+            SELECT id, name, color FROM folder WHERE name = ? ORDER BY name
             """;
-    private static final String ORDER = """
-            ORDER BY folder.name, feed.name
-            """;
-    private static final String WHERE = """
-            WHERE folder.name = ?
-            """;
-    private static final String SELECT_ALL = SELECT_COLS + FROM_JOIN + ORDER;
-    private static final String SELECT_ALL_BY_NAME = SELECT_COLS + FROM_JOIN + WHERE + ORDER;
     private static final String INSERT_ONE = """
             INSERT INTO folder (name, color) VALUES (?, ?) RETURNING id
             """;
@@ -47,42 +29,24 @@ public class FolderRepository extends AbstractRepository<Folder> {
     private static final String DELETE = """
             DELETE FROM folder WHERE id = ?
             """;
-    private static final String SELECT_UNFILED_FEEDS = """
-            SELECT id, folder_id, name, url, feed_url, last_refreshed_at, last_error
-            FROM feed
-            WHERE folder_id IS NULL
-            ORDER BY name
-            """;
+
+    private final RowMapper<Folder> folderMapper = rs -> new Folder(
+            rs.getInt("id"),
+            rs.getString("name"),
+            null,
+            rs.getString("color"));
 
     public FolderRepository() {
     }
 
-    public FolderTree findAll() {
+    public List<Folder> findAll() {
         logger.debug("findAll");
-        try (Connection conn = dataSource.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_ALL);
-                ResultSet rs = stmt.executeQuery()) {
-            List<Folder> folders = parseResult(rs);
-            List<Feed> unfiledFeeds = findUnfiledFeeds(conn);
-            return new FolderTree(folders, unfiledFeeds);
-        } catch (SQLException e) {
-            logger.error("Error executing SQL statement", e);
-            return new FolderTree(List.of(), List.of());
-        }
+        return super.query(SELECT_ALL, folderMapper, List.of());
     }
 
     public List<Folder> findByName(String name) {
         logger.debug("findByName");
-        try (Connection conn = dataSource.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(SELECT_ALL_BY_NAME)) {
-            stmt.setString(1, name);
-            try (ResultSet rs = stmt.executeQuery()) {
-                return parseResult(rs);
-            }
-        } catch (SQLException e) {
-            logger.error("Error executing SQL statement", e);
-        }
-        return List.of();
+        return super.query(SELECT_BY_NAME, folderMapper, List.of(name));
     }
 
     public int create(Folder folder) {
@@ -114,41 +78,5 @@ public class FolderRepository extends AbstractRepository<Folder> {
 
     public int delete(int id) throws SQLException {
         return super.update(DELETE, List.of(id));
-    }
-
-    private ArrayList<Folder> parseResult(ResultSet rs) throws SQLException {
-        logger.debug("parseResult");
-        Map<Integer, Folder> folders = new LinkedHashMap<>();
-
-        while (rs.next()) {
-            int folderId = rs.getInt("folder_id");
-            Folder folder = folders.computeIfAbsent(folderId, id -> {
-                try {
-                    return new Folder(id, rs.getString("folder_name"), new ArrayList<>(), rs.getString("folder_color"));
-                } catch (SQLException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-            int feedId = rs.getInt("feed_id");
-            if (!rs.wasNull()) {
-                Feed feed = new Feed(feedId, folderId, rs.getString("feed_name"), URI.create(rs.getString("url")),
-                        URI.create(rs.getString("feed_url")));
-                folder.getFeeds().add(feed);
-            }
-        }
-        return new ArrayList<>(folders.values());
-    }
-
-    private List<Feed> findUnfiledFeeds(Connection conn) throws SQLException {
-        try (PreparedStatement stmt = conn.prepareStatement(SELECT_UNFILED_FEEDS);
-                ResultSet rs = stmt.executeQuery()) {
-            List<Feed> feeds = new ArrayList<>();
-            while (rs.next()) {
-                Feed f = new Feed(rs.getInt("id"), null,
-                        rs.getString("name"), URI.create(rs.getString("url")), URI.create(rs.getString("feed_url")));
-                feeds.add(f);
-            }
-            return feeds;
-        }
     }
 }

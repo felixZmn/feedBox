@@ -1,6 +1,6 @@
 "use strict";
 
-import { dataService } from "./data.js";
+import { dataService, buildFolderTree } from "./data.js";
 import { modal } from "./modal.js";
 import {
   showAddFeedDialog,
@@ -402,9 +402,14 @@ function resetPagination() {
 
 async function loadFolders() {
   showFeedsSpinner();
-  const folderTree = await dataService.getFolders();
-  const foldersWithFeeds = folderTree.folders || [];
-  const unfiledFeeds = folderTree.unfiledFeeds || [];
+  const [folders, feeds] = await Promise.all([
+    dataService.getFolders(),
+    dataService.getFeeds(),
+  ]);
+  const { folders: foldersWithFeeds, unfiledFeeds } = buildFolderTree(
+    folders,
+    feeds,
+  );
   renderFoldersList(foldersWithFeeds, unfiledFeeds);
   state.folders = foldersWithFeeds;
   state.unfiledFeeds = unfiledFeeds;

@@ -163,8 +163,8 @@ class OPMLServiceTest {
         java.net.URI.create("https://a.example"),
         java.net.URI.create("https://a.example/rss"));
 
-    FolderTree folderTree = new FolderTree(List.of(), List.of(unfiledFeed));
-    when(folderService.findAll()).thenReturn(folderTree);
+    when(folderService.findAll()).thenReturn(List.of());
+    when(feedService.findAll()).thenReturn(List.of(unfiledFeed));
 
     String xml = sut.exportOpml();
 

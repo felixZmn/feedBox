@@ -10,6 +10,9 @@ class DataService {
   async getFolders() {
     return this._request("./api/folder");
   }
+  async getFeeds() {
+    return this._request("./api/feed");
+  }
   async createFolder(folder) {
     return this._request("./api/folder", { method: "POST", body: folder });
   }
@@ -110,6 +113,19 @@ class DataService {
       });
     }
   }
+}
+
+export function buildFolderTree(folders, feeds) {
+  const foldersWithFeeds = (folders ?? []).map((folder) => ({
+    ...folder,
+    feeds: (feeds ?? [])
+      .filter((f) => f.folderId === folder.id)
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  }));
+  const unfiledFeeds = (feeds ?? [])
+    .filter((f) => f.folderId == null)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return { folders: foldersWithFeeds, unfiledFeeds };
 }
 
 export const dataService = new DataService();

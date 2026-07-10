@@ -8,6 +8,8 @@ import jakarta.ws.rs.core.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+
 import de._0x2b.model.Feed;
 import de._0x2b.service.FeedService;
 import io.quarkus.security.Authenticated;
@@ -20,6 +22,13 @@ public class FeedResource {
 
     @Inject
     FeedService feedService;
+
+    @GET
+    @Authenticated
+    public List<Feed> getFeeds() {
+        logger.debug("getFeeds");
+        return feedService.findAll();
+    }
 
     @POST
     @Authenticated
