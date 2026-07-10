@@ -3,6 +3,8 @@ package de._0x2b.model;
 import java.util.List;
 import java.util.Objects;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 @RegisterForReflection
@@ -38,6 +40,7 @@ public class Folder {
         this.name = name;
     }
 
+    @JsonIgnore
     public List<Feed> getFeeds() {
         return feeds;
     }

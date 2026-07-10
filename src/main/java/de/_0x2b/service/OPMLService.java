@@ -31,6 +31,7 @@ import java.io.StringWriter;
 import java.net.URI;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -241,7 +242,9 @@ public class OPMLService {
      * @return
      */
     public String exportOpml() {
-        FolderTree folderTree = folderService.findAll();
+        List<Folder> folders = folderService.findAll();
+        List<Feed> feeds = feedService.findAll();
+        FolderTree folderTree = FolderTree.from(folders, feeds);
         Document doc = null;
         try {
             doc = createOPML(folderTree);

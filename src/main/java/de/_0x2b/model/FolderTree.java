@@ -1,6 +1,9 @@
 package de._0x2b.model;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -16,6 +19,28 @@ public class FolderTree {
     public FolderTree(List<Folder> folders, List<Feed> unfiledFeeds) {
         this.folders = folders;
         this.unfiledFeeds = unfiledFeeds;
+    }
+
+    public static FolderTree from(List<Folder> folders, List<Feed> feeds) {
+        Map<Integer, Folder> byId = new LinkedHashMap<>();
+        for (Folder folder : folders) {
+            Folder copy = new Folder(folder.getId(), folder.getName(), new ArrayList<>(), folder.getColor());
+            byId.put(copy.getId(), copy);
+        }
+        List<Feed> unfiled = new ArrayList<>();
+        for (Feed feed : feeds) {
+            if (feed.getFolderId() == null) {
+                unfiled.add(feed);
+            } else {
+                Folder parent = byId.get(feed.getFolderId());
+                if (parent != null) {
+                    parent.getFeeds().add(feed);
+                } else {
+                    unfiled.add(feed);
+                }
+            }
+        }
+        return new FolderTree(new ArrayList<>(byId.values()), unfiled);
     }
 
     public List<Folder> getFolders() {

@@ -137,6 +137,8 @@ public class FeedRepository extends AbstractRepository<Feed> {
             sql.append(" AND ").append(whereClause);
         }
 
+        sql.append(" ORDER BY name");
+
         return super.query(sql.toString(), feedMapper, params);
     }
 }

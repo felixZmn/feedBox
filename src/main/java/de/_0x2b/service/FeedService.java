@@ -90,6 +90,15 @@ public class FeedService {
     }
 
     /**
+     * Get all feeds in the database
+     *
+     * @return all feeds
+     */
+    public List<Feed> findAll() {
+        return feedRepository.findAll();
+    }
+
+    /**
      * Refresh all feeds in the database
      */
     public void refresh() {

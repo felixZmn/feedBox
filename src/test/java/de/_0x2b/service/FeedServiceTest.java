@@ -120,6 +120,18 @@ class FeedServiceTest {
     }
 
     @Test
+    void findAll_delegatesToRepository() {
+        List<Feed> expected = List.of(
+                new Feed(1, 1, "n", URI.create("https://site.example"), URI.create("https://site.example/rss")));
+        when(feedRepository.findAll()).thenReturn(expected);
+
+        List<Feed> result = sut.findAll();
+
+        assertSame(expected, result);
+        verify(feedRepository).findAll();
+    }
+
+    @Test
     void checkFeedUrl_whenContentTypeIsRss_returnsDirectFeed() throws Exception {
         String url = "https://example.com/rss.xml";
 

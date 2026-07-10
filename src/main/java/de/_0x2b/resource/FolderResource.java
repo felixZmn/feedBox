@@ -16,6 +16,8 @@ import jakarta.ws.rs.core.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+
 import de._0x2b.model.Folder;
 import de._0x2b.service.FolderService;
 import io.quarkus.security.Authenticated;
@@ -30,9 +32,9 @@ public class FolderResource {
     @GET
     @Authenticated
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getFolders() {
+    public List<Folder> getFolders() {
         logger.debug("getFolders");
-        return Response.ok(folderService.findAll()).build();
+        return folderService.findAll();
     }
 
     @POST
