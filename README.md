@@ -57,7 +57,7 @@ FeedBox uses Quarkus configuration directly. Set the JDBC URL in the environment
 Optional overrides:
 
 - `QUARKUS_HTTP_PORT`: HTTP port (default `8080`)
-- `APP_HTTP_USER_AGENT` / `app.http.user-agent` in `src/main/resources/application.properties`
+- `APP_HTTP_USER_AGENT` — defaults to `FeedBox/<version>` from `application.properties`
 
 If you use the Helm chart, the default service port is `8080`.
 
@@ -128,6 +128,24 @@ The following environment variables / properties can be configured:
 | `deps`    | Dependencies          |
 | `docs`    | Documentation         |
 
+## Configuration
+
+`src/main/resources/application.properties` holds **safe defaults only** (user agent, timeouts, Flyway, etc.). It is packaged into the JAR and Docker image.
+
+Secrets and environment-specific values (database URL, SSO, JWT) belong in:
+
+| Environment | Where to put secrets |
+| ----------- | -------------------- |
+| Local dev (`mvn quarkus:dev`) | `application-local.properties` in the project root (gitignored) |
+| Docker / Kubernetes | Environment variables (see table above) |
+
+First-time local setup:
+
+```bash
+cp application-local.properties.example application-local.properties
+# edit application-local.properties with your values
+```
+
 ## Build the application
 
 ```bash
@@ -138,7 +156,9 @@ mvn install -Dnative
 Run the application:
 
 ```bash
-java -jar target/*-runner.jar
+mvn quarkus:dev
+# or, for a built native runner with a local config file:
+java -Dquarkus.config.locations=application-local.properties -jar target/*-runner.jar
 ```
 
 ## Build and push the Docker image:
