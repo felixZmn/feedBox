@@ -1,0 +1,11 @@
+# Database (required)
+quarkus.datasource.jdbc.url=jdbc:postgresql://localhost:5432/postgres?user=user&password=password
+
+# JWT / SSO (required)
+mp.jwt.verify.publickey.location=https://your-idp.example/application/o/your-app/jwks/
+mp.jwt.verify.issuer=NONE
+
+sso.clientid=your-client-id
+sso.redirectUri=http://localhost:8080
+sso.authServerUrl=https://your-idp.example/application/o/
+sso.endSessionEndpoint=https://your-idp.example/application/o/your-app/end-session/

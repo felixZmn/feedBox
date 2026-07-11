@@ -20,3 +20,6 @@ buildNumber.properties
 
 # helm build artefacts
 *.tgz
+
+# Local secrets and environment-specific config
+application-local.properties
