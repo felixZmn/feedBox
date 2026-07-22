@@ -9,7 +9,8 @@
 -- Notes on fixes bundled into V1 (all additive, no destructive changes):
 --   * icon.feed_id is changed from ON DELETE SET NULL to ON DELETE CASCADE to
 --     stop the icon-bytea leak on feed delete.
---   * folder gets CHECK (id <> 0) to protect the "root" sentinel.
+--   * folder gets CHECK (id <> 0) so id 0 cannot be used as a folder PK
+--     (legacy "root" sentinel cleanup is handled in V3).
 --   * feed gets last_refreshed_at and last_error columns to surface
 --     per-feed refresh failures (currently silently logged away).
 --   * Missing FK indexes and a composite (feed_id, published DESC, id DESC)
@@ -24,18 +25,11 @@ CREATE TABLE IF NOT EXISTS folder (
     color VARCHAR(255) DEFAULT 'f-base'
 );
 
--- Protect the "root" sentinel row. Without this, deleting the root folder
--- would cascade-delete every feed whose folder_id was 0.
---
--- Defensive: a self-hoster that has been running the pre-Flyway version of
--- feedBox already has an `id = 0` row in `folder` (the hand-rolled seed
--- insert). Adding `CHECK (id <> 0)` against an existing row 0 would fail
--- with SQLSTATE 23514. We therefore only add the constraint if (a) it does
--- not exist yet AND (b) no row in `folder` has id = 0. The latter is
--- actually guaranteed for the *new* install path (this block runs before
--- the seed INSERT below), and for the *upgrade* path the user accepts that
--- the row 0 is intentionally retained - it just doesn't get the protection
--- constraint until the data is cleaned up.
+-- Forbid folder id 0. Legacy installs may still have a hand-rolled `id = 0`
+-- "root" sentinel row; adding CHECK (id <> 0) against that row would fail
+-- with SQLSTATE 23514. Only add the constraint if (a) it does not exist yet
+-- AND (b) no row has id = 0. Fresh installs get the CHECK; upgrade installs
+-- keep the sentinel until V3 drops the constraint and deletes the row.
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -139,17 +133,3 @@ CREATE INDEX IF NOT EXISTS icon_feed_id_idx    ON icon (feed_id);
 -- Covers both findAll / findByFeed / findByFolder path variants.
 CREATE INDEX IF NOT EXISTS article_feed_published_id_idx
     ON article (feed_id, published DESC, id DESC);
-
--- ---------------------------------------------------------------------------
--- Seed data
--- ---------------------------------------------------------------------------
--- Sentinel row representing "no folder". The CHECK above prevents deletion
--- of this row. Inserts are idempotent via ON CONFLICT.
-INSERT INTO folder (id, name) VALUES (0, 'root') ON CONFLICT DO NOTHING;
-
--- Align the SERIAL sequence with the explicitly-inserted id 0 so the next
--- auto-generated id is 1, not the cached sequence value (which may be 1
--- already, but this guards against a fresh-DB creation where the sequence
--- has not been advanced past 0 by user inserts).
-SELECT setval(pg_get_serial_sequence('folder', 'id'),
-              GREATEST((SELECT MAX(id) FROM folder), 1));
