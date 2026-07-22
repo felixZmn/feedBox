@@ -6,7 +6,6 @@ import {
   feedContextMenu,
   folderClickListener,
   folderContextMenu,
-  openAddContextMenu,
 } from "./main.js";
 import { getRelativeTime, parseDate, sanitizeHTML } from "./util.js";
 
@@ -256,8 +255,6 @@ export function renderFoldersList(folders, unfiledFeeds) {
     });
     container.appendChild(ul);
   }
-
-  container.appendChild(addElement());
 }
 
 /**
@@ -293,33 +290,6 @@ function createFolderElement(folder) {
   summary.appendChild(options);
 
   return summary;
-}
-
-/**
- * Creates the "Add Feed/Folder" "Button"
- * @returns {HTMLDivElement}
- */
-function addElement() {
-  const img = document.createElement("img");
-  img.src = "icons/feed_add.svg";
-  img.classList.add("icon", "f-grey");
-
-  const span = document.createElement("span");
-  span.textContent = "Add";
-  span.className = "tree-name";
-
-  const details = document.createElement("div");
-  details.classList.add("space-top", "details");
-  details.addEventListener("click", (e) => {
-    e.stopPropagation();
-    openAddContextMenu(e.clientX, e.clientY);
-  });
-  const summary = document.createElement("div");
-  summary.className = "summary";
-  summary.appendChild(img);
-  summary.appendChild(span);
-  details.appendChild(summary);
-  return details;
 }
 
 /**

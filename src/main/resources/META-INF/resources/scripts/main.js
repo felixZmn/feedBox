@@ -65,6 +65,7 @@ const dom = {
     next: document.getElementById("trigger-next"),
     close: document.getElementById("trigger-close"),
     showAllFeeds: document.getElementById("trigger-show-all-feeds"),
+    add: document.getElementById("trigger-add"),
     addFeed: document.getElementById("trigger-feed-add"),
     editFeed: document.getElementById("trigger-feed-edit"),
     deleteFeed: document.getElementById("trigger-feed-delete"),
@@ -103,10 +104,10 @@ window.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
+    initEventListeners();
     await loadFolders();
     await loadArticles();
     lazyLoadObserver = setupScrollObserver();
-    initEventListeners();
   } catch (error) {
     console.error("[app] Error during initialization:", error);
     throw error;
@@ -126,6 +127,10 @@ function initEventListeners() {
   dom.button.showAllFeeds.addEventListener("click", () =>
     allFeedsClickListener(),
   );
+  dom.button.add.addEventListener("click", (e) => {
+    e.stopPropagation();
+    openAddContextMenu(e.clientX, e.clientY);
+  });
   dom.button.refresh.addEventListener("click", () => refreshFeeds());
   dom.button.export.addEventListener("click", async (event) => {
     event.preventDefault();
