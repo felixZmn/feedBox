@@ -22,6 +22,8 @@ import {
   renderEmptyState,
   showFeedsSpinner,
   hideFeedsSpinner,
+  setSelectedArticleHighlight,
+  updateNavSelection,
 } from "./dom.js";
 import { NavigationService, columns } from "./nav.js";
 import { escapeHtml } from "./util.js";
@@ -33,6 +35,9 @@ import {
   logout,
   fetchWithAuth,
 } from "./pkce.js";
+
+/** Must match backend ArticleRepository LIMIT */
+const ARTICLES_PAGE_SIZE = 25;
 
 const itemType = Object.freeze({
   ALL: "",
@@ -47,7 +52,11 @@ const state = {
   unfiledFeeds: [],
   pagination: { id: null, published: null },
   filter: { isActive: false, lastSearchTerm: "" },
-  status: { isRefreshing: false, isLoadingArticles: false },
+  status: {
+    isRefreshing: false,
+    isLoadingArticles: false,
+    hasMoreArticles: true,
+  },
   selectedArticle: null,
   lastClickedItem: { type: itemType.ALL, obj: null },
 };
@@ -64,6 +73,7 @@ const dom = {
     previous: document.getElementById("trigger-previous"),
     next: document.getElementById("trigger-next"),
     close: document.getElementById("trigger-close"),
+    backToFeeds: document.getElementById("trigger-back-feeds"),
     showAllFeeds: document.getElementById("trigger-show-all-feeds"),
     add: document.getElementById("trigger-add"),
     addFeed: document.getElementById("trigger-feed-add"),
@@ -124,6 +134,12 @@ function initEventListeners() {
 
   dom.button.next.addEventListener("click", () => navigateArticle(1));
   dom.button.previous.addEventListener("click", () => navigateArticle(-1));
+  if (dom.button.backToFeeds) {
+    dom.button.backToFeeds.addEventListener("click", (e) => {
+      e.preventDefault();
+      navigationService.navigateTo(columns.FEEDS);
+    });
+  }
   dom.button.showAllFeeds.addEventListener("click", () =>
     allFeedsClickListener(),
   );
@@ -187,7 +203,9 @@ function initEventListeners() {
     let response = await showConfirmDialog(headline, message);
     if (response) await deleteFeed(state.lastClickedItem.obj);
   });
-  dom.button.close.addEventListener("click", () => {
+  dom.button.close.addEventListener("click", (e) => {
+    e.preventDefault();
+    state.selectedArticle = null;
     clearReaderView();
     navigationService.navigateTo(columns.ARTICLES);
   });
@@ -237,6 +255,7 @@ export function loadArticle(article) {
     return;
   }
   state.selectedArticle = result;
+  setSelectedArticleHighlight(result.id);
   renderReaderView(result);
 }
 
@@ -253,7 +272,8 @@ function setupScrollObserver() {
       if (
         entry.isIntersecting &&
         !state.filter.isActive &&
-        !state.status.isLoadingArticles
+        !state.status.isLoadingArticles &&
+        state.status.hasMoreArticles
       ) {
         loadArticles();
       }
@@ -347,6 +367,7 @@ export async function allFeedsClickListener() {
   resetPagination();
   state.lastClickedItem.type = itemType.ALL;
   state.lastClickedItem.obj = null;
+  updateNavSelection(itemType.ALL, null);
   lazyLoadObserver.pause();
   clearArticles();
   await loadArticles();
@@ -362,6 +383,7 @@ export async function feedClickListener(feed) {
   resetPagination();
   state.lastClickedItem.type = itemType.FEED;
   state.lastClickedItem.obj = feed;
+  updateNavSelection(itemType.FEED, feed);
   lazyLoadObserver.pause();
   clearArticles();
   await loadArticles();
@@ -377,6 +399,7 @@ export async function folderClickListener(folder) {
   resetPagination();
   state.lastClickedItem.type = itemType.FOLDER;
   state.lastClickedItem.obj = folder;
+  updateNavSelection(itemType.FOLDER, folder);
   lazyLoadObserver.pause();
   clearArticles();
   await loadArticles();
@@ -403,6 +426,7 @@ function clearArticles() {
 function resetPagination() {
   state.pagination.id = null;
   state.pagination.published = null;
+  state.status.hasMoreArticles = true;
 }
 
 async function loadFolders() {
@@ -418,6 +442,7 @@ async function loadFolders() {
   renderFoldersList(foldersWithFeeds, unfiledFeeds);
   state.folders = foldersWithFeeds;
   state.unfiledFeeds = unfiledFeeds;
+  updateNavSelection(state.lastClickedItem.type, state.lastClickedItem.obj);
   hideFeedsSpinner();
 }
 
@@ -646,6 +671,7 @@ async function loadArticles() {
     removeSkeletons();
 
     if (!newArticles || newArticles.length === 0) {
+      state.status.hasMoreArticles = false;
       if (dataService.getArticles().length === 0) {
         renderEmptyState();
       }
@@ -653,13 +679,14 @@ async function loadArticles() {
     }
 
     state.articles = dataService.getArticles();
+    state.status.hasMoreArticles = newArticles.length >= ARTICLES_PAGE_SIZE;
 
     // update pagination
     const lastArticle = newArticles[newArticles.length - 1];
     state.pagination.id = lastArticle.id;
     state.pagination.published = lastArticle.published;
 
-    appendArticlesList(newArticles);
+    appendArticlesList(newArticles, state.selectedArticle?.id ?? null);
   } finally {
     removeSkeletons();
     state.status.isLoadingArticles = false;

@@ -1,6 +1,6 @@
 "use strict";
 
-const VERSION = "v1::2026-07-22::001";
+const VERSION = "v1::2026-07-23::006";
 const CACHE_NAME = `feedbox-${VERSION}`;
 
 const CACHE_FILES = [
@@ -13,6 +13,7 @@ const CACHE_FILES = [
   "/icons/folder.svg",
   "/icons/import.svg",
   "/icons/maskable_icon_x384.png",
+  "/icons/nav_back.svg",
   "/icons/package.svg",
   "/icons/reader_close.svg",
   "/icons/reader_next.svg",
@@ -57,7 +58,37 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
-  const isAppFile = CACHE_FILES.includes(url.pathname);
+  const pathname = url.pathname;
+  const isAppFile =
+    CACHE_FILES.includes(pathname) ||
+    CACHE_FILES.includes(`${pathname}${url.search}`);
+
+  // Always try network first for shell/CSS so layout fixes reach PWAs quickly
+  const networkFirst =
+    pathname === "/" ||
+    pathname.endsWith(".html") ||
+    pathname.endsWith(".css") ||
+    pathname.endsWith("/sw.js");
+
+  if (networkFirst) {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(CACHE_NAME);
+        try {
+          const networkResponse = await fetch(event.request);
+          cache.put(event.request, networkResponse.clone());
+          return networkResponse;
+        } catch {
+          return (
+            (await cache.match(event.request)) ||
+            (await cache.match(pathname)) ||
+            new Response("Offline", { status: 503 })
+          );
+        }
+      })(),
+    );
+    return;
+  }
 
   if (isAppFile) {
     event.respondWith(

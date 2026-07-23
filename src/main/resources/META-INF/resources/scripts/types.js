@@ -24,6 +24,8 @@
  * @property {string} url - Primary URL of the feed source
  * @property {string} feedUrl - URL of the RSS/Atom feed
  * @property {string|null} icon - URL of the feed icon, or null if not available
+ * @property {string|null} lastRefreshedAt - ISO timestamp of last successful refresh
+ * @property {string|null} lastError - Last refresh error message, or null if healthy
  */
 
 /**

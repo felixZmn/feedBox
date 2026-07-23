@@ -14,6 +14,57 @@ const articlesContainer = document.querySelector(
   "#articles-list #articles-container",
 );
 
+/** @type {number|null} */
+let selectedArticleId = null;
+
+/**
+ * Persist which article row is highlighted in the list (independent of hover).
+ * @param {number|null|undefined} articleId
+ */
+export function setSelectedArticleHighlight(articleId) {
+  selectedArticleId = articleId ?? null;
+  articlesContainer
+    .querySelectorAll(".article.selected")
+    .forEach((el) => el.classList.remove("selected"));
+  if (selectedArticleId == null) return;
+  const el = articlesContainer.querySelector(
+    `.article[data-article-id="${selectedArticleId}"]`,
+  );
+  if (el) el.classList.add("selected");
+}
+
+/**
+ * Highlight the current All Feeds / folder / feed in the sidebar.
+ * @param {string} type
+ * @param {{id: number}|null} obj
+ */
+export function updateNavSelection(type, obj) {
+  const feedsList = document.getElementById("feeds-list");
+  if (!feedsList) return;
+
+  feedsList
+    .querySelectorAll(".selected")
+    .forEach((el) => el.classList.remove("selected"));
+
+  if (type === "feed" && obj) {
+    const feedEl = feedsList.querySelector(
+      `li[data-feed-id="${obj.id}"]`,
+    );
+    if (feedEl) feedEl.classList.add("selected");
+    return;
+  }
+
+  if (type === "folder" && obj) {
+    const folderEl = feedsList.querySelector(
+      `details[data-folder-id="${obj.id}"] > summary`,
+    );
+    if (folderEl) folderEl.classList.add("selected");
+    return;
+  }
+
+  document.getElementById("trigger-show-all-feeds")?.classList.add("selected");
+}
+
 function loadFolderOpenStates() {
   try {
     const raw = localStorage.getItem(FOLDER_STATE_KEY);
@@ -59,6 +110,10 @@ function createArticleElement(article) {
   const ageSpan = document.createElement("span");
 
   articleDiv.className = "article";
+  articleDiv.dataset.articleId = String(article.id);
+  if (selectedArticleId != null && article.id === selectedArticleId) {
+    articleDiv.classList.add("selected");
+  }
   headerDiv.className = "article-header";
   imageDiv.className = "article-image";
   titleDiv.className = "article-title";
@@ -76,6 +131,7 @@ function createArticleElement(article) {
   if (article.imageUrl) {
     const image = document.createElement("img");
     image.src = article.imageUrl;
+    image.alt = "";
     imageDiv.appendChild(image);
     articleDiv.appendChild(imageDiv);
   }
@@ -99,9 +155,13 @@ export function clearArticlesList() {
 /**
  * Replaces all articles in the DOM (full re-render)
  * @param {Article[]} articles - The articles to render
+ * @param {number|null} [keepSelectedId] - Article id to keep highlighted
  * @returns {void}
  */
-export function replaceArticlesList(articles) {
+export function replaceArticlesList(articles, keepSelectedId = selectedArticleId) {
+  if (keepSelectedId !== undefined) {
+    selectedArticleId = keepSelectedId;
+  }
   clearArticlesList();
   appendArticlesList(articles);
 }
@@ -109,9 +169,13 @@ export function replaceArticlesList(articles) {
 /**
  * Appends articles to the DOM (incremental update)
  * @param {Article[]} articles - The articles to append
+ * @param {number|null} [keepSelectedId]
  * @returns {void}
  */
-export function appendArticlesList(articles) {
+export function appendArticlesList(articles, keepSelectedId) {
+  if (keepSelectedId !== undefined && keepSelectedId !== null) {
+    selectedArticleId = keepSelectedId;
+  }
   const fragment = document.createDocumentFragment();
   for (const article of articles) {
     const articleEl = createArticleElement(article);
@@ -157,6 +221,7 @@ export function clearReaderView() {
   externalLink.href = "";
 
   externalLink.classList.add("d-none");
+  setSelectedArticleHighlight(null);
 }
 
 /**
@@ -169,6 +234,7 @@ function createFeedElement(feed) {
   const icon = document.createElement("img");
   icon.src = "./api/icon/" + feed.id;
   icon.className = "tree-entry-icon";
+  icon.alt = "";
 
   const nameSpan = document.createElement("span");
   nameSpan.textContent = feed.name || "";
@@ -181,6 +247,8 @@ function createFeedElement(feed) {
   const options = document.createElement("span");
   options.classList.add("tree-options");
   options.textContent = "⋮";
+  options.setAttribute("role", "button");
+  options.setAttribute("aria-label", "Feed options");
   options.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -189,6 +257,16 @@ function createFeedElement(feed) {
 
   li.appendChild(icon);
   li.appendChild(nameSpan);
+
+  if (feed.lastError) {
+    const err = document.createElement("span");
+    err.className = "feed-error";
+    err.textContent = "!";
+    err.title = feed.lastError;
+    err.setAttribute("aria-label", `Feed error: ${feed.lastError}`);
+    li.appendChild(err);
+  }
+
   li.appendChild(options);
   li.dataset.feedId = feed.id.toString();
   return li;
@@ -217,6 +295,7 @@ export function renderFoldersList(folders, unfiledFeeds) {
 
   folders.forEach((folder) => {
     const details = document.createElement("details");
+    details.dataset.folderId = String(folder.id);
     const persistedOpen = getFolderOpenState(folder.id);
     if (persistedOpen !== undefined) {
       details.open = persistedOpen;
@@ -279,6 +358,8 @@ function createFolderElement(folder) {
   const options = document.createElement("span");
   options.classList.add("tree-options");
   options.textContent = "⋮";
+  options.setAttribute("role", "button");
+  options.setAttribute("aria-label", "Folder options");
   options.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
