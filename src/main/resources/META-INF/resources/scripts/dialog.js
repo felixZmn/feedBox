@@ -37,7 +37,7 @@ export async function showAddFolderDialog() {
       placeholder="My folder"
       required
     />
-    <label class="field" for="folder-color" aria-labelledby="color-label">Color</label>
+    <label class="field" for="folder-color">Color</label>
     <div class="color-row">
       <select id="folder-color" name="color">
         ${optionsHtml}
@@ -69,7 +69,7 @@ export async function showEditFolderDialog(folder) {
       required
     />
     
-    <label class="field" for="folder-color" aria-labelledby="color-label">Color</label>
+    <label class="field" for="folder-color">Color</label>
     <div class="color-row">
       <select id="folder-color" name="color">
         ${optionsHtml}

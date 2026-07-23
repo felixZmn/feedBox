@@ -2,13 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!--<meta name="viewport" content="width=device-width, initial-scale=1.0" />-->
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
     <title>feedBox</title>
     <link rel="stylesheet" href="./style.css" />
+    <meta name="theme-color" content="#005e83" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="default"
+    />
     <link
       rel="icon"
       href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgM2w4IDQuNWwwIDlsLTggNC41bC04IC00LjVsMCAtOWw4IC00LjUiIC8+PHBhdGggZD0iTTEyIDEybDggLTQuNSIgLz48cGF0aCBkPSJNMTIgMTJsMCA5IiAvPjxwYXRoIGQ9Ik0xMiAxMmwtOCAtNC41IiAvPjxwYXRoIGQ9Ik0xNiA1LjI1bC04IDQuNSIgLz48L3N2Zz4="
@@ -52,19 +58,23 @@
                 src="icons/profile_placeholder.svg"
                 alt="Profile"
             /></a>
-            <a class="item-spacer" id="trigger-export" href="#"
+            <a
+              class="item-spacer"
+              id="trigger-export"
+              href="#"
+              title="Export feeds"
               ><img
                 class="icon f-base"
                 src="icons/export.svg"
-                alt="Export Feeds"
+                alt="Export feeds"
             /></a>
-            <a class="item-spacer" id="trigger-import"
+            <a class="item-spacer" id="trigger-import" title="Import feeds"
               ><img
                 class="icon f-base"
                 src="icons/import.svg"
-                alt="Import Feeds"
+                alt="Import feeds"
             /></a>
-            <a class="item-spacer" id="trigger-refresh"
+            <a class="item-spacer" id="trigger-refresh" title="Refresh feeds"
               ><img
                 id="refresh-spinner"
                 class="icon f-base"
@@ -73,7 +83,7 @@
             /></a>
           </div>
           <div class="right">
-            <a class="item-spacer" id="trigger-logout"
+            <a class="item-spacer" id="trigger-logout" title="Logout"
               ><img class="icon f-base" src="icons/logout.svg" alt="Logout"
             /></a>
           </div>
@@ -134,9 +144,24 @@
       <main id="articles-list" class="articles-list border-right">
         <div class="column-header">
           <div class="left">
+            <a
+              class="item-spacer mobile-back"
+              id="trigger-back-feeds"
+              href="#"
+              title="Back to feeds"
+              ><img
+                class="icon f-base"
+                src="icons/nav_back.svg"
+                alt="Back to feeds"
+            /></a>
             <div class="search-container">
-              <img src="icons/search.svg" alt="Search" class="icon f-base" />
-              <input type="text" placeholder="Search..." id="search-input" />
+              <img src="icons/search.svg" alt="" class="icon f-base" />
+              <input
+                type="text"
+                placeholder="Search..."
+                id="search-input"
+                aria-label="Search articles"
+              />
             </div>
           </div>
           <div class="right"></div>
@@ -159,26 +184,44 @@
 
       <section id="reader" class="reader">
         <div class="column-header">
-          <div class="left"></div>
+          <div class="left">
+            <a
+              class="item-spacer reader-back"
+              id="trigger-close"
+              href="#"
+              title="Back to articles"
+              ><img
+                class="icon f-base"
+                src="icons/nav_back.svg"
+                alt="Back to articles"
+            /></a>
+          </div>
           <div class="right">
             <a
               class="item-spacer d-none"
               id="trigger-external-open"
               href="#"
               target="_blank"
-              ><img class="icon f-base" src="icons/external.svg" alt="Open"
+              title="Open in browser"
+              ><img
+                class="icon f-base"
+                src="icons/external.svg"
+                alt="Open in browser"
             /></a>
-            <a class="item-spacer" id="trigger-previous"
+            <a
+              class="item-spacer"
+              id="trigger-previous"
+              title="Previous article"
               ><img
                 class="icon f-base"
                 src="icons/reader_previous.svg"
-                alt="Open"
+                alt="Previous article"
             /></a>
-            <a class="item-spacer" id="trigger-next"
-              ><img class="icon f-base" src="icons/reader_next.svg" alt="Open"
-            /></a>
-            <a class="item-spacer" id="trigger-close"
-              ><img class="icon f-base" src="icons/reader_close.svg" alt="Open"
+            <a class="item-spacer" id="trigger-next" title="Next article"
+              ><img
+                class="icon f-base"
+                src="icons/reader_next.svg"
+                alt="Next article"
             /></a>
           </div>
         </div>
