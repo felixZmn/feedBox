@@ -46,13 +46,15 @@ class ModalService {
     this.confirmBtn = newConfirmBtn;
 
     this.confirmBtn.addEventListener("click", async () => {
-      const data = this._collectFormData(); // Collect current state of DOM
+      let data = this._collectFormData(); // Collect current state of DOM
 
       if (onValidate) {
         const isValid = await onValidate(data, this.bodyEl);
         if (!isValid) return; // Keep dialog open
+        // onValidate may have updated inputs (e.g. resolved feed URL), so re-collect
+        data = this._collectFormData();
       }
-      this.close(this._collectFormData());
+      this.close(data);
     });
 
     this.dialog.showModal();

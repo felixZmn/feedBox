@@ -22,28 +22,63 @@
     <link rel="manifest" href="/manifest.json" crossorigin="use-credentials" />
   </head>
   <body>
-    <ul class="context-menu" id="context-menu">
-      <li class="context-menu-item context-add" id="trigger-feed-add">
+    <ul class="context-menu" id="context-menu" role="menu">
+      <li
+        class="context-menu-item context-add"
+        id="trigger-feed-add"
+        role="menuitem"
+        tabindex="0"
+      >
         Add Feed
       </li>
-      <li class="context-menu-item context-add" id="trigger-folder-add">
+      <li
+        class="context-menu-item context-add"
+        id="trigger-folder-add"
+        role="menuitem"
+        tabindex="0"
+      >
         Add Folder
       </li>
 
-      <li class="context-menu-item context-feed" id="trigger-open-website">
+      <li
+        class="context-menu-item context-feed"
+        id="trigger-open-website"
+        role="menuitem"
+        tabindex="0"
+      >
         Open Website
       </li>
-      <li class="context-menu-item context-feed" id="trigger-feed-edit">
+      <li
+        class="context-menu-item context-feed"
+        id="trigger-feed-edit"
+        role="menuitem"
+        tabindex="0"
+      >
         Edit Feed
       </li>
-      <li class="context-menu-item context-feed" id="trigger-feed-delete">
+      <li
+        class="context-menu-item context-feed"
+        id="trigger-feed-delete"
+        role="menuitem"
+        tabindex="0"
+      >
         Delete Feed
       </li>
 
-      <li class="context-menu-item context-folder" id="trigger-folder-edit">
+      <li
+        class="context-menu-item context-folder"
+        id="trigger-folder-edit"
+        role="menuitem"
+        tabindex="0"
+      >
         Edit Folder
       </li>
-      <li class="context-menu-item context-folder" id="trigger-folder-delete">
+      <li
+        class="context-menu-item context-folder"
+        id="trigger-folder-delete"
+        role="menuitem"
+        tabindex="0"
+      >
         Delete Folder
       </li>
     </ul>
@@ -52,46 +87,68 @@
       <aside id="feeds-list" class="feeds-list border-right">
         <div class="column-header">
           <div class="left">
-            <a class="item-spacer" id="trigger-profile" title="Profile"
-              ><img
+            <button
+              type="button"
+              class="item-spacer"
+              id="trigger-profile"
+              title="Profile"
+              aria-label="Profile"
+            >
+              <img
                 class="icon f-base"
                 src="icons/profile_placeholder.svg"
-                alt="Profile"
-            /></a>
-            <a
+                alt=""
+              />
+            </button>
+            <button
+              type="button"
               class="item-spacer"
               id="trigger-export"
-              href="#"
               title="Export feeds"
-              ><img
-                class="icon f-base"
-                src="icons/export.svg"
-                alt="Export feeds"
-            /></a>
-            <a class="item-spacer" id="trigger-import" title="Import feeds"
-              ><img
-                class="icon f-base"
-                src="icons/import.svg"
-                alt="Import feeds"
-            /></a>
-            <a class="item-spacer" id="trigger-refresh" title="Refresh feeds"
-              ><img
+              aria-label="Export feeds"
+            >
+              <img class="icon f-base" src="icons/export.svg" alt="" />
+            </button>
+            <button
+              type="button"
+              class="item-spacer"
+              id="trigger-import"
+              title="Import feeds"
+              aria-label="Import feeds"
+            >
+              <img class="icon f-base" src="icons/import.svg" alt="" />
+            </button>
+            <button
+              type="button"
+              class="item-spacer"
+              id="trigger-refresh"
+              title="Refresh feeds"
+              aria-label="Refresh feeds"
+            >
+              <img
                 id="refresh-spinner"
                 class="icon f-base"
                 src="icons/refresh.svg"
-                alt="Refresh feeds"
-            /></a>
+                alt=""
+              />
+            </button>
           </div>
           <div class="right">
-            <a class="item-spacer" id="trigger-logout" title="Logout"
-              ><img class="icon f-base" src="icons/logout.svg" alt="Logout"
-            /></a>
+            <button
+              type="button"
+              class="item-spacer"
+              id="trigger-logout"
+              title="Logout"
+              aria-label="Logout"
+            >
+              <img class="icon f-base" src="icons/logout.svg" alt="" />
+            </button>
           </div>
         </div>
         <div class="column" id="feeds-col">
           <div class="details" id="trigger-show-all-feeds">
             <div class="summary">
-              <img src="icons/package.svg" class="icon f-base" /><span
+              <img src="icons/package.svg" class="icon f-base" alt="" /><span
                 class="tree-name"
                 >All Feeds</span
               >
@@ -109,58 +166,33 @@
           </div>
           <div class="details space-top" id="trigger-add">
             <div class="summary">
-              <img src="icons/feed_add.svg" class="icon f-grey" />
+              <img src="icons/feed_add.svg" class="icon f-grey" alt="" />
               <span class="tree-name">Add</span>
             </div>
           </div>
-          <!-- <div>
-            <img class="icon" src="icons/list_search.svg" />
-            <span class="folder-name">All Feeds</span>
-          </div> -->
-          <!-- <details>
-            <summary>
-              <img class="icon" src="icons/folder.svg" />
-              <span class="folder-name">News</span>
-            </summary>
-
-            <ul class="files">
-              <li>
-                <img class="file-img" src="icons/icon.png" alt="file icon" />
-                Frankfurter Allgemeine Zeitung
-              </li>
-              <li>
-                <img class="file-img" src="icons/icon.png" alt="file icon" />
-                The New York Times
-              </li>
-              <li>
-                <img class="file-img" src="icons/icon.png" alt="folder icon" />
-                Tagesschau
-              </li>
-            </ul>
-          </details> -->
         </div>
       </aside>
 
       <main id="articles-list" class="articles-list border-right">
         <div class="column-header">
           <div class="left">
-            <a
+            <button
+              type="button"
               class="item-spacer mobile-back"
               id="trigger-back-feeds"
-              href="#"
               title="Back to feeds"
-              ><img
-                class="icon f-base"
-                src="icons/nav_back.svg"
-                alt="Back to feeds"
-            /></a>
+              aria-label="Back to feeds"
+            >
+              <img class="icon f-base" src="icons/nav_back.svg" alt="" />
+            </button>
             <div class="search-container">
               <img src="icons/search.svg" alt="" class="icon f-base" />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder="Search loaded articles..."
                 id="search-input"
-                aria-label="Search articles"
+                aria-label="Search loaded articles"
+                title="Search filters articles already loaded in the list"
               />
             </div>
           </div>
@@ -169,32 +201,21 @@
         <div class="column">
           <div class="articles-container" id="articles-container"></div>
           <div class="articles-sentinel" id="articles-sentinel"></div>
-          <!-- <div class="article" onclick="showView('reader')">
-            <div class="header">
-              <span class="source">Ars Technica</span>
-              <span class="age">2h</span>
-            </div>
-            <div class="title">
-              Rocket Report: Firefly lights the markets up; SpaceX starts
-              selling trips to Mars
-            </div>
-          </div> -->
         </div>
       </main>
 
       <section id="reader" class="reader">
         <div class="column-header">
           <div class="left">
-            <a
+            <button
+              type="button"
               class="item-spacer reader-back"
               id="trigger-close"
-              href="#"
               title="Back to articles"
-              ><img
-                class="icon f-base"
-                src="icons/nav_back.svg"
-                alt="Back to articles"
-            /></a>
+              aria-label="Back to articles"
+            >
+              <img class="icon f-base" src="icons/nav_back.svg" alt="" />
+            </button>
           </div>
           <div class="right">
             <a
@@ -202,27 +223,32 @@
               id="trigger-external-open"
               href="#"
               target="_blank"
+              rel="noopener noreferrer"
               title="Open in browser"
+              aria-label="Open in browser"
               ><img
                 class="icon f-base"
                 src="icons/external.svg"
-                alt="Open in browser"
+                alt=""
             /></a>
-            <a
+            <button
+              type="button"
               class="item-spacer"
               id="trigger-previous"
               title="Previous article"
-              ><img
-                class="icon f-base"
-                src="icons/reader_previous.svg"
-                alt="Previous article"
-            /></a>
-            <a class="item-spacer" id="trigger-next" title="Next article"
-              ><img
-                class="icon f-base"
-                src="icons/reader_next.svg"
-                alt="Next article"
-            /></a>
+              aria-label="Previous article"
+            >
+              <img class="icon f-base" src="icons/reader_previous.svg" alt="" />
+            </button>
+            <button
+              type="button"
+              class="item-spacer"
+              id="trigger-next"
+              title="Next article"
+              aria-label="Next article"
+            >
+              <img class="icon f-base" src="icons/reader_next.svg" alt="" />
+            </button>
           </div>
         </div>
         <div class="column">

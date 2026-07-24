@@ -120,7 +120,14 @@ window.addEventListener("DOMContentLoaded", async () => {
     lazyLoadObserver = setupScrollObserver();
   } catch (error) {
     console.error("[app] Error during initialization:", error);
-    throw error;
+    hideFeedsSpinner();
+    removeSkeletons();
+    await modal.show({
+      title: "Something went wrong",
+      content:
+        "The app failed to load. Please check your connection and reload the page.",
+      type: "alert",
+    });
   }
 });
 
@@ -129,7 +136,34 @@ window.addEventListener("DOMContentLoaded", async () => {
  */
 function initEventListeners() {
   document.addEventListener("click", () => {
-    dom.contextMenu.style.display = "none";
+    hideContextMenu();
+  });
+
+  dom.contextMenu.addEventListener("keydown", (e) => {
+    const items = getVisibleContextMenuItems();
+    if (items.length === 0) return;
+    const currentIndex = items.indexOf(document.activeElement);
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        items[currentIndex < 0 ? 0 : (currentIndex + 1) % items.length].focus();
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        items[
+          currentIndex <= 0 ? items.length - 1 : currentIndex - 1
+        ].focus();
+        break;
+      case "Enter":
+      case " ":
+        e.preventDefault();
+        document.activeElement?.click();
+        break;
+      case "Escape":
+        e.preventDefault();
+        hideContextMenu();
+        break;
+    }
   });
 
   dom.button.next.addEventListener("click", () => navigateArticle(1));
@@ -154,37 +188,37 @@ function initEventListeners() {
   });
   dom.button.import.addEventListener("click", () => importFeeds());
   dom.button.addFolder.addEventListener("click", async () => {
-    let newFolder = await showAddFolderDialog();
+    const newFolder = await showAddFolderDialog();
     if (newFolder) await createFolder(newFolder);
   });
   dom.button.editFolder.addEventListener("click", async () => {
-    let editedFolder = await showEditFolderDialog(state.lastClickedItem.obj);
+    const editedFolder = await showEditFolderDialog(state.lastClickedItem.obj);
     if (editedFolder) {
       editedFolder.id = state.lastClickedItem.obj.id;
       await editFolder(editedFolder);
     }
   });
   dom.button.deleteFolder.addEventListener("click", async () => {
-    let headline = "Delete";
-    let message = `Are you sure you want to delete the folder "${escapeHtml(state.lastClickedItem.obj.name)}"? All contained feeds will be deleted.`;
-    let response = await showConfirmDialog(headline, message);
+    const headline = "Delete";
+    const message = `Are you sure you want to delete the folder "${escapeHtml(state.lastClickedItem.obj.name)}"? All contained feeds will be deleted.`;
+    const response = await showConfirmDialog(headline, message);
     if (response) await deleteFolder(state.lastClickedItem.obj);
   });
 
   dom.button.addFeed.addEventListener("click", async () => {
-    let newFeed = await showAddFeedDialog(state.folders);
+    const newFeed = await showAddFeedDialog(state.folders);
     if (newFeed) {
       newFeed.folderId = newFeed.folderId || null;
       await createFeed(newFeed);
     }
   });
   dom.button.editFeed.addEventListener("click", async () => {
-    let response = await showEditFeedDialog(
+    const response = await showEditFeedDialog(
       state.folders,
       state.lastClickedItem.obj,
     );
     if (response) {
-      let editedFeed = state.lastClickedItem.obj;
+      const editedFeed = state.lastClickedItem.obj;
       editedFeed.feedUrl = response.feedUrl;
       editedFeed.folderId = response.folderId || null;
       await editFeed(editedFeed);
@@ -192,15 +226,15 @@ function initEventListeners() {
   });
   dom.button.openWebsite.addEventListener("click", async () => {
     if (!state.lastClickedItem.obj) return;
-    let websiteUrl = state.lastClickedItem.obj.url;
+    const websiteUrl = state.lastClickedItem.obj.url;
     if (websiteUrl) {
-      window.open(websiteUrl, "_blank");
+      window.open(websiteUrl, "_blank", "noopener,noreferrer");
     }
   });
   dom.button.deleteFeed.addEventListener("click", async () => {
-    let headline = "Delete";
-    let message = `Are you sure you want to delete the feed "${escapeHtml(state.lastClickedItem.obj.name)}"?`;
-    let response = await showConfirmDialog(headline, message);
+    const headline = "Delete";
+    const message = `Are you sure you want to delete the feed "${escapeHtml(state.lastClickedItem.obj.name)}"?`;
+    const response = await showConfirmDialog(headline, message);
     if (response) await deleteFeed(state.lastClickedItem.obj);
   });
   dom.button.close.addEventListener("click", (e) => {
@@ -220,7 +254,7 @@ function initEventListeners() {
     });
   }
   dom.searchInput.addEventListener("input", (e) => {
-    let searchTerm = e.target.value.trim().toLowerCase();
+    const searchTerm = e.target.value.trim().toLowerCase();
     // filter empty -> reset
     if (searchTerm === "") {
       state.filter.isActive = false;
@@ -294,15 +328,24 @@ function setupScrollObserver() {
 /**
  * Click listener for the "Add"-Element
  */
-export function openAddContextMenu(x, y) {
-  // hide all items first, then show the add menu items
+/**
+ * Shows only the context-menu items belonging to the given group, then opens the menu.
+ * @param {string} groupClass - e.g. "context-add", "context-feed", "context-folder"
+ * @param {number} x
+ * @param {number} y
+ */
+function showContextMenuGroup(groupClass, x, y) {
   document.querySelectorAll(".context-menu-item").forEach((element) => {
     element.style.display = "none";
   });
-  document.querySelectorAll(".context-add").forEach((element) => {
+  document.querySelectorAll(`.${groupClass}`).forEach((element) => {
     element.style.display = "block";
   });
   openContextMenu(x, y);
+}
+
+export function openAddContextMenu(x, y) {
+  showContextMenuGroup("context-add", x, y);
 }
 
 /**
@@ -327,27 +370,13 @@ function navigateArticle(direction) {
 export function feedContextMenu(x, y, feed) {
   state.lastClickedItem.type = itemType.FEED;
   state.lastClickedItem.obj = feed;
-  // hide all items first, then show the feed menu items
-  document.querySelectorAll(".context-menu-item").forEach((element) => {
-    element.style.display = "none";
-  });
-  document.querySelectorAll(".context-feed").forEach((element) => {
-    element.style.display = "block";
-  });
-  openContextMenu(x, y);
+  showContextMenuGroup("context-feed", x, y);
 }
 
 export function folderContextMenu(x, y, folder) {
   state.lastClickedItem.type = itemType.FOLDER;
   state.lastClickedItem.obj = folder;
-  // hide all items first, then show the folder menu items
-  document.querySelectorAll(".context-menu-item").forEach((element) => {
-    element.style.display = "none";
-  });
-  document.querySelectorAll(".context-folder").forEach((element) => {
-    element.style.display = "block";
-  });
-  openContextMenu(x, y);
+  showContextMenuGroup("context-folder", x, y);
 }
 
 function openContextMenu(x, y) {
@@ -357,6 +386,17 @@ function openContextMenu(x, y) {
   const menuRect = menu.getBoundingClientRect();
   menu.style.left = `${Math.min(x, innerWidth - menuRect.width)}px`;
   menu.style.top = `${Math.min(y, innerHeight - menuRect.height)}px`;
+  getVisibleContextMenuItems()[0]?.focus();
+}
+
+function hideContextMenu() {
+  dom.contextMenu.style.display = "none";
+}
+
+function getVisibleContextMenuItems() {
+  return [...dom.contextMenu.querySelectorAll(".context-menu-item")].filter(
+    (el) => el.style.display !== "none",
+  );
 }
 
 /**
@@ -496,7 +536,8 @@ async function createFeed(feed) {
     await loadFolders();
   } catch (error) {
     console.error(error);
-    const isDuplicate = error.originalError?.status === 409;
+    const isDuplicate =
+      error.status === 409 || error.cause?.status === 409;
     await modal.show({
       title: "Error",
       content: isDuplicate ? "This feed already exists." : "Error saving feed.",

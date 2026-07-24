@@ -14,6 +14,23 @@ const colorOptions = [
   { value: "f-violet", label: "Violet" },
 ];
 
+/**
+ * Renders an inline error message inside an open modal body.
+ * Avoids calling modal.show() on an already-open <dialog>, which throws.
+ * @param {HTMLElement} bodyEl - The modal body element
+ * @param {string} message - The error message to display
+ */
+function showDialogError(bodyEl, message) {
+  let errorEl = bodyEl.querySelector(".dialog-error");
+  if (!errorEl) {
+    errorEl = document.createElement("div");
+    errorEl.className = "dialog-error";
+    errorEl.setAttribute("role", "alert");
+    bodyEl.prepend(errorEl);
+  }
+  errorEl.textContent = message;
+}
+
 export async function showConfirmDialog(headline, message) {
   return modal.show({
     title: headline,
@@ -96,9 +113,12 @@ export async function showAddFeedDialog(folders) {
     <label class="field" for="feed-folder">Folder</label>
     <select id="feed-folder" name="folderId">
       <option value="">No folder</option>
-      ${folders.map((folder) => {
-        return `<option value="${folder.id}">${escapeHtml(folder.name)}</option>`;
-      })}
+      ${folders
+        .map(
+          (folder) =>
+            `<option value="${folder.id}">${escapeHtml(folder.name)}</option>`,
+        )
+        .join("")}
     </select>
   `;
 
@@ -108,20 +128,12 @@ export async function showAddFeedDialog(folders) {
     type: "confirm",
     onValidate: async (data, bodyEl) => {
       if (!data.feedUrl || data.feedUrl.trim() === "") {
-        modal.show({
-          title: "Error",
-          content: "Please enter a URL",
-          type: "alert",
-        });
+        showDialogError(bodyEl, "Please enter a URL.");
         return false;
       }
       const response = await dataService.checkFeed(data.feedUrl);
       if (!Array.isArray(response) || response.length === 0) {
-        modal.show({
-          title: "Error",
-          content: "No feeds found.",
-          type: "alert",
-        });
+        showDialogError(bodyEl, "No feeds found.");
         return false;
       }
 
@@ -136,7 +148,7 @@ export async function showAddFeedDialog(folders) {
       // Multiple feeds found, show selector
       const feedOptions = response
         .map(
-          (feed, index) =>
+          (feed) =>
             `<option value="${escapeHtml(feed.feedUrl)}">${escapeHtml(feed.name)} (${escapeHtml(feed.feedUrl)})</option>`,
         )
         .join("");
@@ -167,10 +179,12 @@ export function showEditFeedDialog(folders, feed) {
     <label class="field" for="feed-folder">Folder</label>
     <select id="feed-folder" name="folderId">
       <option value="">No folder</option>
-      ${folders.map((folder) => {
-        const isSelected = folder.id === feed.folderId ? "selected" : "";
-        return `<option value="${folder.id}" ${isSelected}>${escapeHtml(folder.name)}</option>`;
-      })}
+      ${folders
+        .map((folder) => {
+          const isSelected = folder.id === feed.folderId ? "selected" : "";
+          return `<option value="${folder.id}" ${isSelected}>${escapeHtml(folder.name)}</option>`;
+        })
+        .join("")}
     </select>
   `;
 

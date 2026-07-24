@@ -14,6 +14,9 @@
   --font-size-large: 30px;
   --default-space: 0.5rem;
   --column-width: 350px;
+  /* Shared header chrome: edge padding + per-control inset (toolbar & search) */
+  --header-edge-pad: 0.5rem;
+  --header-control-pad: 0.35rem;
 }
 
 .f-grey {
@@ -171,9 +174,10 @@ button {
   }
 }
 
-.mobile-back {
+/* Hidden except on single-pane mobile (≤700px). Specificity must beat
+   `.left button { display: inline-flex }`. */
+.column-header .mobile-back {
   display: none;
-  flex: 0 0 auto;
 }
 
 .tree-entry-icon {
@@ -306,7 +310,6 @@ details[open] summary img {
   gap: var(--default-space);
 }
 
-.reader .publisher,
 .reader .date {
   color: var(--font-color-muted);
 }
@@ -315,13 +318,6 @@ details[open] summary img {
   font-size: var(--font-size-large);
   font-weight: bold;
   margin-bottom: var(--default-space);
-}
-
-.reader .date-author {
-  color: var(--font-color-muted);
-  font-size: var(--font-size-small);
-  padding-bottom: var(--default-space);
-  border-bottom: 1px solid var(--border-color);
 }
 
 .reader .content {
@@ -360,10 +356,10 @@ details[open] summary img {
   align-items: center;
   justify-content: space-between;
   gap: 0.25rem;
-  padding: 0 0.25rem;
+  padding: 0 var(--header-edge-pad);
   flex: 0 0 auto;
-  min-height: 2.5rem;
-  height: auto;
+  height: 2.75rem;
+  min-height: 2.75rem;
   border-bottom: 1px solid var(--border-color);
   box-sizing: border-box;
 }
@@ -386,15 +382,17 @@ details[open] summary img {
 }
 
 .item-spacer {
-  padding-left: 0.35rem;
-  padding-right: 0.35rem;
+  padding-left: var(--header-control-pad);
+  padding-right: var(--header-control-pad);
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
 .left a,
-.right a {
+.right a,
+.left button,
+.right button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -410,6 +408,13 @@ details[open] summary img {
   flex: 1 1 auto;
   min-width: 0;
   align-items: center;
+  /* Match toolbar icon inset (profile/logout use .item-spacer pad) */
+  padding-left: var(--header-control-pad);
+  padding-right: var(--header-control-pad);
+}
+
+.search-container .icon {
+  flex: 0 0 auto;
 }
 
 .search-container input[type="text"] {
@@ -439,6 +444,15 @@ details[open] summary img {
 
 .d-none {
   display: none !important;
+}
+
+.article:focus-visible,
+.context-menu-item:focus-visible,
+.tree-options:focus-visible,
+.item-spacer:focus-visible {
+  outline: 2px solid var(--font-color-highlight);
+  outline-offset: -2px;
+  border-radius: 2px;
 }
 
 .space-top {
@@ -610,6 +624,12 @@ dialog::backdrop {
   height: 25px;
 }
 
+.dialog-error {
+  grid-column: 1 / -1;
+  color: var(--font-color-highlight);
+  font-size: var(--font-size-small);
+}
+
 .modal-footer {
   padding: 20px;
   display: flex;
@@ -715,10 +735,11 @@ dialog::backdrop {
   }
 
   .column-header {
-    height: auto;
-    min-height: 44px;
-    padding-top: 0.35rem;
-    padding-bottom: 0.35rem;
+    /* Room around 44px targets so icons aren't tight to the header rules */
+    height: 3.5rem;
+    min-height: 3.5rem;
+    padding-top: 0;
+    padding-bottom: 0;
     overflow: visible;
   }
 
@@ -745,7 +766,7 @@ dialog::backdrop {
     -webkit-overflow-scrolling: touch;
   }
 
-  .mobile-back {
+  .column-header .mobile-back {
     display: inline-flex;
   }
 
@@ -793,10 +814,11 @@ dialog::backdrop {
   }
 
   .column-header {
-    height: auto;
-    min-height: 44px;
-    padding-top: 0.35rem;
-    padding-bottom: 0.35rem;
+    /* Same fixed height as mobile so adjacent panes share one divider line */
+    height: 3.5rem;
+    min-height: 3.5rem;
+    padding-top: 0;
+    padding-bottom: 0;
     overflow: visible;
   }
 
@@ -823,9 +845,10 @@ dialog::backdrop {
   }
 }
 
-/* desktop 3-pane: reader stays visible beside articles — no back needed */
+/* desktop 3-pane: reader stays visible beside articles — no back needed.
+   Specificity must beat `.left button { display: inline-flex }`. */
 @media (min-width: 1101px) {
-  .reader-back {
+  .column-header .reader-back {
     display: none;
   }
 }
