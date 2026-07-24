@@ -2,6 +2,10 @@
 
 import { fetchWithAuth } from "./pkce.js";
 
+export const FOLDER_TREE_CACHE_KEY = "folder-tree-cache";
+export const FOLDER_STATE_KEY = "folder-state";
+export const FOLDER_TREE_CACHE_VERSION = 1;
+
 class DataService {
   constructor() {
     this.articleCache = [];
@@ -88,7 +92,6 @@ class DataService {
     };
 
     try {
-      // Delegated to pkce.js: handles expiry check, refresh, and 401 retry
       const response = await fetchWithAuth(url, fetchOptions);
 
       if (response.status === 204) return null;
@@ -112,40 +115,103 @@ class DataService {
         `Failed to ${method} ${url}: ${error.message}`,
         { cause: error },
       );
-      // Preserve HTTP status so callers can branch on it (e.g. 409 duplicates)
       if (error.status != null) wrapped.status = error.status;
       throw wrapped;
     }
   }
 }
 
+/**
+ * Normalize a feed to stable UI fields (excludes volatile lastRefreshedAt).
+ * @param {Feed} feed
+ */
+export function normalizeFeed(feed) {
+  return {
+    id: feed.id,
+    folderId: feed.folderId ?? null,
+    name: feed.name ?? "",
+    url: feed.url ?? null,
+    feedUrl: feed.feedUrl ?? "",
+    lastError: feed.lastError ?? null,
+  };
+}
+
+/**
+ * Normalize a folder with its nested feeds.
+ * @param {Folder} folder
+ */
+export function normalizeFolder(folder) {
+  return {
+    id: folder.id,
+    name: folder.name ?? "",
+    color: folder.color ?? "f-base",
+    feeds: (folder.feeds ?? []).map(normalizeFeed),
+  };
+}
+
+/**
+ * Build and normalize the folder tree from API payloads.
+ * @param {Folder[]} folders
+ * @param {Feed[]} feeds
+ */
 export function buildFolderTree(folders, feeds) {
-  const foldersWithFeeds = (folders ?? []).map((folder) => ({
-    ...folder,
-    feeds: (feeds ?? [])
-      .filter((f) => f.folderId === folder.id)
-      .sort((a, b) => a.name.localeCompare(b.name)),
-  }));
+  const foldersWithFeeds = (folders ?? []).map((folder) =>
+    normalizeFolder({
+      ...folder,
+      feeds: (feeds ?? [])
+        .filter((f) => f.folderId === folder.id)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    }),
+  );
   const unfiledFeeds = (feeds ?? [])
     .filter((f) => f.folderId == null)
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(normalizeFeed);
   return { folders: foldersWithFeeds, unfiledFeeds };
 }
 
-const FOLDER_TREE_CACHE_KEY = "folder-tree-cache";
+/**
+ * Stable fingerprint for equality checks (ignores HTML cache payload).
+ * @param {{ folders?: Folder[], unfiledFeeds?: Feed[] }} tree
+ */
+export function folderTreeFingerprint(tree) {
+  return JSON.stringify({
+    folders: (tree?.folders ?? []).map(normalizeFolder),
+    unfiledFeeds: (tree?.unfiledFeeds ?? []).map(normalizeFeed),
+  });
+}
 
 /**
- * @returns {{ folders: Folder[], unfiledFeeds: Feed[] }|null}
+ * @param {{ folders?: Folder[], unfiledFeeds?: Feed[] }} a
+ * @param {{ folders?: Folder[], unfiledFeeds?: Feed[] }} b
+ */
+export function folderTreesEqual(a, b) {
+  return folderTreeFingerprint(a) === folderTreeFingerprint(b);
+}
+
+/**
+ * @returns {{ version: number, folders: Folder[], unfiledFeeds: Feed[], html: string }|null}
  */
 export function loadFolderTreeCache() {
   try {
     const raw = localStorage.getItem(FOLDER_TREE_CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!parsed || !Array.isArray(parsed.folders) || !Array.isArray(parsed.unfiledFeeds)) {
+    if (
+      !parsed ||
+      parsed.version !== FOLDER_TREE_CACHE_VERSION ||
+      !Array.isArray(parsed.folders) ||
+      !Array.isArray(parsed.unfiledFeeds) ||
+      typeof parsed.html !== "string"
+    ) {
       return null;
     }
-    return { folders: parsed.folders, unfiledFeeds: parsed.unfiledFeeds };
+    return {
+      version: parsed.version,
+      folders: parsed.folders.map(normalizeFolder),
+      unfiledFeeds: parsed.unfiledFeeds.map(normalizeFeed),
+      html: parsed.html,
+    };
   } catch (err) {
     console.warn("Could not load folder tree cache", err);
     return null;
@@ -155,27 +221,46 @@ export function loadFolderTreeCache() {
 /**
  * @param {Folder[]} folders
  * @param {Feed[]} unfiledFeeds
+ * @param {string} html
  */
-export function saveFolderTreeCache(folders, unfiledFeeds) {
+export function saveFolderTreeCache(folders, unfiledFeeds, html) {
   try {
     localStorage.setItem(
       FOLDER_TREE_CACHE_KEY,
-      JSON.stringify({ folders, unfiledFeeds }),
+      JSON.stringify({
+        version: FOLDER_TREE_CACHE_VERSION,
+        folders: folders.map(normalizeFolder),
+        unfiledFeeds: unfiledFeeds.map(normalizeFeed),
+        html,
+      }),
     );
   } catch (err) {
     console.warn("Could not save folder tree cache", err);
   }
 }
 
+export function clearFolderTreeCache() {
+  try {
+    localStorage.removeItem(FOLDER_TREE_CACHE_KEY);
+    localStorage.removeItem(FOLDER_STATE_KEY);
+  } catch (err) {
+    console.warn("Could not clear folder tree cache", err);
+  }
+}
+
 /**
- * @param {{ folders: Folder[], unfiledFeeds: Feed[] }} a
- * @param {{ folders: Folder[], unfiledFeeds: Feed[] }} b
+ * Returning session with a usable access or refresh token.
+ * Used by the inline boot injector (keep key names in sync with pkce.js).
  */
-export function folderTreesEqual(a, b) {
-  return (
-    JSON.stringify({ folders: a?.folders ?? [], unfiledFeeds: a?.unfiledFeeds ?? [] }) ===
-    JSON.stringify({ folders: b?.folders ?? [], unfiledFeeds: b?.unfiledFeeds ?? [] })
-  );
+export function hasReturningSession() {
+  try {
+    const access = sessionStorage.getItem("access_token");
+    const expiresAt = Number(sessionStorage.getItem("expires_at")) || 0;
+    if (access && expiresAt > Date.now()) return true;
+    return !!localStorage.getItem("refresh_token");
+  } catch {
+    return false;
+  }
 }
 
 export const dataService = new DataService();

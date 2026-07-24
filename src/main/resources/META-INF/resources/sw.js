@@ -1,15 +1,40 @@
 "use strict";
 
-// Bump when shell assets change (index.html, style.css, manifest, app icons).
-// Script/icon updates use stale-while-revalidate and do not require a bump.
-const VERSION = "2026-07-24-005";
+// Bump for every frontend release so HTML + modules stay in lockstep.
+const VERSION = "2026-07-24-006";
 const CACHE = `feedbox-${VERSION}`;
 const SHELL = [
+  "/",
   "/index.html",
   "/style.css",
   "/manifest.json",
+  "/sw.js",
+  "/scripts/main.js",
+  "/scripts/data.js",
+  "/scripts/dom.js",
+  "/scripts/dialog.js",
+  "/scripts/modal.js",
+  "/scripts/nav.js",
+  "/scripts/pkce.js",
+  "/scripts/util.js",
+  "/scripts/types.js",
+  "/scripts/vendor/purify.es.mjs",
   "/icons/maskable_icon_x192.png",
   "/icons/maskable_icon_x512.png",
+  "/icons/folder.svg",
+  "/icons/folder_open.svg",
+  "/icons/package.svg",
+  "/icons/feed_add.svg",
+  "/icons/refresh.svg",
+  "/icons/export.svg",
+  "/icons/import.svg",
+  "/icons/logout.svg",
+  "/icons/search.svg",
+  "/icons/nav_back.svg",
+  "/icons/external.svg",
+  "/icons/reader_previous.svg",
+  "/icons/reader_next.svg",
+  "/icons/rss.svg",
 ];
 
 function offline(message = "Offline") {
@@ -45,42 +70,26 @@ async function precache(cache) {
 }
 
 function classify(request, url) {
-  if (request.mode === "navigate" || url.pathname.endsWith(".html") || url.pathname.endsWith(".css")) {
-    return "network-first";
-  }
   if (url.pathname.startsWith("/api/")) {
     return "network-only";
   }
+  // Versioned static shell: serve cache immediately, refresh in background.
   if (
-    url.pathname.startsWith("/scripts/") ||
+    request.mode === "navigate" ||
+    url.pathname.endsWith(".html") ||
+    url.pathname.endsWith(".css") ||
+    url.pathname.endsWith(".js") ||
+    url.pathname.endsWith(".mjs") ||
     url.pathname.startsWith("/icons/") ||
-    url.pathname === "/manifest.json"
+    url.pathname === "/manifest.json" ||
+    url.pathname === "/sw.js"
   ) {
-    return "stale-while-revalidate";
+    return "cache-first";
   }
   return "bypass";
 }
 
-async function networkFirst(request) {
-  const cache = await caches.open(CACHE);
-  const url = new URL(request.url);
-
-  try {
-    const response = await fetch(request);
-    await putOk(cache, request, response);
-
-    if (response.ok && (url.pathname === "/" || url.pathname.endsWith(".html"))) {
-      await putOk(cache, "/", response);
-      await putOk(cache, "/index.html", response);
-    }
-
-    return response;
-  } catch {
-    return (await matchShell(cache, request)) || offline();
-  }
-}
-
-async function staleWhileRevalidate(request, event) {
+async function cacheFirst(request, event) {
   const cache = await caches.open(CACHE);
   const cached = await cache.match(request);
 
@@ -88,9 +97,21 @@ async function staleWhileRevalidate(request, event) {
     try {
       const response = await fetch(request);
       await putOk(cache, request, response);
+      const url = new URL(request.url);
+      if (
+        response.ok &&
+        (url.pathname === "/" || url.pathname.endsWith(".html"))
+      ) {
+        await putOk(cache, "/", response);
+        await putOk(cache, "/index.html", response);
+      }
       return response;
     } catch {
-      return cached || offline();
+      return (
+        cached ||
+        (await matchShell(cache, request)) ||
+        offline()
+      );
     }
   })();
 
@@ -136,10 +157,8 @@ function onFetch(event) {
   const strategy = classify(request, url);
   if (strategy === "bypass") return;
 
-  if (strategy === "network-first") {
-    event.respondWith(networkFirst(request));
-  } else if (strategy === "stale-while-revalidate") {
-    event.respondWith(staleWhileRevalidate(request, event));
+  if (strategy === "cache-first") {
+    event.respondWith(cacheFirst(request, event));
   } else if (strategy === "network-only") {
     event.respondWith(networkOnly(request));
   }

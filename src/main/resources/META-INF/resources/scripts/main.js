@@ -6,6 +6,7 @@ import {
   loadFolderTreeCache,
   saveFolderTreeCache,
   folderTreesEqual,
+  hasReturningSession,
 } from "./data.js";
 import { modal } from "./modal.js";
 import {
@@ -18,9 +19,10 @@ import {
 import {
   appendArticlesList,
   clearReaderView,
-  removeFeedElement,
   replaceArticlesList,
   renderFoldersList,
+  buildFoldersHtml,
+  syncFolderOpenStatesFromStorage,
   renderReaderView,
   clearArticlesList,
   renderSkeletons,
@@ -30,6 +32,7 @@ import {
   hideFeedsSpinner,
   setSelectedArticleHighlight,
   updateNavSelection,
+  setFolderOpenState,
 } from "./dom.js";
 import { NavigationService, columns } from "./nav.js";
 import { escapeHtml } from "./util.js";
@@ -51,7 +54,6 @@ const itemType = Object.freeze({
   FOLDER: "folder",
 });
 
-// Application state
 const state = {
   articles: [],
   folders: [],
@@ -65,9 +67,9 @@ const state = {
   },
   selectedArticle: null,
   lastClickedItem: { type: itemType.ALL, obj: null },
+  restoredFromCache: false,
 };
 
-// Cache DOM elements for later use
 const dom = {
   contextMenu: document.getElementById("context-menu"),
   refreshSpinner: document.getElementById("refresh-spinner"),
@@ -90,7 +92,6 @@ const dom = {
     editFolder: document.getElementById("trigger-folder-edit"),
     deleteFolder: document.getElementById("trigger-folder-delete"),
     logout: document.getElementById("trigger-logout"),
-    profile: document.getElementById("trigger-profile"),
   },
 };
 
@@ -103,31 +104,55 @@ if ("serviceWorker" in navigator) {
       console.error("Service worker registration failed:", err);
     });
   });
-} else {
-  console.error("Service workers are not supported.");
+}
+
+/**
+ * Restore cached folders into state once. Skip DOM replace if the inline
+ * injector already painted the renderer HTML.
+ * @returns {boolean}
+ */
+function restoreFolderCache() {
+  if (!hasReturningSession()) return false;
+  const cached = loadFolderTreeCache();
+  if (!cached) return false;
+
+  state.folders = cached.folders;
+  state.unfiledFeeds = cached.unfiledFeeds;
+  state.restoredFromCache = true;
+
+  const container = document.getElementById("folder-container");
+  if (container?.dataset.cachePainted === "1") {
+    syncFolderOpenStatesFromStorage();
+    hideFeedsSpinner();
+  } else {
+    renderFoldersList(cached.folders, cached.unfiledFeeds);
+    hideFeedsSpinner();
+  }
+  updateNavSelection(state.lastClickedItem.type, state.lastClickedItem.obj);
+  return true;
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
-  // Paint cached folders immediately — before auth — so the sidebar is usable
-  // and #feeds-loading (visible by default in HTML) does not sit through SSO.
-  paintFolderCacheIfPresent();
+  restoreFolderCache();
 
   try {
-    // Initialize authentication (handles OAuth callback if present)
     await initSSOConfig();
     await initializeAuth();
 
-    // Check if user is authenticated
     if (!isAuthenticated()) {
-      // Redirect to login provider
       await redirectToAuthProvider();
       return;
     }
 
     initEventListeners();
-    await loadFolders();
-    await loadArticles();
+    registerDelegatedEvents();
     lazyLoadObserver = setupScrollObserver();
+
+    // Folder network refresh must not block article startup.
+    await Promise.all([
+      refreshFolders({ background: true }),
+      loadArticles(),
+    ]);
   } catch (error) {
     console.error("[app] Error during initialization:", error);
     hideFeedsSpinner();
@@ -141,9 +166,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-/**
- * Helper to set up all event listeners in a single place
- */
 function initEventListeners() {
   document.addEventListener("click", () => {
     hideContextMenu();
@@ -185,7 +207,7 @@ function initEventListeners() {
     });
   }
   dom.button.showAllFeeds.addEventListener("click", () =>
-    allFeedsClickListener(),
+    selectAndLoadArticles(itemType.ALL, null),
   );
   dom.button.add.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -228,9 +250,11 @@ function initEventListeners() {
       state.lastClickedItem.obj,
     );
     if (response) {
-      const editedFeed = state.lastClickedItem.obj;
-      editedFeed.feedUrl = response.feedUrl;
-      editedFeed.folderId = response.folderId || null;
+      const editedFeed = {
+        ...state.lastClickedItem.obj,
+        feedUrl: response.feedUrl,
+        folderId: response.folderId || null,
+      };
       await editFeed(editedFeed);
     }
   });
@@ -258,14 +282,8 @@ function initEventListeners() {
       logout();
     });
   }
-  if (dom.button.profile) {
-    dom.button.profile.addEventListener("click", () => {
-      // placeholder, no use atm
-    });
-  }
   dom.searchInput.addEventListener("input", (e) => {
     const searchTerm = e.target.value.trim().toLowerCase();
-    // filter empty -> reset
     if (searchTerm === "") {
       state.filter.isActive = false;
       state.filter.lastSearchTerm = "";
@@ -286,13 +304,198 @@ function initEventListeners() {
 }
 
 /**
- * searches the selected article by id in the global articles array and renders it
- * ToDo: add lazy loading of missing articles - currently not an issue
- * @param {Article} article
- * @returns
+ * One delegated event layer for boot-painted and live-rendered trees/articles.
  */
-export function loadArticle(article) {
-  // article should be stored in global articles array
+function registerDelegatedEvents() {
+  const feedsList = document.getElementById("feeds-list");
+  const articlesList = document.getElementById("articles-list");
+
+  feedsList?.addEventListener("click", (e) => {
+    const options = e.target.closest(".tree-options");
+    if (options) {
+      e.preventDefault();
+      e.stopPropagation();
+      const feedLi = options.closest("li[data-feed-id]");
+      if (feedLi) {
+        const feed = findFeedById(Number(feedLi.dataset.feedId));
+        if (feed) feedContextMenu(e.clientX, e.clientY, feed);
+        return;
+      }
+      const folderDetails = options.closest("details[data-folder-id]");
+      if (folderDetails) {
+        const folder = findFolderById(Number(folderDetails.dataset.folderId));
+        if (folder) folderContextMenu(e.clientX, e.clientY, folder);
+      }
+      return;
+    }
+
+    const feedLi = e.target.closest("li[data-feed-id]");
+    if (feedLi && feedsList.contains(feedLi)) {
+      const feed = findFeedById(Number(feedLi.dataset.feedId));
+      if (feed) selectAndLoadArticles(itemType.FEED, feed);
+      return;
+    }
+
+    const folderName = e.target.closest(
+      "details[data-folder-id] > summary > .tree-name",
+    );
+    if (folderName) {
+      e.preventDefault();
+      const details = folderName.closest("details[data-folder-id]");
+      const folder = findFolderById(Number(details.dataset.folderId));
+      if (folder) selectAndLoadArticles(itemType.FOLDER, folder);
+    }
+  });
+
+  feedsList?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const options = e.target.closest(".tree-options");
+    if (!options || !feedsList.contains(options)) return;
+    e.preventDefault();
+    const rect = options.getBoundingClientRect();
+    const feedLi = options.closest("li[data-feed-id]");
+    if (feedLi) {
+      const feed = findFeedById(Number(feedLi.dataset.feedId));
+      if (feed) feedContextMenu(rect.left, rect.bottom, feed);
+      return;
+    }
+    const folderDetails = options.closest("details[data-folder-id]");
+    if (folderDetails) {
+      const folder = findFolderById(Number(folderDetails.dataset.folderId));
+      if (folder) folderContextMenu(rect.left, rect.bottom, folder);
+    }
+  });
+
+  feedsList?.addEventListener("toggle", (e) => {
+    const details = e.target;
+    if (!(details instanceof HTMLDetailsElement)) return;
+    if (!details.dataset.folderId) return;
+    setFolderOpenState(details.dataset.folderId, details.open);
+  }, true);
+
+  feedsList?.addEventListener(
+    "error",
+    (e) => {
+      const img = e.target;
+      if (!(img instanceof HTMLImageElement)) return;
+      const fallback = img.dataset.fallbackIcon;
+      if (!fallback || img.src.endsWith(fallback)) return;
+      img.src = fallback;
+    },
+    true,
+  );
+
+  articlesList?.addEventListener("click", (e) => {
+    const articleEl = e.target.closest(".article[data-article-id]");
+    if (!articleEl || !articlesList.contains(articleEl)) return;
+    const article = state.articles.find(
+      (a) => a.id === Number(articleEl.dataset.articleId),
+    );
+    if (article) articleClickListener(article);
+  });
+
+  articlesList?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const articleEl = e.target.closest(".article[data-article-id]");
+    if (!articleEl || !articlesList.contains(articleEl)) return;
+    e.preventDefault();
+    const article = state.articles.find(
+      (a) => a.id === Number(articleEl.dataset.articleId),
+    );
+    if (article) articleClickListener(article);
+  });
+}
+
+function findFeedById(id) {
+  for (const folder of state.folders) {
+    const feed = (folder.feeds ?? []).find((f) => f.id === id);
+    if (feed) return feed;
+  }
+  return state.unfiledFeeds.find((f) => f.id === id) ?? null;
+}
+
+function findFolderById(id) {
+  return state.folders.find((f) => f.id === id) ?? null;
+}
+
+function resolveLastClickedItem() {
+  const { type, obj } = state.lastClickedItem;
+  if (type === itemType.FEED && obj) {
+    state.lastClickedItem.obj = findFeedById(obj.id);
+    if (!state.lastClickedItem.obj) {
+      state.lastClickedItem = { type: itemType.ALL, obj: null };
+    }
+  } else if (type === itemType.FOLDER && obj) {
+    state.lastClickedItem.obj = findFolderById(obj.id);
+    if (!state.lastClickedItem.obj) {
+      state.lastClickedItem = { type: itemType.ALL, obj: null };
+    }
+  }
+}
+
+/**
+ * @param {Folder[]} folders
+ * @param {Feed[]} unfiledFeeds
+ * @param {{ render?: boolean }} [opts]
+ */
+function applyFolderTree(folders, unfiledFeeds, { render = true } = {}) {
+  state.folders = folders;
+  state.unfiledFeeds = unfiledFeeds;
+  resolveLastClickedItem();
+  let html;
+  if (render) {
+    html = renderFoldersList(folders, unfiledFeeds);
+  } else {
+    html = buildFoldersHtml(folders, unfiledFeeds);
+  }
+  updateNavSelection(state.lastClickedItem.type, state.lastClickedItem.obj);
+  return html;
+}
+
+/**
+ * Network refresh for folders/feeds.
+ * @param {{ background?: boolean }} [options]
+ */
+async function refreshFolders({ background = true } = {}) {
+  const hadCache = background && state.restoredFromCache;
+  if (!hadCache) {
+    showFeedsSpinner();
+  }
+
+  try {
+    const [folders, feeds] = await Promise.all([
+      dataService.getFolders(),
+      dataService.getFeeds(),
+    ]);
+    const tree = buildFolderTree(folders, feeds);
+    const changed = !folderTreesEqual(
+      { folders: state.folders, unfiledFeeds: state.unfiledFeeds },
+      tree,
+    );
+
+    if (changed || !hadCache) {
+      const html = applyFolderTree(tree.folders, tree.unfiledFeeds, {
+        render: true,
+      });
+      saveFolderTreeCache(tree.folders, tree.unfiledFeeds, html);
+    } else {
+      state.folders = tree.folders;
+      state.unfiledFeeds = tree.unfiledFeeds;
+      resolveLastClickedItem();
+    }
+    state.restoredFromCache = true;
+  } catch (error) {
+    if (hadCache) {
+      console.error("[app] Failed to refresh folders:", error);
+    } else {
+      throw error;
+    }
+  } finally {
+    hideFeedsSpinner();
+  }
+}
+
+function loadArticle(article) {
   const result = state.articles.find((a) => a.id === article.id);
   if (!result) {
     console.error("Article not found:", article);
@@ -303,9 +506,6 @@ export function loadArticle(article) {
   renderReaderView(result);
 }
 
-/**
- * Sets up the scroll observer for infinite scrolling in the articles list
- */
 function setupScrollObserver() {
   const sentinel = document.getElementById("articles-sentinel");
 
@@ -335,15 +535,6 @@ function setupScrollObserver() {
   };
 }
 
-/**
- * Click listener for the "Add"-Element
- */
-/**
- * Shows only the context-menu items belonging to the given group, then opens the menu.
- * @param {string} groupClass - e.g. "context-add", "context-feed", "context-folder"
- * @param {number} x
- * @param {number} y
- */
 function showContextMenuGroup(groupClass, x, y) {
   document.querySelectorAll(".context-menu-item").forEach((element) => {
     element.style.display = "none";
@@ -354,15 +545,10 @@ function showContextMenuGroup(groupClass, x, y) {
   openContextMenu(x, y);
 }
 
-export function openAddContextMenu(x, y) {
+function openAddContextMenu(x, y) {
   showContextMenuGroup("context-add", x, y);
 }
 
-/**
- * helper to navigate to the next/previous article
- * @param {*} direction
- * @returns
- */
 function navigateArticle(direction) {
   if (!state.selectedArticle) return;
 
@@ -377,13 +563,13 @@ function navigateArticle(direction) {
   }
 }
 
-export function feedContextMenu(x, y, feed) {
+function feedContextMenu(x, y, feed) {
   state.lastClickedItem.type = itemType.FEED;
   state.lastClickedItem.obj = feed;
   showContextMenuGroup("context-feed", x, y);
 }
 
-export function folderContextMenu(x, y, folder) {
+function folderContextMenu(x, y, folder) {
   state.lastClickedItem.type = itemType.FOLDER;
   state.lastClickedItem.obj = folder;
   showContextMenuGroup("context-folder", x, y);
@@ -409,58 +595,18 @@ function getVisibleContextMenuItems() {
   );
 }
 
-/**
- * Click listener for an click on the "All Feeds"-Element
- */
-export async function allFeedsClickListener() {
+async function selectAndLoadArticles(type, obj) {
   navigationService.navigateTo(columns.ARTICLES);
   resetPagination();
-  state.lastClickedItem.type = itemType.ALL;
-  state.lastClickedItem.obj = null;
-  updateNavSelection(itemType.ALL, null);
-  lazyLoadObserver.pause();
+  state.lastClickedItem = { type, obj };
+  updateNavSelection(type, obj);
+  lazyLoadObserver?.pause();
   clearArticles();
   await loadArticles();
-  lazyLoadObserver.resume();
+  lazyLoadObserver?.resume();
 }
 
-/**
- * Click listener for a click on a single feed in the left-side list
- * @param {Feed} feed the clicked feed
- */
-export async function feedClickListener(feed) {
-  navigationService.navigateTo(columns.ARTICLES);
-  resetPagination();
-  state.lastClickedItem.type = itemType.FEED;
-  state.lastClickedItem.obj = feed;
-  updateNavSelection(itemType.FEED, feed);
-  lazyLoadObserver.pause();
-  clearArticles();
-  await loadArticles();
-  lazyLoadObserver.resume();
-}
-
-/**
- * Click listener for a click on a single folder in the left-side list
- * @param {Folder} folder id of the clicked folder
- */
-export async function folderClickListener(folder) {
-  navigationService.navigateTo(columns.ARTICLES);
-  resetPagination();
-  state.lastClickedItem.type = itemType.FOLDER;
-  state.lastClickedItem.obj = folder;
-  updateNavSelection(itemType.FOLDER, folder);
-  lazyLoadObserver.pause();
-  clearArticles();
-  await loadArticles();
-  lazyLoadObserver.resume();
-}
-
-/**
- * Click listener for a click on a single article in the middle list
- * @param {Article} article the clicked article
- */
-export function articleClickListener(article) {
+function articleClickListener(article) {
   loadArticle(article);
   navigationService.navigateTo(columns.READER);
 }
@@ -479,78 +625,10 @@ function resetPagination() {
   state.status.hasMoreArticles = true;
 }
 
-/**
- * @param {Folder[]} folders
- * @param {Feed[]} unfiledFeeds
- */
-function applyFolderTree(folders, unfiledFeeds) {
-  state.folders = folders;
-  state.unfiledFeeds = unfiledFeeds;
-  renderFoldersList(folders, unfiledFeeds);
-  updateNavSelection(state.lastClickedItem.type, state.lastClickedItem.obj);
-}
-
-/**
- * Synchronously paint the folder tree from localStorage if present.
- * When the inline boot script already painted the DOM, only hydrate state
- * and attach the interactive tree (one replace) so clicks work.
- * @returns {boolean} true when a cache was applied
- */
-function paintFolderCacheIfPresent() {
-  const cached = loadFolderTreeCache();
-  if (!cached) return false;
-  applyFolderTree(cached.folders, cached.unfiledFeeds);
-  hideFeedsSpinner();
-  return true;
-}
-
-/**
- * Load folders/feeds. On open (background: true), paint localStorage cache
- * immediately and revalidate from the network; re-render only if data changed.
- * Mutations pass background: false for a blocking spinner refresh.
- * @param {{ background?: boolean }} [options]
- */
-async function loadFolders({ background = true } = {}) {
-  // Only paint cache on the SWR (startup) path — mutations should not flash stale data.
-  // #feeds-loading is visible by default in the HTML; hide it as soon as we paint
-  // from cache so it does not sit above the list until the network returns.
-  const hadCache = background && paintFolderCacheIfPresent();
-  if (!hadCache) {
-    showFeedsSpinner();
-  }
-
-  try {
-    const [folders, feeds] = await Promise.all([
-      dataService.getFolders(),
-      dataService.getFeeds(),
-    ]);
-    const tree = buildFolderTree(folders, feeds);
-    const changed = !folderTreesEqual(
-      { folders: state.folders, unfiledFeeds: state.unfiledFeeds },
-      tree,
-    );
-    if (changed || !hadCache) {
-      applyFolderTree(tree.folders, tree.unfiledFeeds);
-    } else {
-      state.folders = tree.folders;
-      state.unfiledFeeds = tree.unfiledFeeds;
-    }
-    saveFolderTreeCache(tree.folders, tree.unfiledFeeds);
-  } catch (error) {
-    if (hadCache) {
-      console.error("[app] Failed to refresh folders:", error);
-    } else {
-      throw error;
-    }
-  } finally {
-    hideFeedsSpinner();
-  }
-}
-
 async function createFolder(folder) {
   try {
     await dataService.createFolder(folder);
-    await loadFolders({ background: false });
+    await refreshFolders({ background: false });
   } catch (error) {
     console.error(error.message);
     await modal.show({
@@ -564,9 +642,7 @@ async function createFolder(folder) {
 async function editFolder(folder) {
   try {
     await dataService.updateFolder(folder);
-    await loadFolders({ background: false });
-    state.lastClickedItem.obj.name = folder.name;
-    state.lastClickedItem.obj.color = folder.color;
+    await refreshFolders({ background: false });
   } catch (error) {
     console.error(error.message);
     await modal.show({
@@ -579,8 +655,19 @@ async function editFolder(folder) {
 
 async function deleteFolder(folder) {
   try {
+    const wasSelected =
+      state.lastClickedItem.type === itemType.FOLDER &&
+      state.lastClickedItem.obj?.id === folder.id;
     await dataService.deleteFolder(folder.id);
-    await loadFolders({ background: false });
+    await refreshFolders({ background: false });
+    if (wasSelected || state.lastClickedItem.type === itemType.ALL) {
+      await selectAndLoadArticles(itemType.ALL, null);
+    } else if (
+      state.lastClickedItem.type === itemType.FOLDER &&
+      !state.lastClickedItem.obj
+    ) {
+      await selectAndLoadArticles(itemType.ALL, null);
+    }
   } catch (error) {
     console.error(error.message);
     await modal.show({
@@ -594,7 +681,7 @@ async function deleteFolder(folder) {
 async function createFeed(feed) {
   try {
     await dataService.createFeed(feed);
-    await loadFolders({ background: false });
+    await refreshFolders({ background: false });
   } catch (error) {
     console.error(error);
     const isDuplicate =
@@ -610,9 +697,7 @@ async function createFeed(feed) {
 async function editFeed(feed) {
   try {
     await dataService.updateFeed(feed);
-    await loadFolders({ background: false });
-    state.lastClickedItem.obj.url = feed.feedUrl;
-    state.lastClickedItem.obj.folderId = feed.folderId;
+    await refreshFolders({ background: false });
   } catch (error) {
     console.error(error.message);
     await modal.show({
@@ -625,12 +710,19 @@ async function editFeed(feed) {
 
 async function deleteFeed(feed) {
   try {
+    const wasSelected =
+      state.lastClickedItem.type === itemType.FEED &&
+      state.lastClickedItem.obj?.id === feed.id;
     await dataService.deleteFeed(feed.id);
-    removeFeedElement(feed.id);
-    state.articles = state.articles.filter(
-      (article) => article.feedId !== feed.id,
-    );
-    replaceArticlesList(state.articles);
+    await refreshFolders({ background: false });
+    if (wasSelected || !state.lastClickedItem.obj) {
+      await selectAndLoadArticles(itemType.ALL, null);
+    } else {
+      state.articles = state.articles.filter(
+        (article) => article.feedId !== feed.id,
+      );
+      replaceArticlesList(state.articles);
+    }
   } catch (error) {
     console.error(error.message);
     await modal.show({
@@ -648,39 +740,50 @@ async function importFeeds() {
   fileInput.accept = ".opml,.xml,application/xml,text/xml";
   document.body.appendChild(fileInput);
 
-  fileInput.addEventListener("change", async () => {
-    if (fileInput.files.length === 0) {
-      await modal.show({
-        title: "Error",
-        content: "Please select a file to import.",
-        type: "alert",
-      });
-      return;
-    }
-    const file = fileInput.files[0];
+  const cleanup = () => {
+    fileInput.remove();
+  };
 
-    const response = await fetchWithAuth("./api/opml", {
-      method: "POST",
-      body: file,
-      headers: {
-        "Content-Type": file.type,
-      },
-    });
+  fileInput.addEventListener(
+    "change",
+    async () => {
+      try {
+        if (fileInput.files.length === 0) {
+          await modal.show({
+            title: "Error",
+            content: "Please select a file to import.",
+            type: "alert",
+          });
+          return;
+        }
+        const file = fileInput.files[0];
 
-    if (response.ok) {
-      await loadFolders({ background: false });
-      await refreshFeeds();
-    } else {
-      await modal.show({
-        title: "Error",
-        content: "Error importing feeds: " + response.statusText,
-        type: "alert",
-      });
-    }
+        const response = await fetchWithAuth("./api/opml", {
+          method: "POST",
+          body: file,
+          headers: {
+            "Content-Type": file.type,
+          },
+        });
 
-    document.body.removeChild(fileInput);
-  });
+        if (response.ok) {
+          await refreshFolders({ background: false });
+          await refreshFeeds();
+        } else {
+          await modal.show({
+            title: "Error",
+            content: "Error importing feeds: " + response.statusText,
+            type: "alert",
+          });
+        }
+      } finally {
+        cleanup();
+      }
+    },
+    { once: true },
+  );
 
+  fileInput.addEventListener("cancel", cleanup, { once: true });
   fileInput.click();
 }
 
@@ -730,7 +833,7 @@ async function refreshFeeds() {
   dom.refreshSpinner.classList.add("spinner");
   try {
     await dataService.refreshFeeds();
-    await allFeedsClickListener();
+    await selectAndLoadArticles(itemType.ALL, null);
   } finally {
     dom.refreshSpinner.classList.remove("spinner");
     state.status.isRefreshing = false;
@@ -756,9 +859,7 @@ async function loadArticles() {
         params.folder = state.lastClickedItem.obj.id;
         break;
       case itemType.ALL:
-      // no additional param
       default:
-        // no additional param
         break;
     }
     if (state.pagination.id != null) {
@@ -783,7 +884,6 @@ async function loadArticles() {
     state.articles = dataService.getArticles();
     state.status.hasMoreArticles = newArticles.length >= ARTICLES_PAGE_SIZE;
 
-    // update pagination
     const lastArticle = newArticles[newArticles.length - 1];
     state.pagination.id = lastArticle.id;
     state.pagination.published = lastArticle.published;

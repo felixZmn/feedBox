@@ -1,0 +1,49 @@
+name: Update DOMPurify
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: update-dompurify
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Update vendored DOMPurify
+        id: update
+        run: bash scripts/update-dompurify.sh
+
+      - name: Read version pin
+        id: version
+        run: echo "version=$(tr -d '[:space:]' < src/main/resources/META-INF/resources/scripts/vendor/dompurify.version)" >> "$GITHUB_OUTPUT"
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/dompurify-update
+          delete-branch: true
+          title: "chore: update DOMPurify to ${{ steps.version.outputs.version }}"
+          commit-message: "chore: update DOMPurify to ${{ steps.version.outputs.version }}"
+          body: |
+            Automated vendor update for DOMPurify.
+
+            - Version pin: `src/main/resources/META-INF/resources/scripts/vendor/dompurify.version`
+            - Vendored module: `src/main/resources/META-INF/resources/scripts/vendor/purify.es.mjs`
+            - Service worker `VERSION` bumped so cache-first PWA clients pick up the new file
+
+            Source: https://cdn.jsdelivr.net/npm/dompurify@${{ steps.version.outputs.version }}/dist/purify.es.mjs
+          add-paths: |
+            src/main/resources/META-INF/resources/scripts/vendor/purify.es.mjs
+            src/main/resources/META-INF/resources/scripts/vendor/dompurify.version
+            src/main/resources/META-INF/resources/sw.js

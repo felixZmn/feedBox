@@ -1,5 +1,8 @@
 "use strict";
 
+// Vendored DOMPurify; version pin: ./vendor/dompurify.version
+import DOMPurify from "./vendor/purify.es.mjs";
+
 /**
  * Escapes a string for safe insertion into HTML attribute values or text nodes.
  * @param {*} str
@@ -15,36 +18,24 @@ export function escapeHtml(str) {
 }
 
 /**
- * Sanitizes an HTML string by removing scripts, event handlers, and
- * dangerous elements before inserting into the DOM.
+ * Sanitizes untrusted RSS/HTML content for the reader pane.
  * @param {string} html
- * @returns {string} sanitized HTML string
+ * @returns {string}
  */
 export function sanitizeHTML(html) {
   if (!html) return "";
-  const tmp = document.createElement("div");
-  tmp.innerHTML = html;
-  tmp
-    .querySelectorAll("script, object, embed, form, iframe, meta, link")
-    .forEach((el) => el.remove());
-  tmp.querySelectorAll("*").forEach((el) => {
-    [...el.attributes].forEach((attr) => {
-      if (
-        attr.name.startsWith("on") ||
-        attr.value.toLowerCase().startsWith("javascript:")
-      ) {
-        el.removeAttribute(attr.name);
-      }
-    });
+  return DOMPurify.sanitize(html, {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ["style", "form", "input", "button"],
+    ALLOW_DATA_ATTR: false,
   });
-  return tmp.innerHTML;
 }
 
 /**
  * Transforms a date string into a relative time format, e.g. "5m", "2h", "3d".
  * If the date is in the future, prefixes with a '-'.
- * @param {*} dateStr the date string to transform
- * @returns {string|null} the relative time string or null if invalid date
+ * @param {*} dateStr
+ * @returns {string|null}
  */
 export function getRelativeTime(dateStr) {
   if (!dateStr) return null;
@@ -52,9 +43,8 @@ export function getRelativeTime(dateStr) {
   if (isNaN(date)) return null;
 
   const now = new Date();
-  let diffMs = date - now;
+  const diffMs = date - now;
   const past = diffMs < 0;
-
   const absMs = Math.abs(diffMs);
 
   const SECOND = 1000;
@@ -64,7 +54,8 @@ export function getRelativeTime(dateStr) {
   const MONTH = 30 * DAY;
   const YEAR = 365 * DAY;
 
-  let value, unit;
+  let value;
+  let unit;
 
   if (absMs < MINUTE) {
     value = Math.floor(absMs / SECOND);
@@ -86,16 +77,12 @@ export function getRelativeTime(dateStr) {
     unit = "y";
   }
 
-  // If in the future, prefix with '-'
   return (past ? "" : "-") + value + unit;
 }
 
 export function parseDate(dateStr) {
   if (!dateStr) return null;
-
   const date = new Date(dateStr);
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
   return new Intl.DateTimeFormat(undefined, {
     weekday: "short",
     day: "2-digit",

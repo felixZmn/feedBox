@@ -4,6 +4,17 @@ let config;
 const scope = "openid profile offline_access";
 let refreshPromise = null; // Promise lock to prevent parallel refresh requests
 
+// Keep in sync with data.js FOLDER_TREE_CACHE_KEY / FOLDER_STATE_KEY
+const FOLDER_TREE_CACHE_KEY = "folder-tree-cache";
+const FOLDER_STATE_KEY = "folder-state";
+
+function clearPrivateUiCache() {
+  try {
+    localStorage.removeItem(FOLDER_TREE_CACHE_KEY);
+    localStorage.removeItem(FOLDER_STATE_KEY);
+  } catch (_) {}
+}
+
 const endpoints = {
   get authorization() {
     return `${config.authServerUrl}authorize/`;
@@ -102,6 +113,7 @@ const memoryStore = {
     sessionStorage.removeItem("access_token");
     sessionStorage.removeItem("expires_at");
     localStorage.removeItem("refresh_token");
+    clearPrivateUiCache();
   },
 
   isExpired() {
@@ -109,25 +121,6 @@ const memoryStore = {
   },
 };
 memoryStore.restore();
-
-/**
- * Current token state accessor. Provides real-time access to the current token values and expiration status.
- * This is a read-only interface to the token state, ensuring that all updates go through the memoryStore methods.
- */
-const currentToken = {
-  get access_token() {
-    return memoryStore.access_token;
-  },
-  get refresh_token() {
-    return memoryStore.refresh_token;
-  },
-  get expires_at() {
-    return memoryStore.expires_at;
-  },
-  get expired() {
-    return memoryStore.isExpired();
-  },
-};
 
 /**
  * Secure Token Refresh with Race-Condition Protection
@@ -271,19 +264,6 @@ async function refreshAccessToken() {
 }
 
 /**
- * Fetches user information from the API.
- * @returns {Promise<Object>} The user data.
- */
-async function getUserData() {
-  const response = await fetchWithAuth(endpoints.userinfo, { method: "GET" });
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`UserInfo request failed: ${response.status} ${errorText}`);
-  }
-  return await response.json();
-}
-
-/**
  * Initializes authentication state on app load. Handles OAuth callback if authorization code is present in the URL.
  * If a code is found, it attempts to exchange it for tokens. If the exchange fails, it logs the error and rethrows it.
  * This function should be called once on app startup to ensure the authentication state is correctly established.
@@ -372,12 +352,9 @@ async function fetchWithAuth(url, options = {}) {
  * Public API
  */
 export {
-  currentToken,
   initSSOConfig,
   initializeAuth,
   redirectToAuthProvider,
-  exchangeCodeForToken,
-  getUserData,
   fetchWithAuth,
   isAuthenticated,
   logout,
