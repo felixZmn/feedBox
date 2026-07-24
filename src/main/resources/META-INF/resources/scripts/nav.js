@@ -62,7 +62,10 @@ export class NavigationService {
     };
 
     requestAnimationFrame(() => {
-      history.replaceState(this.currentState, "", "");
+      // Never strip OAuth callback params before token exchange.
+      if (!this.#isAuthCallback()) {
+        history.replaceState(this.currentState, "", "");
+      }
       this.#renderColumn(this.currentState.column);
     });
 

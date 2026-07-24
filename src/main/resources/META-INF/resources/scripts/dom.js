@@ -1,29 +1,8 @@
 "use strict";
 
-import {
-  articleClickListener,
-  feedClickListener,
-  feedContextMenu,
-  folderClickListener,
-  folderContextMenu,
-} from "./main.js";
-import { getRelativeTime, parseDate, sanitizeHTML } from "./util.js";
+import { FOLDER_STATE_KEY } from "./data.js";
+import { escapeHtml, getRelativeTime, parseDate, sanitizeHTML } from "./util.js";
 
-/**
- * Invokes the handler when the element is activated via Enter or Space.
- * @param {HTMLElement} el
- * @param {(event: KeyboardEvent) => void} handler
- */
-function addKeyboardActivation(el, handler) {
-  el.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      handler(e);
-    }
-  });
-}
-
-const FOLDER_STATE_KEY = "folder-state";
 const articlesContainer = document.querySelector(
   "#articles-list #articles-container",
 );
@@ -61,9 +40,7 @@ export function updateNavSelection(type, obj) {
     .forEach((el) => el.classList.remove("selected"));
 
   if (type === "feed" && obj) {
-    const feedEl = feedsList.querySelector(
-      `li[data-feed-id="${obj.id}"]`,
-    );
+    const feedEl = feedsList.querySelector(`li[data-feed-id="${obj.id}"]`);
     if (feedEl) feedEl.classList.add("selected");
     return;
   }
@@ -79,7 +56,7 @@ export function updateNavSelection(type, obj) {
   document.getElementById("trigger-show-all-feeds")?.classList.add("selected");
 }
 
-function loadFolderOpenStates() {
+export function loadFolderOpenStates() {
   try {
     const raw = localStorage.getItem(FOLDER_STATE_KEY);
     return raw ? JSON.parse(raw) : {};
@@ -89,31 +66,114 @@ function loadFolderOpenStates() {
   }
 }
 
-function saveFolderOpenStates(state) {
+export function saveFolderOpenStates(states) {
   try {
-    localStorage.setItem(FOLDER_STATE_KEY, JSON.stringify(state));
+    localStorage.setItem(FOLDER_STATE_KEY, JSON.stringify(states));
   } catch (err) {
     console.warn("Could not save folder open state", err);
   }
 }
 
-function setFolderOpenState(folderId, isOpen) {
-  const state = loadFolderOpenStates();
-  state[folderId] = !!isOpen;
-  saveFolderOpenStates(state);
-}
-
-function getFolderOpenState(folderId) {
-  const state = loadFolderOpenStates();
-  return Object.prototype.hasOwnProperty.call(state, folderId)
-    ? !!state[folderId]
-    : undefined;
+export function setFolderOpenState(folderId, isOpen) {
+  const states = loadFolderOpenStates();
+  states[folderId] = !!isOpen;
+  saveFolderOpenStates(states);
 }
 
 /**
- * Creates a single article DOM element
- * @param {Article} article - The article to create an element for
- * @returns {HTMLElement} The article div element
+ * Build feed list item HTML (no event listeners — delegation handles clicks).
+ * @param {Feed} feed
+ */
+function feedHtml(feed) {
+  const error = feed.lastError
+    ? `<span class="feed-error" title="${escapeHtml(feed.lastError)}" aria-label="Feed error: ${escapeHtml(feed.lastError)}">!</span>`
+    : "";
+  return `<li data-feed-id="${feed.id}">
+    <img class="tree-entry-icon" src="./api/icon/${feed.id}" alt="" data-fallback-icon="icons/rss.svg" />
+    <span class="tree-name">${escapeHtml(feed.name || "")}</span>
+    ${error}
+    <span class="tree-options" role="button" tabindex="0" aria-label="Feed options">⋮</span>
+  </li>`;
+}
+
+/**
+ * Build folder details HTML.
+ * @param {Folder} folder
+ * @param {Record<string, boolean>} openStates
+ */
+function folderHtml(folder, openStates) {
+  const open =
+    Object.prototype.hasOwnProperty.call(openStates, folder.id) &&
+    openStates[folder.id]
+      ? " open"
+      : "";
+  const color = escapeHtml(folder.color || "f-base");
+  const feeds = (folder.feeds ?? []).map(feedHtml).join("");
+  return `<details data-folder-id="${folder.id}"${open}>
+    <summary>
+      <img src="icons/folder.svg" alt="" class="icon ${color}" />
+      <span class="tree-name">${escapeHtml(folder.name || "")}</span>
+      <span class="tree-options" role="button" tabindex="0" aria-label="Folder options">⋮</span>
+    </summary>
+    <div class="folder-container">
+      <ul class="feeds-ul">${feeds}</ul>
+    </div>
+  </details>`;
+}
+
+/**
+ * Apply persisted open/closed state onto an already-painted tree
+ * (e.g. HTML injected from localStorage cache).
+ */
+export function syncFolderOpenStatesFromStorage() {
+  const container = document.getElementById("folder-container");
+  if (!container) return;
+  const states = loadFolderOpenStates();
+  container.querySelectorAll("details[data-folder-id]").forEach((details) => {
+    const id = details.dataset.folderId;
+    if (Object.prototype.hasOwnProperty.call(states, id)) {
+      details.open = !!states[id];
+    }
+  });
+}
+
+/**
+ * Canonical folder-tree HTML used both for live render and localStorage cache.
+ * Cached HTML is stored without open attributes; open state is applied from
+ * folder-state after inject / render.
+ * @param {Folder[]} folders
+ * @param {Feed[]} unfiledFeeds
+ * @param {Record<string, boolean>} [openStates]
+ * @returns {string}
+ */
+export function buildFoldersHtml(folders, unfiledFeeds, openStates = {}) {
+  const folderPart = (folders ?? []).map((f) => folderHtml(f, openStates)).join("");
+  const unfiled =
+    unfiledFeeds && unfiledFeeds.length > 0
+      ? `<ul class="feeds-ul">${unfiledFeeds.map(feedHtml).join("")}</ul>`
+      : "";
+  return folderPart + unfiled;
+}
+
+/**
+ * Render folders into #folder-container and return the HTML for caching.
+ * @param {Folder[]} folders
+ * @param {Feed[]} unfiledFeeds
+ * @returns {string}
+ */
+export function renderFoldersList(folders, unfiledFeeds) {
+  const container = document.getElementById("folder-container");
+  const html = buildFoldersHtml(folders, unfiledFeeds);
+  container.innerHTML = html;
+  delete container.dataset.cachePainted;
+  syncFolderOpenStatesFromStorage();
+  return html;
+}
+
+/**
+ * Creates a single article DOM element (clicks via delegation).
+ * @param {Article} article
+ * @returns {HTMLElement}
  */
 function createArticleElement(article) {
   const articleDiv = document.createElement("div");
@@ -136,14 +196,14 @@ function createArticleElement(article) {
   sourceSpan.className = "source";
   ageSpan.className = "age";
 
-  titleDiv.innerText = article.title || "No Title";
-  sourceSpan.innerText = article.feedName || "Unknown";
-  ageSpan.innerText = getRelativeTime(article.published);
+  titleDiv.textContent = article.title || "No Title";
+  sourceSpan.textContent = article.feedName || "Unknown";
+  ageSpan.textContent = getRelativeTime(article.published) || "";
 
   headerDiv.appendChild(sourceSpan);
   headerDiv.appendChild(ageSpan);
-
   articleDiv.appendChild(headerDiv);
+
   if (article.imageUrl) {
     const image = document.createElement("img");
     image.src = article.imageUrl;
@@ -152,28 +212,16 @@ function createArticleElement(article) {
     articleDiv.appendChild(imageDiv);
   }
   articleDiv.appendChild(titleDiv);
-
-  articleDiv.addEventListener("click", () => {
-    articleClickListener(article);
-  });
-  addKeyboardActivation(articleDiv, () => articleClickListener(article));
-
   return articleDiv;
 }
 
-/**
- * Clears the articles container
- * @returns {void}
- */
 export function clearArticlesList() {
   articlesContainer.innerHTML = "";
 }
 
 /**
- * Replaces all articles in the DOM (full re-render)
- * @param {Article[]} articles - The articles to render
- * @param {number|null} [keepSelectedId] - Article id to keep highlighted
- * @returns {void}
+ * @param {Article[]} articles
+ * @param {number|null} [keepSelectedId]
  */
 export function replaceArticlesList(articles, keepSelectedId = selectedArticleId) {
   if (keepSelectedId !== undefined) {
@@ -184,10 +232,8 @@ export function replaceArticlesList(articles, keepSelectedId = selectedArticleId
 }
 
 /**
- * Appends articles to the DOM (incremental update)
- * @param {Article[]} articles - The articles to append
+ * @param {Article[]} articles
  * @param {number|null} [keepSelectedId]
- * @returns {void}
  */
 export function appendArticlesList(articles, keepSelectedId) {
   if (keepSelectedId !== undefined && keepSelectedId !== null) {
@@ -195,15 +241,13 @@ export function appendArticlesList(articles, keepSelectedId) {
   }
   const fragment = document.createDocumentFragment();
   for (const article of articles) {
-    const articleEl = createArticleElement(article);
-    fragment.appendChild(articleEl);
+    fragment.appendChild(createArticleElement(article));
   }
   articlesContainer.appendChild(fragment);
 }
 
 /**
- * @param {Article} article - The array of articles to render.
- * @returns {void}
+ * @param {Article} article
  */
 export function renderReaderView(article) {
   const title = document.querySelector("#reader .title");
@@ -212,16 +256,21 @@ export function renderReaderView(article) {
   const date = document.querySelector("#reader .date");
   const externalLink = document.querySelector("#trigger-external-open");
 
-  title.innerText = article.title || "No Title";
+  title.textContent = article.title || "No Title";
   content.innerHTML =
     sanitizeHTML(article.content || article.description || "") || "No Content";
-  date.innerText = `${parseDate(article.published) || "Unknown"} by ${
+  date.textContent = `${parseDate(article.published) || "Unknown"} by ${
     article.authors || "Unknown"
   }`;
-  publisher.innerText = article.feedName || "";
-  externalLink.href = article.link || "";
+  publisher.textContent = article.feedName || "";
 
-  externalLink.classList.remove("d-none");
+  if (article.link) {
+    externalLink.href = article.link;
+    externalLink.classList.remove("d-none");
+  } else {
+    externalLink.removeAttribute("href");
+    externalLink.classList.add("d-none");
+  }
 }
 
 export function clearReaderView() {
@@ -231,185 +280,17 @@ export function clearReaderView() {
   const date = document.querySelector("#reader .date");
   const externalLink = document.querySelector("#trigger-external-open");
 
-  title.innerText = "No article selected";
+  title.textContent = "No article selected";
   content.innerHTML = "";
-  date.innerText = "";
-  publisher.innerText = "";
-  externalLink.href = "";
-
+  date.textContent = "";
+  publisher.textContent = "";
+  externalLink.removeAttribute("href");
   externalLink.classList.add("d-none");
   setSelectedArticleHighlight(null);
 }
 
 /**
- * helper to create a feed element for the feed list
- * @param {Feed} feed
- * @returns
- */
-function createFeedElement(feed) {
-  const li = document.createElement("li");
-  const icon = document.createElement("img");
-  icon.src = "./api/icon/" + feed.id;
-  icon.className = "tree-entry-icon";
-  icon.alt = "";
-  icon.addEventListener("error", () => {
-    if (icon.src.endsWith("icons/rss.svg")) return;
-    icon.src = "icons/rss.svg";
-  });
-
-  const nameSpan = document.createElement("span");
-  nameSpan.textContent = feed.name || "";
-  nameSpan.className = "tree-name";
-
-  li.addEventListener("click", (e) => {
-    feedClickListener(feed);
-  });
-
-  const options = document.createElement("span");
-  options.classList.add("tree-options");
-  options.textContent = "⋮";
-  options.setAttribute("role", "button");
-  options.tabIndex = 0;
-  options.setAttribute("aria-label", "Feed options");
-  options.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    feedContextMenu(e.clientX, e.clientY, feed);
-  });
-  addKeyboardActivation(options, () => {
-    const rect = options.getBoundingClientRect();
-    feedContextMenu(rect.left, rect.bottom, feed);
-  });
-
-  li.appendChild(icon);
-  li.appendChild(nameSpan);
-
-  if (feed.lastError) {
-    const err = document.createElement("span");
-    err.className = "feed-error";
-    err.textContent = "!";
-    err.title = feed.lastError;
-    err.setAttribute("aria-label", `Feed error: ${feed.lastError}`);
-    li.appendChild(err);
-  }
-
-  li.appendChild(options);
-  li.dataset.feedId = feed.id.toString();
-  return li;
-}
-
-/**
- * removes a feed element from the list of feeds
- * @param {number} feedId
- */
-export function removeFeedElement(feedId) {
-  const feedElement = document.querySelector(`li[data-feed-id='${feedId}']`);
-  if (feedElement) {
-    feedElement.remove();
-  }
-}
-
-/**
- * renders the folder and feed list in the feeds column on the left
- * @param {Folder[]} folders - the list of folders with their feeds
- * @param {Feed[]} unfiledFeeds - feeds not belonging to any folder
- */
-export function renderFoldersList(folders, unfiledFeeds) {
-  const container = document.getElementById("folder-container");
-
-  container.innerHTML = "";
-
-  folders.forEach((folder) => {
-    const details = document.createElement("details");
-    details.dataset.folderId = String(folder.id);
-    const persistedOpen = getFolderOpenState(folder.id);
-    if (persistedOpen !== undefined) {
-      details.open = persistedOpen;
-    }
-
-    details.appendChild(createFolderElement(folder));
-
-    details.addEventListener("toggle", () => {
-      setFolderOpenState(folder.id, details.open);
-    });
-
-    const feedsContainer = document.createElement("div");
-    feedsContainer.className = "folder-container";
-
-    const ul = document.createElement("ul");
-    ul.className = "feeds-ul";
-
-    if (!folder.feeds) {
-      return;
-    }
-    folder.feeds.forEach((feed) => {
-      ul.appendChild(createFeedElement(feed));
-    });
-
-    feedsContainer.appendChild(ul);
-    details.appendChild(feedsContainer);
-    container.appendChild(details);
-  });
-
-  // Render unfiled feeds directly under the folder tree (no folder wrapper)
-  if (unfiledFeeds && unfiledFeeds.length > 0) {
-    const ul = document.createElement("ul");
-    ul.className = "feeds-ul";
-    unfiledFeeds.forEach((feed) => {
-      ul.appendChild(createFeedElement(feed));
-    });
-    container.appendChild(ul);
-  }
-}
-
-/**
- *
- * @param {Folder} folder
- * @returns {HTMLElement}
- */
-function createFolderElement(folder) {
-  const summary = document.createElement("summary");
-  const img = document.createElement("img");
-  img.src = "icons/folder.svg";
-  img.alt = "";
-  img.classList.add("icon", folder.color);
-
-  const nameSpan = document.createElement("span");
-  nameSpan.textContent = folder.name || "";
-  nameSpan.className = "tree-name";
-  nameSpan.addEventListener("click", (e) => {
-    e.preventDefault();
-    folderClickListener(folder);
-  });
-
-  const options = document.createElement("span");
-  options.classList.add("tree-options");
-  options.textContent = "⋮";
-  options.setAttribute("role", "button");
-  options.tabIndex = 0;
-  options.setAttribute("aria-label", "Folder options");
-  options.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    folderContextMenu(e.clientX, e.clientY, folder);
-  });
-  addKeyboardActivation(options, () => {
-    const rect = options.getBoundingClientRect();
-    folderContextMenu(rect.left, rect.bottom, folder);
-  });
-
-  summary.appendChild(img);
-  summary.appendChild(nameSpan);
-  summary.appendChild(options);
-
-  return summary;
-}
-
-/**
- * Renders skeleton placeholder articles during loading.
- * Randomly varies title width (90% or 60%) per skeleton for a natural look,
- * and includes an image placeholder for ~40% of items.
- * @param {number} [count=6] - Number of skeleton articles to render
+ * @param {number} [count=6]
  */
 export function renderSkeletons(count = 6) {
   const fragment = document.createDocumentFragment();
@@ -417,7 +298,6 @@ export function renderSkeletons(count = 6) {
     const articleDiv = document.createElement("div");
     articleDiv.className = "skeleton-article";
 
-    // header row: source + age bars
     const headerDiv = document.createElement("div");
     headerDiv.className = "skeleton-header";
     const sourceBar = document.createElement("div");
@@ -426,10 +306,8 @@ export function renderSkeletons(count = 6) {
     ageBar.className = "skeleton skeleton-age";
     headerDiv.appendChild(sourceBar);
     headerDiv.appendChild(ageBar);
-
     articleDiv.appendChild(headerDiv);
 
-    // ~40% get an image placeholder
     if (i % 3 === 0 || i % 4 === 0) {
       const imageDiv = document.createElement("div");
       imageDiv.className = "article-image";
@@ -439,21 +317,16 @@ export function renderSkeletons(count = 6) {
       articleDiv.appendChild(imageDiv);
     }
 
-    // title bar
     const titleDiv = document.createElement("div");
     titleDiv.className = `skeleton ${
       i % 2 === 0 ? "skeleton-title" : "skeleton-title-short"
     }`;
     articleDiv.appendChild(titleDiv);
-
     fragment.appendChild(articleDiv);
   }
   articlesContainer.appendChild(fragment);
 }
 
-/**
- * Removes all skeleton article placeholders from the articles container.
- */
 export function removeSkeletons() {
   articlesContainer
     .querySelectorAll(".skeleton-article")
@@ -461,8 +334,7 @@ export function removeSkeletons() {
 }
 
 /**
- * Renders an empty state message in the articles container.
- * @param {string} [message="No articles found"] - The message to display
+ * @param {string} [message="No articles found"]
  */
 export function renderEmptyState(message = "No articles found") {
   const div = document.createElement("div");
@@ -471,17 +343,11 @@ export function renderEmptyState(message = "No articles found") {
   articlesContainer.appendChild(div);
 }
 
-/**
- * Shows the feeds sidebar loading spinner.
- */
 export function showFeedsSpinner() {
   const el = document.getElementById("feeds-loading");
   if (el) el.classList.remove("d-none");
 }
 
-/**
- * Hides the feeds sidebar loading spinner.
- */
 export function hideFeedsSpinner() {
   const el = document.getElementById("feeds-loading");
   if (el) el.classList.add("d-none");

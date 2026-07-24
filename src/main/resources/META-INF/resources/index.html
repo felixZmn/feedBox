@@ -90,19 +90,6 @@
             <button
               type="button"
               class="item-spacer"
-              id="trigger-profile"
-              title="Profile"
-              aria-label="Profile"
-            >
-              <img
-                class="icon f-base"
-                src="icons/profile_placeholder.svg"
-                alt=""
-              />
-            </button>
-            <button
-              type="button"
-              class="item-spacer"
               id="trigger-export"
               title="Export feeds"
               aria-label="Export feeds"
@@ -165,107 +152,45 @@
             <!-- Folders will be injected here -->
           </div>
           <script>
-            // Paint cached folders synchronously before deferred modules load.
-            // On slow mobile this avoids an empty sidebar while main.js downloads.
+            // Inject renderer-generated cache HTML before deferred modules load.
+            // Keep session key names in sync with pkce.js / data.js.
             (function () {
               try {
+                var params = new URLSearchParams(window.location.search);
+                if (
+                  params.has("code") ||
+                  params.has("state") ||
+                  params.has("session_state")
+                ) {
+                  return;
+                }
+                var access = sessionStorage.getItem("access_token");
+                var expiresAt = Number(sessionStorage.getItem("expires_at")) || 0;
+                var hasSession =
+                  (access && expiresAt > Date.now()) ||
+                  !!localStorage.getItem("refresh_token");
+                if (!hasSession) return;
+
                 var raw = localStorage.getItem("folder-tree-cache");
                 if (!raw) return;
                 var data = JSON.parse(raw);
                 if (
                   !data ||
+                  data.version !== 1 ||
+                  typeof data.html !== "string" ||
                   !Array.isArray(data.folders) ||
                   !Array.isArray(data.unfiledFeeds)
                 ) {
                   return;
                 }
 
-                var loading = document.getElementById("feeds-loading");
-                if (loading) loading.classList.add("d-none");
-
-                var openStates = {};
-                try {
-                  openStates =
-                    JSON.parse(localStorage.getItem("folder-state") || "{}") ||
-                    {};
-                } catch (e) {}
-
                 var container = document.getElementById("folder-container");
                 if (!container) return;
-
-                function appendFeed(ul, feed) {
-                  var li = document.createElement("li");
-                  li.dataset.feedId = String(feed.id);
-                  var icon = document.createElement("img");
-                  icon.src = "./api/icon/" + feed.id;
-                  icon.className = "tree-entry-icon";
-                  icon.alt = "";
-                  var name = document.createElement("span");
-                  name.className = "tree-name";
-                  name.textContent = feed.name || "";
-                  var options = document.createElement("span");
-                  options.className = "tree-options";
-                  options.textContent = "\u22EE";
-                  li.appendChild(icon);
-                  li.appendChild(name);
-                  if (feed.lastError) {
-                    var err = document.createElement("span");
-                    err.className = "feed-error";
-                    err.textContent = "!";
-                    err.title = feed.lastError;
-                    li.appendChild(err);
-                  }
-                  li.appendChild(options);
-                  ul.appendChild(li);
-                }
-
-                data.folders.forEach(function (folder) {
-                  var details = document.createElement("details");
-                  details.dataset.folderId = String(folder.id);
-                  if (
-                    Object.prototype.hasOwnProperty.call(openStates, folder.id)
-                  ) {
-                    details.open = !!openStates[folder.id];
-                  }
-
-                  var summary = document.createElement("summary");
-                  var img = document.createElement("img");
-                  img.src = "icons/folder.svg";
-                  img.alt = "";
-                  img.className = "icon " + (folder.color || "");
-                  var nameSpan = document.createElement("span");
-                  nameSpan.className = "tree-name";
-                  nameSpan.textContent = folder.name || "";
-                  var folderOptions = document.createElement("span");
-                  folderOptions.className = "tree-options";
-                  folderOptions.textContent = "\u22EE";
-                  summary.appendChild(img);
-                  summary.appendChild(nameSpan);
-                  summary.appendChild(folderOptions);
-                  details.appendChild(summary);
-
-                  var feedsContainer = document.createElement("div");
-                  feedsContainer.className = "folder-container";
-                  var ul = document.createElement("ul");
-                  ul.className = "feeds-ul";
-                  (folder.feeds || []).forEach(function (feed) {
-                    appendFeed(ul, feed);
-                  });
-                  feedsContainer.appendChild(ul);
-                  details.appendChild(feedsContainer);
-                  container.appendChild(details);
-                });
-
-                if (data.unfiledFeeds.length) {
-                  var unfiledUl = document.createElement("ul");
-                  unfiledUl.className = "feeds-ul";
-                  data.unfiledFeeds.forEach(function (feed) {
-                    appendFeed(unfiledUl, feed);
-                  });
-                  container.appendChild(unfiledUl);
-                }
-
-                container.dataset.bootPainted = "1";
+                container.innerHTML = data.html;
+                container.dataset.cachePainted = "1";
+                document
+                  .getElementById("feeds-loading")
+                  ?.classList.add("d-none");
               } catch (e) {}
             })();
           </script>

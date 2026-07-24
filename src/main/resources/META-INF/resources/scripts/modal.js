@@ -13,6 +13,12 @@ class ModalService {
     this.cancelBtn.addEventListener("click", () => this.close(null));
     this.closeXBtn.addEventListener("click", () => this.close(null));
 
+    // Escape / native dialog dismiss must resolve the pending promise.
+    this.dialog.addEventListener("cancel", (e) => {
+      e.preventDefault();
+      this.close(null);
+    });
+
     // close by clicking backdrop
     this.dialog.addEventListener("click", (e) => {
       if (e.target === this.dialog) this.close(null);
