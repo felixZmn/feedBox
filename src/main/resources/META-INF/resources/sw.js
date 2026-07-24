@@ -1,6 +1,6 @@
 "use strict";
 
-const VERSION = "v1::2026-07-23::006";
+const VERSION = "v1::2026-07-24::003";
 const CACHE_NAME = `feedbox-${VERSION}`;
 
 const CACHE_FILES = [
@@ -12,10 +12,10 @@ const CACHE_FILES = [
   "/icons/folder_open.svg",
   "/icons/folder.svg",
   "/icons/import.svg",
-  "/icons/maskable_icon_x384.png",
+  "/icons/logout.svg",
   "/icons/nav_back.svg",
   "/icons/package.svg",
-  "/icons/reader_close.svg",
+  "/icons/profile_placeholder.svg",
   "/icons/reader_next.svg",
   "/icons/reader_previous.svg",
   "/icons/refresh.svg",

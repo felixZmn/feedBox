@@ -9,6 +9,20 @@ import {
 } from "./main.js";
 import { getRelativeTime, parseDate, sanitizeHTML } from "./util.js";
 
+/**
+ * Invokes the handler when the element is activated via Enter or Space.
+ * @param {HTMLElement} el
+ * @param {(event: KeyboardEvent) => void} handler
+ */
+function addKeyboardActivation(el, handler) {
+  el.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handler(e);
+    }
+  });
+}
+
 const FOLDER_STATE_KEY = "folder-state";
 const articlesContainer = document.querySelector(
   "#articles-list #articles-container",
@@ -111,6 +125,8 @@ function createArticleElement(article) {
 
   articleDiv.className = "article";
   articleDiv.dataset.articleId = String(article.id);
+  articleDiv.tabIndex = 0;
+  articleDiv.setAttribute("role", "button");
   if (selectedArticleId != null && article.id === selectedArticleId) {
     articleDiv.classList.add("selected");
   }
@@ -140,6 +156,7 @@ function createArticleElement(article) {
   articleDiv.addEventListener("click", () => {
     articleClickListener(article);
   });
+  addKeyboardActivation(articleDiv, () => articleClickListener(article));
 
   return articleDiv;
 }
@@ -235,6 +252,10 @@ function createFeedElement(feed) {
   icon.src = "./api/icon/" + feed.id;
   icon.className = "tree-entry-icon";
   icon.alt = "";
+  icon.addEventListener("error", () => {
+    if (icon.src.endsWith("icons/rss.svg")) return;
+    icon.src = "icons/rss.svg";
+  });
 
   const nameSpan = document.createElement("span");
   nameSpan.textContent = feed.name || "";
@@ -248,11 +269,16 @@ function createFeedElement(feed) {
   options.classList.add("tree-options");
   options.textContent = "⋮";
   options.setAttribute("role", "button");
+  options.tabIndex = 0;
   options.setAttribute("aria-label", "Feed options");
   options.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
     feedContextMenu(e.clientX, e.clientY, feed);
+  });
+  addKeyboardActivation(options, () => {
+    const rect = options.getBoundingClientRect();
+    feedContextMenu(rect.left, rect.bottom, feed);
   });
 
   li.appendChild(icon);
@@ -345,6 +371,7 @@ function createFolderElement(folder) {
   const summary = document.createElement("summary");
   const img = document.createElement("img");
   img.src = "icons/folder.svg";
+  img.alt = "";
   img.classList.add("icon", folder.color);
 
   const nameSpan = document.createElement("span");
@@ -359,11 +386,16 @@ function createFolderElement(folder) {
   options.classList.add("tree-options");
   options.textContent = "⋮";
   options.setAttribute("role", "button");
+  options.tabIndex = 0;
   options.setAttribute("aria-label", "Folder options");
   options.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
     folderContextMenu(e.clientX, e.clientY, folder);
+  });
+  addKeyboardActivation(options, () => {
+    const rect = options.getBoundingClientRect();
+    folderContextMenu(rect.left, rect.bottom, folder);
   });
 
   summary.appendChild(img);

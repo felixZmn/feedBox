@@ -108,9 +108,13 @@ class DataService {
     } catch (error) {
       if (error.name === "AbortError") throw error;
 
-      throw new Error(`Failed to ${method} ${url}: ${error.message}`, {
-        cause: error,
-      });
+      const wrapped = new Error(
+        `Failed to ${method} ${url}: ${error.message}`,
+        { cause: error },
+      );
+      // Preserve HTTP status so callers can branch on it (e.g. 409 duplicates)
+      if (error.status != null) wrapped.status = error.status;
+      throw wrapped;
     }
   }
 }
