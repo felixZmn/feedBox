@@ -1,126 +1,156 @@
 "use strict";
 
-const VERSION = "v1::2026-07-24::003";
-const CACHE_NAME = `feedbox-${VERSION}`;
-
-const CACHE_FILES = [
+// Bump when shell assets change (index.html, style.css, manifest, app icons).
+// Script/icon updates use stale-while-revalidate and do not require a bump.
+const VERSION = "2026-07-24-001";
+const CACHE = `feedbox-${VERSION}`;
+const SHELL = [
   "/index.html",
   "/style.css",
-  "/icons/export.svg",
-  "/icons/external.svg",
-  "/icons/feed_add.svg",
-  "/icons/folder_open.svg",
-  "/icons/folder.svg",
-  "/icons/import.svg",
-  "/icons/logout.svg",
-  "/icons/nav_back.svg",
-  "/icons/package.svg",
-  "/icons/profile_placeholder.svg",
-  "/icons/reader_next.svg",
-  "/icons/reader_previous.svg",
-  "/icons/refresh.svg",
-  "/icons/rss.svg",
-  "/icons/search.svg",
-  "/scripts/data.js",
-  "/scripts/dialog.js",
-  "/scripts/dom.js",
-  "/scripts/main.js",
-  "/scripts/modal.js",
-  "/scripts/nav.js",
-  "/scripts/pkce.js",
-  "/scripts/types.js",
-  "/scripts/util.js",
+  "/manifest.json",
+  "/icons/maskable_icon_x192.png",
+  "/icons/maskable_icon_x512.png",
 ];
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    (async () => {
-      const cache = await caches.open(CACHE_NAME);
-      await cache.addAll(CACHE_FILES);
-      self.skipWaiting();
-    })(),
+function offline(message = "Offline") {
+  return new Response(message, { status: 503 });
+}
+
+async function putOk(cache, request, response) {
+  if (response.ok) {
+    await cache.put(request, response.clone());
+  }
+}
+
+async function matchShell(cache, request) {
+  return (
+    (await cache.match(request)) ||
+    (await cache.match("/")) ||
+    (await cache.match("/index.html"))
   );
+}
+
+async function precache(cache) {
+  await Promise.allSettled(
+    SHELL.map(async (path) => {
+      const response = await fetch(path);
+      await putOk(cache, path, response);
+    }),
+  );
+
+  const index = await cache.match("/index.html");
+  if (index) {
+    await cache.put("/", index.clone());
+  }
+}
+
+function classify(request, url) {
+  if (request.mode === "navigate" || url.pathname.endsWith(".html") || url.pathname.endsWith(".css")) {
+    return "network-first";
+  }
+  if (url.pathname.startsWith("/api/")) {
+    return "network-only";
+  }
+  if (
+    url.pathname.startsWith("/scripts/") ||
+    url.pathname.startsWith("/icons/") ||
+    url.pathname === "/manifest.json"
+  ) {
+    return "stale-while-revalidate";
+  }
+  return "bypass";
+}
+
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE);
+  const url = new URL(request.url);
+
+  try {
+    const response = await fetch(request);
+    await putOk(cache, request, response);
+
+    if (response.ok && (url.pathname === "/" || url.pathname.endsWith(".html"))) {
+      await putOk(cache, "/", response);
+      await putOk(cache, "/index.html", response);
+    }
+
+    return response;
+  } catch {
+    return (await matchShell(cache, request)) || offline();
+  }
+}
+
+async function staleWhileRevalidate(request, event) {
+  const cache = await caches.open(CACHE);
+  const cached = await cache.match(request);
+
+  const update = (async () => {
+    try {
+      const response = await fetch(request);
+      await putOk(cache, request, response);
+      return response;
+    } catch {
+      return cached || offline();
+    }
+  })();
+
+  if (cached) {
+    event.waitUntil(update);
+    return cached;
+  }
+
+  return update;
+}
+
+async function networkOnly(request) {
+  try {
+    return await fetch(request);
+  } catch {
+    return offline("Network error");
+  }
+}
+
+async function onInstall() {
+  const cache = await caches.open(CACHE);
+  await precache(cache);
+  self.skipWaiting();
+}
+
+async function onActivate() {
+  const names = await caches.keys();
+  await Promise.all(
+    names
+      .filter((name) => name.startsWith("feedbox-") && name !== CACHE)
+      .map((name) => caches.delete(name)),
+  );
+  self.clients.claim();
+}
+
+function onFetch(event) {
+  const request = event.request;
+  if (request.method !== "GET") return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  const strategy = classify(request, url);
+  if (strategy === "bypass") return;
+
+  if (strategy === "network-first") {
+    event.respondWith(networkFirst(request));
+  } else if (strategy === "stale-while-revalidate") {
+    event.respondWith(staleWhileRevalidate(request, event));
+  } else if (strategy === "network-only") {
+    event.respondWith(networkOnly(request));
+  }
+}
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(onInstall());
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    (async () => {
-      const cacheNames = await caches.keys();
-      await Promise.all(
-        cacheNames.map((name) =>
-          name !== CACHE_NAME ? caches.delete(name) : null,
-        ),
-      );
-      self.clients.claim();
-    })(),
-  );
+  event.waitUntil(onActivate());
 });
 
-self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
-  const pathname = url.pathname;
-  const isAppFile =
-    CACHE_FILES.includes(pathname) ||
-    CACHE_FILES.includes(`${pathname}${url.search}`);
-
-  // Always try network first for shell/CSS so layout fixes reach PWAs quickly
-  const networkFirst =
-    pathname === "/" ||
-    pathname.endsWith(".html") ||
-    pathname.endsWith(".css") ||
-    pathname.endsWith("/sw.js");
-
-  if (networkFirst) {
-    event.respondWith(
-      (async () => {
-        const cache = await caches.open(CACHE_NAME);
-        try {
-          const networkResponse = await fetch(event.request);
-          cache.put(event.request, networkResponse.clone());
-          return networkResponse;
-        } catch {
-          return (
-            (await cache.match(event.request)) ||
-            (await cache.match(pathname)) ||
-            new Response("Offline", { status: 503 })
-          );
-        }
-      })(),
-    );
-    return;
-  }
-
-  if (isAppFile) {
-    event.respondWith(
-      (async () => {
-        const cache = await caches.open(CACHE_NAME);
-        const cachedResponse = await cache.match(event.request);
-
-        // Start network fetch in the background to update the cache
-        const networkFetch = (async () => {
-          try {
-            const networkResponse = await fetch(event.request);
-            cache.put(event.request, networkResponse.clone());
-            return networkResponse;
-          } catch {
-            return cachedResponse || new Response("Offline", { status: 503 });
-          }
-        })();
-
-        // Return cached response immediately if available, otherwise wait for network
-        return cachedResponse || networkFetch;
-      })(),
-    );
-  } else {
-    // For API calls, go network only and provide a generic error
-    event.respondWith(
-      (async () => {
-        try {
-          return await fetch(event.request);
-        } catch {
-          return new Response("Network error", { status: 503 });
-        }
-      })(),
-    );
-  }
-});
+self.addEventListener("fetch", onFetch);
