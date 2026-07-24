@@ -164,6 +164,111 @@
           <div id="folder-container">
             <!-- Folders will be injected here -->
           </div>
+          <script>
+            // Paint cached folders synchronously before deferred modules load.
+            // On slow mobile this avoids an empty sidebar while main.js downloads.
+            (function () {
+              try {
+                var raw = localStorage.getItem("folder-tree-cache");
+                if (!raw) return;
+                var data = JSON.parse(raw);
+                if (
+                  !data ||
+                  !Array.isArray(data.folders) ||
+                  !Array.isArray(data.unfiledFeeds)
+                ) {
+                  return;
+                }
+
+                var loading = document.getElementById("feeds-loading");
+                if (loading) loading.classList.add("d-none");
+
+                var openStates = {};
+                try {
+                  openStates =
+                    JSON.parse(localStorage.getItem("folder-state") || "{}") ||
+                    {};
+                } catch (e) {}
+
+                var container = document.getElementById("folder-container");
+                if (!container) return;
+
+                function appendFeed(ul, feed) {
+                  var li = document.createElement("li");
+                  li.dataset.feedId = String(feed.id);
+                  var icon = document.createElement("img");
+                  icon.src = "./api/icon/" + feed.id;
+                  icon.className = "tree-entry-icon";
+                  icon.alt = "";
+                  var name = document.createElement("span");
+                  name.className = "tree-name";
+                  name.textContent = feed.name || "";
+                  var options = document.createElement("span");
+                  options.className = "tree-options";
+                  options.textContent = "\u22EE";
+                  li.appendChild(icon);
+                  li.appendChild(name);
+                  if (feed.lastError) {
+                    var err = document.createElement("span");
+                    err.className = "feed-error";
+                    err.textContent = "!";
+                    err.title = feed.lastError;
+                    li.appendChild(err);
+                  }
+                  li.appendChild(options);
+                  ul.appendChild(li);
+                }
+
+                data.folders.forEach(function (folder) {
+                  var details = document.createElement("details");
+                  details.dataset.folderId = String(folder.id);
+                  if (
+                    Object.prototype.hasOwnProperty.call(openStates, folder.id)
+                  ) {
+                    details.open = !!openStates[folder.id];
+                  }
+
+                  var summary = document.createElement("summary");
+                  var img = document.createElement("img");
+                  img.src = "icons/folder.svg";
+                  img.alt = "";
+                  img.className = "icon " + (folder.color || "");
+                  var nameSpan = document.createElement("span");
+                  nameSpan.className = "tree-name";
+                  nameSpan.textContent = folder.name || "";
+                  var folderOptions = document.createElement("span");
+                  folderOptions.className = "tree-options";
+                  folderOptions.textContent = "\u22EE";
+                  summary.appendChild(img);
+                  summary.appendChild(nameSpan);
+                  summary.appendChild(folderOptions);
+                  details.appendChild(summary);
+
+                  var feedsContainer = document.createElement("div");
+                  feedsContainer.className = "folder-container";
+                  var ul = document.createElement("ul");
+                  ul.className = "feeds-ul";
+                  (folder.feeds || []).forEach(function (feed) {
+                    appendFeed(ul, feed);
+                  });
+                  feedsContainer.appendChild(ul);
+                  details.appendChild(feedsContainer);
+                  container.appendChild(details);
+                });
+
+                if (data.unfiledFeeds.length) {
+                  var unfiledUl = document.createElement("ul");
+                  unfiledUl.className = "feeds-ul";
+                  data.unfiledFeeds.forEach(function (feed) {
+                    appendFeed(unfiledUl, feed);
+                  });
+                  container.appendChild(unfiledUl);
+                }
+
+                container.dataset.bootPainted = "1";
+              } catch (e) {}
+            })();
+          </script>
           <div class="details space-top" id="trigger-add">
             <div class="summary">
               <img src="icons/feed_add.svg" class="icon f-grey" alt="" />

@@ -132,4 +132,50 @@ export function buildFolderTree(folders, feeds) {
   return { folders: foldersWithFeeds, unfiledFeeds };
 }
 
+const FOLDER_TREE_CACHE_KEY = "folder-tree-cache";
+
+/**
+ * @returns {{ folders: Folder[], unfiledFeeds: Feed[] }|null}
+ */
+export function loadFolderTreeCache() {
+  try {
+    const raw = localStorage.getItem(FOLDER_TREE_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.folders) || !Array.isArray(parsed.unfiledFeeds)) {
+      return null;
+    }
+    return { folders: parsed.folders, unfiledFeeds: parsed.unfiledFeeds };
+  } catch (err) {
+    console.warn("Could not load folder tree cache", err);
+    return null;
+  }
+}
+
+/**
+ * @param {Folder[]} folders
+ * @param {Feed[]} unfiledFeeds
+ */
+export function saveFolderTreeCache(folders, unfiledFeeds) {
+  try {
+    localStorage.setItem(
+      FOLDER_TREE_CACHE_KEY,
+      JSON.stringify({ folders, unfiledFeeds }),
+    );
+  } catch (err) {
+    console.warn("Could not save folder tree cache", err);
+  }
+}
+
+/**
+ * @param {{ folders: Folder[], unfiledFeeds: Feed[] }} a
+ * @param {{ folders: Folder[], unfiledFeeds: Feed[] }} b
+ */
+export function folderTreesEqual(a, b) {
+  return (
+    JSON.stringify({ folders: a?.folders ?? [], unfiledFeeds: a?.unfiledFeeds ?? [] }) ===
+    JSON.stringify({ folders: b?.folders ?? [], unfiledFeeds: b?.unfiledFeeds ?? [] })
+  );
+}
+
 export const dataService = new DataService();

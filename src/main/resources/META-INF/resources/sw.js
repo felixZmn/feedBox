@@ -2,7 +2,7 @@
 
 // Bump when shell assets change (index.html, style.css, manifest, app icons).
 // Script/icon updates use stale-while-revalidate and do not require a bump.
-const VERSION = "2026-07-24-001";
+const VERSION = "2026-07-24-005";
 const CACHE = `feedbox-${VERSION}`;
 const SHELL = [
   "/index.html",

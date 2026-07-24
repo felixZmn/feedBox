@@ -1,6 +1,12 @@
 "use strict";
 
-import { dataService, buildFolderTree } from "./data.js";
+import {
+  dataService,
+  buildFolderTree,
+  loadFolderTreeCache,
+  saveFolderTreeCache,
+  folderTreesEqual,
+} from "./data.js";
 import { modal } from "./modal.js";
 import {
   showAddFeedDialog,
@@ -102,6 +108,10 @@ if ("serviceWorker" in navigator) {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
+  // Paint cached folders immediately — before auth — so the sidebar is usable
+  // and #feeds-loading (visible by default in HTML) does not sit through SSO.
+  paintFolderCacheIfPresent();
+
   try {
     // Initialize authentication (handles OAuth callback if present)
     await initSSOConfig();
@@ -469,27 +479,78 @@ function resetPagination() {
   state.status.hasMoreArticles = true;
 }
 
-async function loadFolders() {
-  showFeedsSpinner();
-  const [folders, feeds] = await Promise.all([
-    dataService.getFolders(),
-    dataService.getFeeds(),
-  ]);
-  const { folders: foldersWithFeeds, unfiledFeeds } = buildFolderTree(
-    folders,
-    feeds,
-  );
-  renderFoldersList(foldersWithFeeds, unfiledFeeds);
-  state.folders = foldersWithFeeds;
+/**
+ * @param {Folder[]} folders
+ * @param {Feed[]} unfiledFeeds
+ */
+function applyFolderTree(folders, unfiledFeeds) {
+  state.folders = folders;
   state.unfiledFeeds = unfiledFeeds;
+  renderFoldersList(folders, unfiledFeeds);
   updateNavSelection(state.lastClickedItem.type, state.lastClickedItem.obj);
+}
+
+/**
+ * Synchronously paint the folder tree from localStorage if present.
+ * When the inline boot script already painted the DOM, only hydrate state
+ * and attach the interactive tree (one replace) so clicks work.
+ * @returns {boolean} true when a cache was applied
+ */
+function paintFolderCacheIfPresent() {
+  const cached = loadFolderTreeCache();
+  if (!cached) return false;
+  applyFolderTree(cached.folders, cached.unfiledFeeds);
   hideFeedsSpinner();
+  return true;
+}
+
+/**
+ * Load folders/feeds. On open (background: true), paint localStorage cache
+ * immediately and revalidate from the network; re-render only if data changed.
+ * Mutations pass background: false for a blocking spinner refresh.
+ * @param {{ background?: boolean }} [options]
+ */
+async function loadFolders({ background = true } = {}) {
+  // Only paint cache on the SWR (startup) path — mutations should not flash stale data.
+  // #feeds-loading is visible by default in the HTML; hide it as soon as we paint
+  // from cache so it does not sit above the list until the network returns.
+  const hadCache = background && paintFolderCacheIfPresent();
+  if (!hadCache) {
+    showFeedsSpinner();
+  }
+
+  try {
+    const [folders, feeds] = await Promise.all([
+      dataService.getFolders(),
+      dataService.getFeeds(),
+    ]);
+    const tree = buildFolderTree(folders, feeds);
+    const changed = !folderTreesEqual(
+      { folders: state.folders, unfiledFeeds: state.unfiledFeeds },
+      tree,
+    );
+    if (changed || !hadCache) {
+      applyFolderTree(tree.folders, tree.unfiledFeeds);
+    } else {
+      state.folders = tree.folders;
+      state.unfiledFeeds = tree.unfiledFeeds;
+    }
+    saveFolderTreeCache(tree.folders, tree.unfiledFeeds);
+  } catch (error) {
+    if (hadCache) {
+      console.error("[app] Failed to refresh folders:", error);
+    } else {
+      throw error;
+    }
+  } finally {
+    hideFeedsSpinner();
+  }
 }
 
 async function createFolder(folder) {
   try {
     await dataService.createFolder(folder);
-    await loadFolders();
+    await loadFolders({ background: false });
   } catch (error) {
     console.error(error.message);
     await modal.show({
@@ -503,7 +564,7 @@ async function createFolder(folder) {
 async function editFolder(folder) {
   try {
     await dataService.updateFolder(folder);
-    await loadFolders();
+    await loadFolders({ background: false });
     state.lastClickedItem.obj.name = folder.name;
     state.lastClickedItem.obj.color = folder.color;
   } catch (error) {
@@ -519,7 +580,7 @@ async function editFolder(folder) {
 async function deleteFolder(folder) {
   try {
     await dataService.deleteFolder(folder.id);
-    await loadFolders();
+    await loadFolders({ background: false });
   } catch (error) {
     console.error(error.message);
     await modal.show({
@@ -533,7 +594,7 @@ async function deleteFolder(folder) {
 async function createFeed(feed) {
   try {
     await dataService.createFeed(feed);
-    await loadFolders();
+    await loadFolders({ background: false });
   } catch (error) {
     console.error(error);
     const isDuplicate =
@@ -549,7 +610,7 @@ async function createFeed(feed) {
 async function editFeed(feed) {
   try {
     await dataService.updateFeed(feed);
-    await loadFolders();
+    await loadFolders({ background: false });
     state.lastClickedItem.obj.url = feed.feedUrl;
     state.lastClickedItem.obj.folderId = feed.folderId;
   } catch (error) {
@@ -607,7 +668,7 @@ async function importFeeds() {
     });
 
     if (response.ok) {
-      await loadFolders();
+      await loadFolders({ background: false });
       await refreshFeeds();
     } else {
       await modal.show({
