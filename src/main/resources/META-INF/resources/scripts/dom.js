@@ -1,7 +1,7 @@
 "use strict";
 
 import { FOLDER_STATE_KEY } from "./data.js";
-import { escapeHtml, getRelativeTime, parseDate, sanitizeHTML } from "./util.js";
+import { escapeHtml, getRelativeTime, parseDate, sanitizeHTML, isSafeHttpUrl } from "./util.js";
 
 const articlesContainer = document.querySelector(
   "#articles-list #articles-container",
@@ -264,7 +264,7 @@ export function renderReaderView(article) {
   }`;
   publisher.textContent = article.feedName || "";
 
-  if (article.link) {
+  if (article.link && isSafeHttpUrl(article.link)) {
     externalLink.href = article.link;
     externalLink.classList.remove("d-none");
   } else {

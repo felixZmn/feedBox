@@ -3,6 +3,15 @@
 // Vendored DOMPurify; version pin: ./vendor/dompurify.version
 import DOMPurify from "./vendor/purify.es.mjs";
 
+/** Hosts allowed for article iframe embeds (keep in sync with CSP frame-src). */
+const EMBED_HOSTS = new Set([
+  "www.youtube.com",
+  "youtube.com",
+  "www.youtube-nocookie.com",
+  "youtube-nocookie.com",
+  "player.vimeo.com",
+]);
+
 /**
  * Escapes a string for safe insertion into HTML attribute values or text nodes.
  * @param {*} str
@@ -18,6 +27,57 @@ export function escapeHtml(str) {
 }
 
 /**
+ * True when value is an absolute http(s) URL.
+ * Used before navigating to feed-supplied links (article.link, feed.url).
+ * @param {*} value
+ * @returns {boolean}
+ */
+export function isSafeHttpUrl(value) {
+  if (!value || typeof value !== "string") return false;
+  try {
+    const { protocol } = new URL(value);
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function isAllowedEmbedSrc(src) {
+  if (!src) return false;
+  try {
+    const url = new URL(src);
+    return url.protocol === "https:" && EMBED_HOSTS.has(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+// Harden sanitized article HTML once at module load.
+DOMPurify.addHook("uponSanitizeElement", (node, data) => {
+  if (data.tagName !== "iframe") return;
+  if (!isAllowedEmbedSrc(node.getAttribute("src"))) {
+    if (typeof node.remove === "function") {
+      node.remove();
+    } else if (node.parentNode) {
+      node.parentNode.removeChild(node);
+    }
+  }
+});
+
+DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+  if (node.tagName === "A" && node.getAttribute("target") === "_blank") {
+    node.setAttribute("rel", "noopener noreferrer");
+  }
+  if (node.tagName === "IFRAME") {
+    node.setAttribute(
+      "sandbox",
+      "allow-scripts allow-same-origin allow-presentation",
+    );
+    node.setAttribute("referrerpolicy", "no-referrer");
+  }
+});
+
+/**
  * Sanitizes untrusted RSS/HTML content for the reader pane.
  * @param {string} html
  * @returns {string}
@@ -26,6 +86,8 @@ export function sanitizeHTML(html) {
   if (!html) return "";
   return DOMPurify.sanitize(html, {
     USE_PROFILES: { html: true },
+    ADD_TAGS: ["iframe"],
+    ADD_ATTR: ["allow", "allowfullscreen", "frameborder", "sandbox", "referrerpolicy"],
     FORBID_TAGS: ["style", "form", "input", "button"],
     ALLOW_DATA_ATTR: false,
   });

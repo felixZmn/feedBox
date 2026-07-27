@@ -55,8 +55,22 @@ class ModalService {
       let data = this._collectFormData(); // Collect current state of DOM
 
       if (onValidate) {
-        const isValid = await onValidate(data, this.bodyEl);
-        if (!isValid) return; // Keep dialog open
+        try {
+          const isValid = await onValidate(data, this.bodyEl);
+          if (!isValid) return; // Keep dialog open
+        } catch (error) {
+          console.error("Modal validation failed:", error);
+          let errorEl = this.bodyEl.querySelector(".dialog-error");
+          if (!errorEl) {
+            errorEl = document.createElement("div");
+            errorEl.className = "dialog-error";
+            errorEl.setAttribute("role", "alert");
+            this.bodyEl.prepend(errorEl);
+          }
+          errorEl.textContent =
+            "Something went wrong. Please check your connection and try again.";
+          return; // Keep dialog open
+        }
         // onValidate may have updated inputs (e.g. resolved feed URL), so re-collect
         data = this._collectFormData();
       }

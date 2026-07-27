@@ -57,13 +57,20 @@ class DataService {
     this.articleCache = [];
   }
 
-  async loadArticles(params) {
+  async loadArticles(params, { signal } = {}) {
     const queryString = new URLSearchParams(params).toString();
-    const data = await this._request(`./api/article?${queryString}`);
-    if (Array.isArray(data)) {
-      this.articleCache.push(...data);
+    return this._request(`./api/article?${queryString}`, { signal });
+  }
+
+  /**
+   * Append a page of articles to the local cache. Call only after the
+   * caller has confirmed the response is still the latest request.
+   * @param {Article[]} articles
+   */
+  appendArticles(articles) {
+    if (Array.isArray(articles)) {
+      this.articleCache.push(...articles);
     }
-    return data;
   }
 
   /**
