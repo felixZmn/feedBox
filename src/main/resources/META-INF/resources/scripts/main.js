@@ -21,7 +21,6 @@ import {
   clearReaderView,
   replaceArticlesList,
   renderFoldersList,
-  buildFoldersHtml,
   syncFolderOpenStatesFromStorage,
   renderReaderView,
   clearArticlesList,
@@ -35,7 +34,7 @@ import {
   setFolderOpenState,
 } from "./dom.js";
 import { NavigationService, columns } from "./nav.js";
-import { escapeHtml } from "./util.js";
+import { escapeHtml, isSafeHttpUrl } from "./util.js";
 import {
   initializeAuth,
   initSSOConfig,
@@ -97,6 +96,9 @@ const dom = {
 
 let lazyLoadObserver = null;
 const navigationService = new NavigationService();
+/** @type {AbortController|null} */
+let articlesAbortController = null;
+let articlesRequestToken = 0;
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -134,6 +136,10 @@ function restoreFolderCache() {
 
 window.addEventListener("DOMContentLoaded", async () => {
   restoreFolderCache();
+  // Wire UI handlers before auth network calls so cache-painted folders
+  // are clickable immediately (otherwise <details> only toggles).
+  initEventListeners();
+  registerDelegatedEvents();
 
   try {
     await initSSOConfig();
@@ -144,8 +150,6 @@ window.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    initEventListeners();
-    registerDelegatedEvents();
     lazyLoadObserver = setupScrollObserver();
 
     // Folder network refresh must not block article startup.
@@ -261,7 +265,7 @@ function initEventListeners() {
   dom.button.openWebsite.addEventListener("click", async () => {
     if (!state.lastClickedItem.obj) return;
     const websiteUrl = state.lastClickedItem.obj.url;
-    if (websiteUrl) {
+    if (websiteUrl && isSafeHttpUrl(websiteUrl)) {
       window.open(websiteUrl, "_blank", "noopener,noreferrer");
     }
   });
@@ -436,18 +440,13 @@ function resolveLastClickedItem() {
 /**
  * @param {Folder[]} folders
  * @param {Feed[]} unfiledFeeds
- * @param {{ render?: boolean }} [opts]
+ * @returns {string} Rendered HTML (for localStorage cache)
  */
-function applyFolderTree(folders, unfiledFeeds, { render = true } = {}) {
+function applyFolderTree(folders, unfiledFeeds) {
   state.folders = folders;
   state.unfiledFeeds = unfiledFeeds;
   resolveLastClickedItem();
-  let html;
-  if (render) {
-    html = renderFoldersList(folders, unfiledFeeds);
-  } else {
-    html = buildFoldersHtml(folders, unfiledFeeds);
-  }
+  const html = renderFoldersList(folders, unfiledFeeds);
   updateNavSelection(state.lastClickedItem.type, state.lastClickedItem.obj);
   return html;
 }
@@ -474,9 +473,7 @@ async function refreshFolders({ background = true } = {}) {
     );
 
     if (changed || !hadCache) {
-      const html = applyFolderTree(tree.folders, tree.unfiledFeeds, {
-        render: true,
-      });
+      const html = applyFolderTree(tree.folders, tree.unfiledFeeds);
       saveFolderTreeCache(tree.folders, tree.unfiledFeeds, html);
     } else {
       state.folders = tree.folders;
@@ -504,6 +501,7 @@ function loadArticle(article) {
   state.selectedArticle = result;
   setSelectedArticleHighlight(result.id);
   renderReaderView(result);
+  document.querySelector("#reader .column").scrollTop = 0;
 }
 
 function setupScrollObserver() {
@@ -515,6 +513,7 @@ function setupScrollObserver() {
       if (!entry) return;
       if (
         entry.isIntersecting &&
+        isAuthenticated() &&
         !state.filter.isActive &&
         !state.status.isLoadingArticles &&
         state.status.hasMoreArticles
@@ -625,91 +624,68 @@ function resetPagination() {
   state.status.hasMoreArticles = true;
 }
 
-async function createFolder(folder) {
+/**
+ * Run an async action; on failure show an alert modal.
+ * @param {() => Promise<void>} action
+ * @param {string|((error: Error) => string)} messageOrFn
+ */
+async function withErrorModal(action, messageOrFn) {
   try {
+    await action();
+  } catch (error) {
+    console.error(error);
+    const content =
+      typeof messageOrFn === "function" ? messageOrFn(error) : messageOrFn;
+    await modal.show({ title: "Error", content, type: "alert" });
+  }
+}
+
+async function createFolder(folder) {
+  await withErrorModal(async () => {
     await dataService.createFolder(folder);
     await refreshFolders({ background: false });
-  } catch (error) {
-    console.error(error.message);
-    await modal.show({
-      title: "Error",
-      content: "Error saving folder: " + folder.name,
-      type: "alert",
-    });
-  }
+  }, "Error saving folder: " + folder.name);
 }
 
 async function editFolder(folder) {
-  try {
+  await withErrorModal(async () => {
     await dataService.updateFolder(folder);
     await refreshFolders({ background: false });
-  } catch (error) {
-    console.error(error.message);
-    await modal.show({
-      title: "Error",
-      content: "Error updating folder: " + folder.name,
-      type: "alert",
-    });
-  }
+  }, "Error updating folder: " + folder.name);
 }
 
 async function deleteFolder(folder) {
-  try {
+  await withErrorModal(async () => {
     const wasSelected =
       state.lastClickedItem.type === itemType.FOLDER &&
       state.lastClickedItem.obj?.id === folder.id;
     await dataService.deleteFolder(folder.id);
     await refreshFolders({ background: false });
-    if (wasSelected || state.lastClickedItem.type === itemType.ALL) {
-      await selectAndLoadArticles(itemType.ALL, null);
-    } else if (
-      state.lastClickedItem.type === itemType.FOLDER &&
-      !state.lastClickedItem.obj
-    ) {
+    if (wasSelected || !state.lastClickedItem.obj) {
       await selectAndLoadArticles(itemType.ALL, null);
     }
-  } catch (error) {
-    console.error(error.message);
-    await modal.show({
-      title: "Error",
-      content: "Error deleting folder: " + folder.name,
-      type: "alert",
-    });
-  }
+  }, "Error deleting folder: " + folder.name);
 }
 
 async function createFeed(feed) {
-  try {
+  await withErrorModal(async () => {
     await dataService.createFeed(feed);
     await refreshFolders({ background: false });
-  } catch (error) {
-    console.error(error);
-    const isDuplicate =
-      error.status === 409 || error.cause?.status === 409;
-    await modal.show({
-      title: "Error",
-      content: isDuplicate ? "This feed already exists." : "Error saving feed.",
-      type: "alert",
-    });
-  }
+  }, (error) => {
+    const isDuplicate = error.status === 409 || error.cause?.status === 409;
+    return isDuplicate ? "This feed already exists." : "Error saving feed.";
+  });
 }
 
 async function editFeed(feed) {
-  try {
+  await withErrorModal(async () => {
     await dataService.updateFeed(feed);
     await refreshFolders({ background: false });
-  } catch (error) {
-    console.error(error.message);
-    await modal.show({
-      title: "Error",
-      content: "Error updating feed: " + feed.feedUrl,
-      type: "alert",
-    });
-  }
+  }, "Error updating feed: " + feed.feedUrl);
 }
 
 async function deleteFeed(feed) {
-  try {
+  await withErrorModal(async () => {
     const wasSelected =
       state.lastClickedItem.type === itemType.FEED &&
       state.lastClickedItem.obj?.id === feed.id;
@@ -723,14 +699,7 @@ async function deleteFeed(feed) {
       );
       replaceArticlesList(state.articles);
     }
-  } catch (error) {
-    console.error(error.message);
-    await modal.show({
-      title: "Error",
-      content: "Error deleting feed: " + feed.name,
-      type: "alert",
-    });
-  }
+  }, "Error deleting feed: " + feed.name);
 }
 
 async function importFeeds() {
@@ -841,9 +810,14 @@ async function refreshFeeds() {
 }
 
 async function loadArticles() {
-  if (state.status.isLoadingArticles) return;
-  state.status.isLoadingArticles = true;
+  if (!isAuthenticated()) return;
 
+  articlesAbortController?.abort();
+  const controller = new AbortController();
+  articlesAbortController = controller;
+  const requestToken = ++articlesRequestToken;
+
+  state.status.isLoadingArticles = true;
   removeSkeletons();
   renderSkeletons(6);
 
@@ -869,7 +843,11 @@ async function loadArticles() {
       params.pagination_date = state.pagination.published;
     }
 
-    const newArticles = await dataService.loadArticles(params);
+    const newArticles = await dataService.loadArticles(params, {
+      signal: controller.signal,
+    });
+
+    if (requestToken !== articlesRequestToken) return;
 
     removeSkeletons();
 
@@ -881,6 +859,7 @@ async function loadArticles() {
       return;
     }
 
+    dataService.appendArticles(newArticles);
     state.articles = dataService.getArticles();
     state.status.hasMoreArticles = newArticles.length >= ARTICLES_PAGE_SIZE;
 
@@ -889,8 +868,15 @@ async function loadArticles() {
     state.pagination.published = lastArticle.published;
 
     appendArticlesList(newArticles, state.selectedArticle?.id ?? null);
+  } catch (error) {
+    if (error.name === "AbortError" || error.cause?.name === "AbortError") {
+      return;
+    }
+    throw error;
   } finally {
-    removeSkeletons();
-    state.status.isLoadingArticles = false;
+    if (requestToken === articlesRequestToken) {
+      removeSkeletons();
+      state.status.isLoadingArticles = false;
+    }
   }
 }

@@ -22,9 +22,6 @@ const endpoints = {
   get token() {
     return `${config.authServerUrl}token/`;
   },
-  get userinfo() {
-    return `${config.authServerUrl}userinfo/`;
-  },
 };
 
 async function initSSOConfig() {
@@ -131,6 +128,23 @@ async function handleTokenRefresh(force = false) {
   // Skip if not expired (unless forced by a 401 response)
   if (!force && !memoryStore.isExpired()) return;
 
+  // Never navigate away while the IdP callback code is still in the URL —
+  // that discards the code and creates an endless login loop.
+  const isOauthCallback = new URLSearchParams(window.location.search).has(
+    "code",
+  );
+
+  if (!memoryStore.refresh_token) {
+    if (!isOauthCallback) {
+      console.error(
+        "Token refresh failed, redirecting to login: No refresh token available",
+      );
+      memoryStore.clear();
+      window.location.href = config?.redirectUri || "/";
+    }
+    throw new Error("No refresh token available - re-authentication required");
+  }
+
   // If a refresh is already in progress, wait for it to finish
   if (refreshPromise) {
     await refreshPromise;
@@ -142,8 +156,9 @@ async function handleTokenRefresh(force = false) {
     .catch(async (error) => {
       console.error("Token refresh failed, redirecting to login:", error);
       memoryStore.clear();
-      // Fallback to redirect if config isn't loaded yet
-      window.location.href = config?.redirectUri || "/";
+      if (!isOauthCallback) {
+        window.location.href = config?.redirectUri || "/";
+      }
       throw error;
     })
     .finally(() => {
@@ -163,8 +178,6 @@ async function redirectToAuthProvider() {
   const codeChallenge = await generateCodeChallenge(codeVerifier);
   const state = generateRandomString(32);
   sessionStorage.setItem("oauth_state", state);
-  const nonce = generateRandomString(32);
-  sessionStorage.setItem("oidc_nonce", nonce);
 
   const authUrl = new URL(endpoints.authorization);
   const params = {
@@ -174,7 +187,6 @@ async function redirectToAuthProvider() {
     code_challenge_method: "S256",
     code_challenge: codeChallenge,
     state: state,
-    nonce: nonce,
     redirect_uri: config.redirectUri,
   };
   authUrl.search = new URLSearchParams(params).toString();
@@ -187,49 +199,50 @@ async function redirectToAuthProvider() {
  * @returns {Promise<Object>} The token data.
  */
 async function exchangeCodeForToken(code) {
-  const storedState = sessionStorage.getItem("oauth_state");
-  const urlParams = new URLSearchParams(window.location.search);
-  const returnedState = urlParams.get("state");
-  if (returnedState !== storedState) {
-    throw new Error("Invalid state parameter - possible CSRF attack");
-  }
+  try {
+    const storedState = sessionStorage.getItem("oauth_state");
+    const urlParams = new URLSearchParams(window.location.search);
+    const returnedState = urlParams.get("state");
+    if (returnedState !== storedState) {
+      throw new Error("Invalid state parameter - possible CSRF attack");
+    }
 
-  const codeVerifier = sessionStorage.getItem("code_verifier");
-  if (!codeVerifier) {
-    throw new Error(
-      "No code_verifier found - possible replay or misconfiguration",
+    const codeVerifier = sessionStorage.getItem("code_verifier");
+    if (!codeVerifier) {
+      throw new Error(
+        "No code_verifier found - possible replay or misconfiguration",
+      );
+    }
+
+    const response = await fetch(endpoints.token, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: config.clientId,
+        grant_type: "authorization_code",
+        code: code,
+        redirect_uri: config.redirectUri,
+        code_verifier: codeVerifier,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Token exchange failed: ${response.status} ${errorText}`);
+    }
+
+    const tokenData = await response.json();
+    memoryStore.save(tokenData);
+    return tokenData;
+  } finally {
+    sessionStorage.removeItem("code_verifier");
+    sessionStorage.removeItem("oauth_state");
+    const cleanUrl = new URL(window.location.href);
+    ["code", "state", "session_state"].forEach((p) =>
+      cleanUrl.searchParams.delete(p),
     );
+    window.history.replaceState({}, document.title, cleanUrl.href);
   }
-
-  const response = await fetch(endpoints.token, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: config.clientId,
-      grant_type: "authorization_code",
-      code: code,
-      redirect_uri: config.redirectUri,
-      code_verifier: codeVerifier,
-    }),
-  });
-
-  sessionStorage.removeItem("code_verifier");
-  sessionStorage.removeItem("oauth_state");
-  sessionStorage.removeItem("oidc_nonce");
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Token exchange failed: ${response.status} ${errorText}`);
-  }
-
-  const tokenData = await response.json();
-  memoryStore.save(tokenData);
-
-  const cleanUrl = new URL(window.location.href);
-  ["code", "state"].forEach((p) => cleanUrl.searchParams.delete(p));
-  window.history.replaceState({}, document.title, cleanUrl.href);
-
-  return tokenData;
 }
 
 /**
@@ -306,7 +319,6 @@ function logout() {
   memoryStore.clear();
   sessionStorage.removeItem("code_verifier");
   sessionStorage.removeItem("oauth_state");
-  sessionStorage.removeItem("oidc_nonce");
 
   if (config?.endSessionEndpoint) {
     const url = new URL(config.endSessionEndpoint);
@@ -324,8 +336,12 @@ function logout() {
  * All authenticated requests in this app should route through here.
  */
 async function fetchWithAuth(url, options = {}) {
-  // Refresh if locally expired
+  // Refresh if locally expired (requires a refresh token when expired)
   await handleTokenRefresh(false);
+
+  if (!memoryStore.access_token) {
+    throw new Error("Not authenticated");
+  }
 
   // Enforce Authorization header (caller cannot accidentally override it)
   const authHeaders = {

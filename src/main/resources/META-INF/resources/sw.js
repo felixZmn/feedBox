@@ -1,7 +1,7 @@
 "use strict";
 
 // Bump for every frontend release so HTML + modules stay in lockstep.
-const VERSION = "2026-07-24-006";
+const VERSION = "2026-07-27-001";
 const CACHE = `feedbox-${VERSION}`;
 const SHELL = [
   "/",
@@ -18,6 +18,7 @@ const SHELL = [
   "/scripts/pkce.js",
   "/scripts/util.js",
   "/scripts/types.js",
+  "/scripts/boot-cache.js",
   "/scripts/vendor/purify.es.mjs",
   "/icons/maskable_icon_x192.png",
   "/icons/maskable_icon_x512.png",
