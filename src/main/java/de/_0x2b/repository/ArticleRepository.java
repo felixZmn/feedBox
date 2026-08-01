@@ -36,6 +36,8 @@ public class ArticleRepository extends AbstractRepository<Article> {
     // below) so we don't need NULLS FIRST/LAST gymnastics here.
     private static final String WHERE_PAGINATION = " AND ((a.published < ?) OR (a.published = ? AND a.id < ?)) ";
     private static final String ORDER_LIMIT = " ORDER BY a.published DESC, a.id DESC LIMIT 25";
+    private static final String SEARCH_TOKEN_CLAUSE =
+            " AND (a.title ILIKE ? ESCAPE '\\' OR a.description ILIKE ? ESCAPE '\\') ";
     private static final String INSERT_SQL = """
             INSERT INTO article (feed_id, title, description, content, link, published, authors, image_url, categories)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -64,34 +66,34 @@ public class ArticleRepository extends AbstractRepository<Article> {
     public ArticleRepository() {
     }
 
-    public List<Article> findAll() {
-        return findInternal(null, null, null, null);
+    public List<Article> findAll(String q) {
+        return findInternal(null, null, null, null, false, q);
     }
 
-    public List<Article> findAll(long paginationId, String paginationDate) {
-        return findInternal(null, null, paginationId, paginationDate);
+    public List<Article> findAll(long paginationId, String paginationDate, String q) {
+        return findInternal(null, null, paginationId, paginationDate, false, q);
     }
 
-    public List<Article> findByFeed(int feedId) {
-        return findInternal("f.id = ?", List.of(feedId), null, null);
+    public List<Article> findByFeed(int feedId, String q) {
+        return findInternal("f.id = ?", List.of(feedId), null, null, false, q);
     }
 
-    public List<Article> findByFeed(int feedId, long paginationId, String paginationDate) {
-        return findInternal("f.id = ?", List.of(feedId), paginationId, paginationDate);
+    public List<Article> findByFeed(int feedId, long paginationId, String paginationDate, String q) {
+        return findInternal("f.id = ?", List.of(feedId), paginationId, paginationDate, false, q);
     }
 
-    public List<Article> findByFolder(int folderId) {
+    public List<Article> findByFolder(int folderId, String q) {
         if (folderId == 0) {
-            return findInternal("f.folder_id IS NULL", List.of(), null, null, false);
+            return findInternal("f.folder_id IS NULL", List.of(), null, null, false, q);
         }
-        return findInternal("fo.id = ?", List.of(folderId), null, null, true);
+        return findInternal("fo.id = ?", List.of(folderId), null, null, true, q);
     }
 
-    public List<Article> findByFolder(int folderId, long paginationId, String paginationDate) {
+    public List<Article> findByFolder(int folderId, long paginationId, String paginationDate, String q) {
         if (folderId == 0) {
-            return findInternal("f.folder_id IS NULL", List.of(), paginationId, paginationDate, false);
+            return findInternal("f.folder_id IS NULL", List.of(), paginationId, paginationDate, false, q);
         }
-        return findInternal("fo.id = ?", List.of(folderId), paginationId, paginationDate, true);
+        return findInternal("fo.id = ?", List.of(folderId), paginationId, paginationDate, true, q);
     }
 
     public void deleteByFeed(int feedId) throws SQLException {
@@ -147,12 +149,8 @@ public class ArticleRepository extends AbstractRepository<Article> {
         }
     }
 
-    private List<Article> findInternal(String whereClause, List<Object> params, Long pagId, String pagDate) {
-        return findInternal(whereClause, params, pagId, pagDate, false);
-    }
-
     private List<Article> findInternal(String whereClause, List<Object> initialParams, Long pagId, String pagDate,
-            boolean joinFolder) {
+            boolean joinFolder, String q) {
 
         StringBuilder sql = new StringBuilder(SELECT_COLS).append(FROM_JOIN);
         List<Object> params = new ArrayList<>();
@@ -174,6 +172,8 @@ public class ArticleRepository extends AbstractRepository<Article> {
             sql.append(" AND ").append(whereClause);
         }
 
+        appendSearch(sql, params, q);
+
         // Add Pagination. The cursor is (published, id) and id is a
         // bigint on the database - JDBC's setObject picks up the Long
         // argument and binds it as BIGINT.
@@ -187,5 +187,30 @@ public class ArticleRepository extends AbstractRepository<Article> {
         sql.append(ORDER_LIMIT);
 
         return super.query(sql.toString(), articleMapper, params);
+    }
+
+    /**
+     * Append token-AND search predicates. Each whitespace-separated token must
+     * match title or description (case-insensitive substring). Wildcards in the
+     * user input are escaped so they cannot widen the pattern.
+     */
+    private static void appendSearch(StringBuilder sql, List<Object> params, String q) {
+        if (q == null || q.isBlank()) {
+            return;
+        }
+        for (String token : q.trim().split("\\s+")) {
+            if (token.isEmpty()) {
+                continue;
+            }
+            String pattern = "%" + escapeIlike(token) + "%";
+            sql.append(SEARCH_TOKEN_CLAUSE);
+            params.add(pattern);
+            params.add(pattern);
+        }
+    }
+
+    /** Escape {@code \}, {@code %} and {@code _} for use with {@code ILIKE ... ESCAPE '\'}. */
+    static String escapeIlike(String token) {
+        return token.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 }

@@ -408,6 +408,7 @@ details[open] summary img {
   flex: 1 1 auto;
   min-width: 0;
   align-items: center;
+  margin: 0;
   /* Match toolbar icon inset (profile/logout use .item-spacer pad) */
   padding-left: var(--header-control-pad);
   padding-right: var(--header-control-pad);

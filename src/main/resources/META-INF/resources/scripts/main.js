@@ -58,7 +58,7 @@ const state = {
   folders: [],
   unfiledFeeds: [],
   pagination: { id: null, published: null },
-  filter: { isActive: false, lastSearchTerm: "" },
+  filter: { isActive: false, term: "" },
   status: {
     isRefreshing: false,
     isLoadingArticles: false,
@@ -72,6 +72,7 @@ const state = {
 const dom = {
   contextMenu: document.getElementById("context-menu"),
   refreshSpinner: document.getElementById("refresh-spinner"),
+  searchForm: document.getElementById("search-form"),
   searchInput: document.getElementById("search-input"),
   button: {
     export: document.getElementById("trigger-export"),
@@ -286,25 +287,37 @@ function initEventListeners() {
       logout();
     });
   }
-  dom.searchInput.addEventListener("input", (e) => {
-    const searchTerm = e.target.value.trim().toLowerCase();
-    if (searchTerm === "") {
-      state.filter.isActive = false;
-      state.filter.lastSearchTerm = "";
-      state.articles = dataService.getArticles();
-      replaceArticlesList(state.articles);
-      return;
-    }
-    if (!searchTerm.startsWith(state.filter.lastSearchTerm)) {
-      state.articles = dataService.getArticles();
-    }
-    state.filter.lastSearchTerm = searchTerm;
-    state.articles = state.articles.filter((article) =>
-      (article.title ?? "").toLowerCase().includes(searchTerm),
-    );
-    state.filter.isActive = true;
-    replaceArticlesList(state.articles);
+  dom.searchForm?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    submitSearch();
   });
+}
+
+/**
+ * Run a server-side search for the current selection (or clear it when empty).
+ */
+async function submitSearch() {
+  const term = dom.searchInput.value.trim();
+  if (term === "") {
+    if (!state.filter.isActive) return;
+    clearSearchFilter();
+  } else {
+    state.filter.isActive = true;
+    state.filter.term = term;
+  }
+  resetPagination();
+  lazyLoadObserver?.pause();
+  clearArticles();
+  await loadArticles();
+  lazyLoadObserver?.resume();
+}
+
+function clearSearchFilter() {
+  state.filter.isActive = false;
+  state.filter.term = "";
+  if (dom.searchInput) {
+    dom.searchInput.value = "";
+  }
 }
 
 /**
@@ -514,7 +527,6 @@ function setupScrollObserver() {
       if (
         entry.isIntersecting &&
         isAuthenticated() &&
-        !state.filter.isActive &&
         !state.status.isLoadingArticles &&
         state.status.hasMoreArticles
       ) {
@@ -596,6 +608,7 @@ function getVisibleContextMenuItems() {
 
 async function selectAndLoadArticles(type, obj) {
   navigationService.navigateTo(columns.ARTICLES);
+  clearSearchFilter();
   resetPagination();
   state.lastClickedItem = { type, obj };
   updateNavSelection(type, obj);
@@ -842,6 +855,9 @@ async function loadArticles() {
     if (state.pagination.published != null) {
       params.pagination_date = state.pagination.published;
     }
+    if (state.filter.isActive && state.filter.term) {
+      params.q = state.filter.term;
+    }
 
     const newArticles = await dataService.loadArticles(params, {
       signal: controller.signal,
@@ -854,7 +870,10 @@ async function loadArticles() {
     if (!newArticles || newArticles.length === 0) {
       state.status.hasMoreArticles = false;
       if (dataService.getArticles().length === 0) {
-        renderEmptyState();
+        const emptyMessage = state.filter.isActive
+          ? `No articles match "${state.filter.term}"`
+          : undefined;
+        renderEmptyState(emptyMessage);
       }
       return;
     }
