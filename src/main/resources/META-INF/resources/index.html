@@ -177,16 +177,17 @@
             >
               <img class="icon f-base" src="icons/nav_back.svg" alt="" />
             </button>
-            <div class="search-container">
+            <form class="search-container" id="search-form" role="search">
               <img src="icons/search.svg" alt="" class="icon f-base" />
               <input
                 type="text"
-                placeholder="Search loaded articles..."
+                placeholder="Search articles..."
                 id="search-input"
-                aria-label="Search loaded articles"
-                title="Search filters articles already loaded in the list"
+                aria-label="Search articles by title and description"
+                title="Search articles by title and description in the current feed or folder"
+                enterkeyhint="search"
               />
-            </div>
+            </form>
           </div>
           <div class="right"></div>
         </div>

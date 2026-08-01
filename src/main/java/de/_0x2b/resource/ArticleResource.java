@@ -18,6 +18,7 @@ import jakarta.ws.rs.core.Response;
 @Consumes(MediaType.APPLICATION_JSON)
 public class ArticleResource {
     private static final Logger logger = LoggerFactory.getLogger(ArticleResource.class);
+    private static final int MAX_SEARCH_LENGTH = 100;
 
     @Inject
     ArticleService articleService;
@@ -28,7 +29,8 @@ public class ArticleResource {
             @QueryParam("folder") Integer folderId,
             @QueryParam("feed") Integer feedId,
             @QueryParam("pagination_id") Long paginationId,
-            @QueryParam("pagination_date") String paginationDate) {
+            @QueryParam("pagination_date") String paginationDate,
+            @QueryParam("q") String q) {
 
         logger.debug("getAllArticles");
 
@@ -37,17 +39,30 @@ public class ArticleResource {
         int feed = feedId != null ? feedId : -1;
         long pagId = paginationId != null ? paginationId : -1L;
         String pagDate = paginationDate != null ? paginationDate : "";
+        String search = normalizeSearch(q);
 
         List<Article> result;
 
         if (folder > -1) {
-            result = articleService.findByFolder(pagId, pagDate, folder);
+            result = articleService.findByFolder(pagId, pagDate, folder, search);
         } else if (feed > -1) {
-            result = articleService.findByFeed(pagId, pagDate, feed);
+            result = articleService.findByFeed(pagId, pagDate, feed, search);
         } else {
-            result = articleService.getAll(pagId, pagDate);
+            result = articleService.getAll(pagId, pagDate, search);
         }
 
         return Response.ok(result).build();
+    }
+
+    /** Null → empty; trim; cap length so a runaway client cannot send huge patterns. */
+    static String normalizeSearch(String q) {
+        if (q == null) {
+            return "";
+        }
+        String trimmed = q.trim();
+        if (trimmed.length() > MAX_SEARCH_LENGTH) {
+            return trimmed.substring(0, MAX_SEARCH_LENGTH);
+        }
+        return trimmed;
     }
 }
