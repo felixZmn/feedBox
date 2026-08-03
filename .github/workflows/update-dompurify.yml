@@ -29,7 +29,7 @@ jobs:
         run: echo "version=$(tr -d '[:space:]' < src/main/resources/META-INF/resources/scripts/vendor/dompurify.version)" >> "$GITHUB_OUTPUT"
 
       - name: Create pull request
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: chore/dompurify-update
           delete-branch: true
