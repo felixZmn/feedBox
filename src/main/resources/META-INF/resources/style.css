@@ -26,6 +26,8 @@
   --default-space: 0.5rem;
   --column-width: 350px;
   --list-inset: 0.35rem;
+  /* Articles pane: search box + article rows share this outer inset */
+  --articles-inline: calc(var(--default-space) + var(--list-inset));
   /* Shared header chrome: edge padding + per-control inset (toolbar & search) */
   --header-edge-pad: 0.5rem;
   --header-control-pad: 0.35rem;
@@ -290,11 +292,13 @@ details[open] summary img {
   margin: 0 0 0 18px;
 }
 
-/* articles list */
+/* articles list: header stays fixed; list scrolls. Matching
+   scrollbar-gutter keeps search/article edges aligned. */
 .articles-list .column {
   display: flex;
   flex-direction: column;
-  padding-right: calc(var(--default-space) * 2);
+  margin: 0;
+  scrollbar-gutter: stable;
 }
 
 .articles-list .article-header {
@@ -331,7 +335,7 @@ details[open] summary img {
 
 .articles-list .article {
   padding: var(--default-space) 0.75rem;
-  margin-inline: var(--list-inset);
+  margin-inline: var(--articles-inline);
   border-radius: var(--radius-sm);
 }
 
@@ -467,6 +471,11 @@ details[open] summary img {
 }
 
 .articles-list .column-header {
+  /* Reserve the same gutter as .column so edges stay aligned without
+     putting the scrollbar through the header. */
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding-inline: var(--articles-inline);
   background-color: var(--surface-list);
 }
 
@@ -659,7 +668,7 @@ li:hover,
   display: flex;
   flex-direction: column;
   gap: var(--default-space);
-  margin-inline: var(--list-inset);
+  margin-inline: var(--articles-inline);
 }
 
 .skeleton-header {
@@ -992,6 +1001,16 @@ dialog::backdrop {
 
   .column-header .mobile-back {
     display: inline-flex;
+  }
+
+  /* Indent articles to the search box left edge (after the back control). */
+  .articles-list {
+    --articles-back-rail: calc(44px + 0.125rem);
+  }
+
+  .articles-list .article,
+  .articles-list .skeleton-article {
+    margin-left: calc(var(--articles-inline) + var(--articles-back-rail));
   }
 
   .reader .article {
