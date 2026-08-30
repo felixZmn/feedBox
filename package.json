@@ -1,0 +1,8 @@
+{
+  "name": "feedbox-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:frontend": "node --test src/test/js/*.test.js"
+  }
+}

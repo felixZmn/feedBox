@@ -298,6 +298,7 @@ details[open] summary img {
   display: flex;
   flex-direction: column;
   margin: 0;
+  padding-top: var(--default-space);
   scrollbar-gutter: stable;
 }
 
@@ -1001,16 +1002,6 @@ dialog::backdrop {
 
   .column-header .mobile-back {
     display: inline-flex;
-  }
-
-  /* Indent articles to the search box left edge (after the back control). */
-  .articles-list {
-    --articles-back-rail: calc(44px + 0.125rem);
-  }
-
-  .articles-list .article,
-  .articles-list .skeleton-article {
-    margin-left: calc(var(--articles-inline) + var(--articles-back-rail));
   }
 
   .reader .article {

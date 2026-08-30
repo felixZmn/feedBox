@@ -34,6 +34,7 @@ import {
   setFolderOpenState,
 } from "./dom.js";
 import { NavigationService, columns } from "./nav.js";
+import { createArticleContextReloader } from "./article-context.js";
 import { escapeHtml, isSafeHttpUrl } from "./util.js";
 import {
   initializeAuth,
@@ -100,6 +101,18 @@ const navigationService = new NavigationService();
 /** @type {AbortController|null} */
 let articlesAbortController = null;
 let articlesRequestToken = 0;
+const reloadArticlesForCurrentContext = createArticleContextReloader({
+  pauseObserver: () => lazyLoadObserver?.pause(),
+  resumeObserver: () => lazyLoadObserver?.resume(),
+  clearReader: () => {
+    state.selectedArticle = null;
+    clearReaderView();
+  },
+  resetPagination,
+  clearArticles,
+  loadArticles,
+  showError: showArticleLoadError,
+});
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -305,11 +318,7 @@ async function submitSearch() {
     state.filter.isActive = true;
     state.filter.term = term;
   }
-  resetPagination();
-  lazyLoadObserver?.pause();
-  clearArticles();
-  await loadArticles();
-  lazyLoadObserver?.resume();
+  await reloadArticlesForCurrentContext();
 }
 
 function clearSearchFilter() {
@@ -441,27 +450,30 @@ function resolveLastClickedItem() {
     state.lastClickedItem.obj = findFeedById(obj.id);
     if (!state.lastClickedItem.obj) {
       state.lastClickedItem = { type: itemType.ALL, obj: null };
+      return true;
     }
   } else if (type === itemType.FOLDER && obj) {
     state.lastClickedItem.obj = findFolderById(obj.id);
     if (!state.lastClickedItem.obj) {
       state.lastClickedItem = { type: itemType.ALL, obj: null };
+      return true;
     }
   }
+  return false;
 }
 
 /**
  * @param {Folder[]} folders
  * @param {Feed[]} unfiledFeeds
- * @returns {string} Rendered HTML (for localStorage cache)
+ * @returns {{ html: string, selectionInvalidated: boolean }}
  */
 function applyFolderTree(folders, unfiledFeeds) {
   state.folders = folders;
   state.unfiledFeeds = unfiledFeeds;
-  resolveLastClickedItem();
+  const selectionInvalidated = resolveLastClickedItem();
   const html = renderFoldersList(folders, unfiledFeeds);
   updateNavSelection(state.lastClickedItem.type, state.lastClickedItem.obj);
-  return html;
+  return { html, selectionInvalidated };
 }
 
 /**
@@ -485,15 +497,24 @@ async function refreshFolders({ background = true } = {}) {
       tree,
     );
 
+    let selectionInvalidated = false;
     if (changed || !hadCache) {
-      const html = applyFolderTree(tree.folders, tree.unfiledFeeds);
+      const { html, selectionInvalidated: invalidated } = applyFolderTree(
+        tree.folders,
+        tree.unfiledFeeds,
+      );
+      selectionInvalidated = invalidated;
       saveFolderTreeCache(tree.folders, tree.unfiledFeeds, html);
     } else {
       state.folders = tree.folders;
       state.unfiledFeeds = tree.unfiledFeeds;
-      resolveLastClickedItem();
+      selectionInvalidated = resolveLastClickedItem();
+      updateNavSelection(state.lastClickedItem.type, state.lastClickedItem.obj);
     }
     state.restoredFromCache = true;
+    if (selectionInvalidated) {
+      await selectAndLoadArticles(itemType.ALL, null);
+    }
   } catch (error) {
     if (hadCache) {
       console.error("[app] Failed to refresh folders:", error);
@@ -530,7 +551,7 @@ function setupScrollObserver() {
         !state.status.isLoadingArticles &&
         state.status.hasMoreArticles
       ) {
-        loadArticles();
+        void loadArticles().catch(showArticleLoadError);
       }
     },
     {
@@ -609,13 +630,18 @@ function getVisibleContextMenuItems() {
 async function selectAndLoadArticles(type, obj) {
   navigationService.navigateTo(columns.ARTICLES);
   clearSearchFilter();
-  resetPagination();
   state.lastClickedItem = { type, obj };
   updateNavSelection(type, obj);
-  lazyLoadObserver?.pause();
-  clearArticles();
-  await loadArticles();
-  lazyLoadObserver?.resume();
+  await reloadArticlesForCurrentContext();
+}
+
+async function showArticleLoadError(error) {
+  console.error("[app] Failed to load articles:", error);
+  await modal.show({
+    title: "Could not load articles",
+    content: "Please check your connection and try again.",
+    type: "alert",
+  });
 }
 
 function articleClickListener(article) {
@@ -887,6 +913,7 @@ async function loadArticles() {
     state.pagination.published = lastArticle.published;
 
     appendArticlesList(newArticles, state.selectedArticle?.id ?? null);
+    scheduleVisiblePageLoad();
   } catch (error) {
     if (error.name === "AbortError" || error.cause?.name === "AbortError") {
       return;
@@ -896,6 +923,39 @@ async function loadArticles() {
     if (requestToken === articlesRequestToken) {
       removeSkeletons();
       state.status.isLoadingArticles = false;
+      articlesAbortController = null;
     }
   }
+}
+
+/**
+ * IntersectionObserver only reports threshold crossings. When a page is too
+ * short to push the sentinel outside the root margin, request another page
+ * after layout settles instead of waiting for an incidental scroll event.
+ */
+function scheduleVisiblePageLoad() {
+  requestAnimationFrame(() => {
+    const sentinel = document.getElementById("articles-sentinel");
+    const root = document.querySelector("#articles-list .column");
+    if (
+      !sentinel ||
+      !root ||
+      !isAuthenticated() ||
+      state.status.isLoadingArticles ||
+      !state.status.hasMoreArticles
+    ) {
+      return;
+    }
+
+    const sentinelRect = sentinel.getBoundingClientRect();
+    const rootRect = root.getBoundingClientRect();
+    const rootMargin = 325;
+    const isWithinRootMargin =
+      sentinelRect.bottom >= rootRect.top - rootMargin &&
+      sentinelRect.top <= rootRect.bottom + rootMargin;
+
+    if (isWithinRootMargin) {
+      void loadArticles().catch(showArticleLoadError);
+    }
+  });
 }
