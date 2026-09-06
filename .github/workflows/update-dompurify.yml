@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Update vendored DOMPurify
         id: update
@@ -29,7 +29,7 @@ jobs:
         run: echo "version=$(tr -d '[:space:]' < src/main/resources/META-INF/resources/scripts/vendor/dompurify.version)" >> "$GITHUB_OUTPUT"
 
       - name: Create pull request
-        uses: peter-evans/create-pull-request@v8
+        uses: peter-evans/create-pull-request@v8.1.1
         with:
           branch: chore/dompurify-update
           delete-branch: true

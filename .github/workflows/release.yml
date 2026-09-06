@@ -31,18 +31,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
       - name: Compute next version
         id: semver
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.version == ''
-        uses: paulhatch/semantic-version@v5.4.0
+        uses: paulhatch/semantic-version@v6.0.2
         with:
           tag_prefix: ""
-          major_pattern: "/!:|BREAKING CHANGE:/"
-          minor_pattern: "/feat(\\(.+\\))?:/"
           version_format: "${major}.${minor}.${patch}"
           bump_each_commit: false
           search_commit_body: true
@@ -90,7 +88,7 @@ jobs:
 
       - name: Setup Java
         if: steps.version.outputs.released == 'true'
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@v6.0.0
         with:
           java-version: "25"
           distribution: "temurin"
@@ -98,7 +96,7 @@ jobs:
 
       - name: Set up Docker Buildx
         if: steps.version.outputs.released == 'true'
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4.3.0
 
       - name: Build native image
         if: steps.version.outputs.released == 'true'
@@ -110,7 +108,7 @@ jobs:
 
       - name: Log in to GHCR
         if: steps.version.outputs.released == 'true'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -150,7 +148,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout chart repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           repository: felixZmn/feedbox-chart
           token: ${{ secrets.RENOVATE_PAT }}
@@ -181,7 +179,7 @@ jobs:
           cat Chart.yaml
 
       - name: Create pull request
-        uses: peter-evans/create-pull-request@v8
+        uses: peter-evans/create-pull-request@v8.1.1
         with:
           token: ${{ secrets.RENOVATE_PAT }}
           path: feedbox-chart
