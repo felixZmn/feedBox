@@ -1,0 +1,198 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Optional explicit SemVer (e.g. 3.7.0). Leave empty to derive from conventional commits."
+        required: false
+        type: string
+        default: ""
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      released: ${{ steps.version.outputs.released }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Compute next version
+        id: semver
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.version == ''
+        uses: paulhatch/semantic-version@v5.4.0
+        with:
+          tag_prefix: ""
+          major_pattern: "/!:|BREAKING CHANGE:/"
+          minor_pattern: "/feat(\\(.+\\))?:/"
+          version_format: "${major}.${minor}.${patch}"
+          bump_each_commit: false
+          search_commit_body: true
+          enable_prerelease_mode: false
+
+      - name: Resolve release version
+        id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          MANUAL_VERSION: ${{ github.event.inputs.version }}
+          COMPUTED_VERSION: ${{ steps.semver.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          VERSION=""
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ] && [ -n "${MANUAL_VERSION:-}" ]; then
+            VERSION="${MANUAL_VERSION}"
+          else
+            VERSION="${COMPUTED_VERSION}"
+          fi
+
+          if ! [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version: ${VERSION}"
+            exit 1
+          fi
+
+          if git rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null; then
+            echo "Tag ${VERSION} already exists; skipping release."
+            echo "released=false" >> "${GITHUB_OUTPUT}"
+            echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          LATEST_TAG="$(git tag -l --sort=-v:refname | head -n1 || true)"
+          if [ -n "${LATEST_TAG}" ] && [ "${VERSION}" = "${LATEST_TAG}" ]; then
+            echo "Computed version ${VERSION} matches latest tag; nothing to release."
+            echo "released=false" >> "${GITHUB_OUTPUT}"
+            echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          echo "Releasing version ${VERSION}"
+          echo "released=true" >> "${GITHUB_OUTPUT}"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+
+      - name: Setup Java
+        if: steps.version.outputs.released == 'true'
+        uses: actions/setup-java@v6
+        with:
+          java-version: "25"
+          distribution: "temurin"
+          cache: "maven"
+
+      - name: Set up Docker Buildx
+        if: steps.version.outputs.released == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build native image
+        if: steps.version.outputs.released == 'true'
+        run: |
+          mvn --no-transfer-progress -B package \
+            -Dnative \
+            -Dquarkus.native.container-build=true \
+            -Drevision="${{ steps.version.outputs.version }}"
+
+      - name: Log in to GHCR
+        if: steps.version.outputs.released == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        if: steps.version.outputs.released == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          IMAGE: ghcr.io/felixzmn/docker/feedbox
+        run: |
+          docker build \
+            -f src/main/docker/Dockerfile.native-micro \
+            -t "${IMAGE}:${VERSION}" \
+            -t "${IMAGE}:latest" \
+            .
+          docker push "${IMAGE}:${VERSION}"
+          docker push "${IMAGE}:latest"
+
+      - name: Create tag and GitHub Release
+        if: steps.version.outputs.released == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${VERSION}" -m "release ${VERSION}"
+          git push origin "refs/tags/${VERSION}"
+          gh release create "${VERSION}" \
+            --title "${VERSION}" \
+            --generate-notes
+
+  update-chart:
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout chart repository
+        uses: actions/checkout@v7
+        with:
+          repository: felixZmn/feedbox-chart
+          token: ${{ secrets.RENOVATE_PAT }}
+          path: feedbox-chart
+
+      - name: Bump chart appVersion and version
+        id: chart
+        working-directory: feedbox-chart
+        env:
+          APP_VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          current_chart_version="$(awk '/^version:/ {print $2; exit}' Chart.yaml)"
+          IFS=. read -r major minor patch <<< "${current_chart_version}"
+          next_chart_version="${major}.${minor}.$((patch + 1))"
+
+          # Keep chart version aligned with the app when possible; otherwise bump patch.
+          if [[ "${APP_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            next_chart_version="${APP_VERSION}"
+          fi
+
+          sed -i -E "s/^version: .*/version: ${next_chart_version}/" Chart.yaml
+          sed -i -E "s/^appVersion: .*/appVersion: \"${APP_VERSION}\"/" Chart.yaml
+
+          echo "chart_version=${next_chart_version}" >> "${GITHUB_OUTPUT}"
+          echo "Updated Chart.yaml:"
+          cat Chart.yaml
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.RENOVATE_PAT }}
+          path: feedbox-chart
+          branch: chore/feedbox-${{ needs.release.outputs.version }}
+          delete-branch: true
+          title: "chore: bump feedbox image to ${{ needs.release.outputs.version }}"
+          commit-message: "chore: bump feedbox image to ${{ needs.release.outputs.version }}"
+          body: |
+            Automated follow-up after feedBox application release `${{ needs.release.outputs.version }}`.
+
+            - Sets `appVersion` to `${{ needs.release.outputs.version }}` (image tag via `Chart.AppVersion`)
+            - Sets chart `version` to `${{ steps.chart.outputs.chart_version }}`
+
+            Merge and tag `${{ steps.chart.outputs.chart_version }}` to publish the Helm chart.

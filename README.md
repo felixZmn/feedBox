@@ -149,8 +149,9 @@ cp application-local.properties.example application-local.properties
 ## Build the application
 
 ```bash
-mvn install -Dnative
-
+mvn install
+# native (optional, needs GraalVM or container-build):
+mvn package -Dnative -Dquarkus.native.container-build=true
 ```
 
 Run the application:
@@ -161,19 +162,12 @@ mvn quarkus:dev
 java -Dquarkus.config.locations=application-local.properties -jar target/*-runner.jar
 ```
 
-## Build and push the Docker image:
-
-```bash
-mvn install -Dnative
-VERSION=$(grep -m1 '<version>' pom.xml | sed -E 's/.*<version>([^<]+)<\/version>.*/\1/')
-docker build -f src/main/docker/Dockerfile.native-micro -t ghcr.io/felixzmn/docker/feedbox:latest -t ghcr.io/felixzmn/docker/feedbox:$VERSION .
-docker push ghcr.io/felixzmn/docker/feedbox:$VERSION
-docker push ghcr.io/felixzmn/docker/feedbox:latest
-```
+Docker images are published automatically on every release to `main`. See [release.md](./release.md).
 
 # Release Process
 
-The release process is documented in [release.md](./release.md).
+Releases are fully automated (conventional commits → SemVer tag → native image → GHCR).  
+Details: [release.md](./release.md).
 
 # Icons
 

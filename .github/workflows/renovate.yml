@@ -5,15 +5,13 @@ on:
     - cron: "0 3 * * 1"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   renovate:
     runs-on: ubuntu-latest
-
-    # permissions:
-    #   contents: write
-    #   pull-requests: write
-    #   issues: write
-    #   actions: write
 
     steps:
       - name: Checkout repo
@@ -31,4 +29,4 @@ jobs:
           RENOVATE_PLATFORM: "github"
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           RENOVATE_HOST_RULES: '[{"matchHost":"ghcr.io","username":"${{ github.actor }}","password":"${{ secrets.GHCR_TOKEN }}"}]'
-          LOG_LEVEL: "debug"
+          LOG_LEVEL: "info"

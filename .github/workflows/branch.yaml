@@ -1,9 +1,14 @@
 name: "Test backend"
 
 on:
+  pull_request:
   push:
     branches-ignore:
       - "main"
+
+concurrency:
+  group: test-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -16,5 +21,6 @@ jobs:
         with:
           java-version: "25"
           distribution: "temurin"
+          cache: "maven"
       - name: "run maven tests"
         run: "mvn --no-transfer-progress test"

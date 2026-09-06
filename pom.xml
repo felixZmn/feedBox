@@ -5,10 +5,12 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>de._0x2b</groupId>
     <artifactId>feedbox</artifactId>
-    <version>3.6.2-SNAPSHOT</version>
+    <version>${revision}</version>
     <packaging>quarkus</packaging>
 
     <properties>
+        <!-- Overridden by CI on release; git tags are the SemVer source of truth -->
+        <revision>0.0.0-SNAPSHOT</revision>
         <compiler-plugin.version>3.15.0</compiler-plugin.version>
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
