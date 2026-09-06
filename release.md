@@ -15,7 +15,6 @@ Versions follow SemVer (`MAJOR.MINOR.PATCH`). **Git tags are the source of truth
    - `ghcr.io/felixzmn/docker/feedbox:X.Y.Z`
    - `ghcr.io/felixzmn/docker/feedbox:latest`
 5. It creates the git tag and a GitHub Release.
-6. It opens a PR in [`felixZmn/feedbox-chart`](https://github.com/felixZmn/feedbox-chart) bumping `appVersion` / chart `version` (requires `RENOVATE_PAT` with access to that repo).
 
 ## Feature development
 
@@ -52,10 +51,10 @@ docker build -f src/main/docker/Dockerfile.native-micro -t feedbox:local .
 
 ## Chart / deploy
 
-After an app release, merge the automated chart PR, then tag the chart repo with the chart `version` so [`feedbox-chart` release](https://github.com/felixZmn/feedbox-chart/blob/main/.github/workflows/release.yml) publishes the Helm chart to GHCR.
+Update [`feedbox-chart`](https://github.com/felixZmn/feedbox-chart) `appVersion` / chart `version` manually when you want to roll out a new image, then tag that repo so its release workflow publishes the Helm chart to GHCR.
 
 ## Required repository setup
 
 - Branch protection on `main`: require the **Test backend** check so Renovate automerge only lands green PRs.
-- Secret `RENOVATE_PAT`: GitHub PAT that can open PRs on `felixZmn/feedbox-chart` (and run Renovate on this repo).
+- Secret `RENOVATE_PAT`: GitHub PAT used by the Renovate workflow.
 - Workflow permissions: `contents: write` and `packages: write` for tagging and GHCR pushes.

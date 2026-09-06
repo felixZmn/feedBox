@@ -19,15 +19,11 @@ concurrency:
 permissions:
   contents: write
   packages: write
-  pull-requests: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      released: ${{ steps.version.outputs.released }}
 
     steps:
       - name: Checkout
@@ -141,56 +137,3 @@ jobs:
           gh release create "${VERSION}" \
             --title "${VERSION}" \
             --generate-notes
-
-  update-chart:
-    needs: release
-    if: needs.release.outputs.released == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout chart repository
-        uses: actions/checkout@v7.0.1
-        with:
-          repository: felixZmn/feedbox-chart
-          token: ${{ secrets.RENOVATE_PAT }}
-          path: feedbox-chart
-
-      - name: Bump chart appVersion and version
-        id: chart
-        working-directory: feedbox-chart
-        env:
-          APP_VERSION: ${{ needs.release.outputs.version }}
-        run: |
-          set -euo pipefail
-
-          current_chart_version="$(awk '/^version:/ {print $2; exit}' Chart.yaml)"
-          IFS=. read -r major minor patch <<< "${current_chart_version}"
-          next_chart_version="${major}.${minor}.$((patch + 1))"
-
-          # Keep chart version aligned with the app when possible; otherwise bump patch.
-          if [[ "${APP_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            next_chart_version="${APP_VERSION}"
-          fi
-
-          sed -i -E "s/^version: .*/version: ${next_chart_version}/" Chart.yaml
-          sed -i -E "s/^appVersion: .*/appVersion: \"${APP_VERSION}\"/" Chart.yaml
-
-          echo "chart_version=${next_chart_version}" >> "${GITHUB_OUTPUT}"
-          echo "Updated Chart.yaml:"
-          cat Chart.yaml
-
-      - name: Create pull request
-        uses: peter-evans/create-pull-request@v8.1.1
-        with:
-          token: ${{ secrets.RENOVATE_PAT }}
-          path: feedbox-chart
-          branch: chore/feedbox-${{ needs.release.outputs.version }}
-          delete-branch: true
-          title: "chore: bump feedbox image to ${{ needs.release.outputs.version }}"
-          commit-message: "chore: bump feedbox image to ${{ needs.release.outputs.version }}"
-          body: |
-            Automated follow-up after feedBox application release `${{ needs.release.outputs.version }}`.
-
-            - Sets `appVersion` to `${{ needs.release.outputs.version }}` (image tag via `Chart.AppVersion`)
-            - Sets chart `version` to `${{ steps.chart.outputs.chart_version }}`
-
-            Merge and tag `${{ steps.chart.outputs.chart_version }}` to publish the Helm chart.
