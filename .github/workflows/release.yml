@@ -34,7 +34,7 @@ jobs:
       - name: Compute next version
         id: semver
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.version == ''
-        uses: paulhatch/semantic-version@v6.0.2
+        uses: paulhatch/semantic-version@v6.0.3
         with:
           tag_prefix: ""
           version_format: "${major}.${minor}.${patch}"
