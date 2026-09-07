@@ -1,7 +1,7 @@
 "use strict";
 
 // Bump for every frontend release so HTML + modules stay in lockstep.
-const VERSION = "2026-08-24-001";
+const VERSION = "2026-09-07-001";
 const CACHE = `feedbox-${VERSION}`;
 const SHELL = [
   "/",
