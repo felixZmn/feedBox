@@ -1,5 +1,7 @@
 "use strict";
 
+import { hasUsableSession } from "./session.js";
+
 let config;
 const scope = "openid profile offline_access";
 let refreshPromise = null; // Promise lock to prevent parallel refresh requests
@@ -312,6 +314,20 @@ function isAuthenticated() {
 }
 
 /**
+ * True when the access token is valid or a refresh token can renew it.
+ * Use for runtime article/scroll gates so expiry does not stall the UI;
+ * startup login still uses isAuthenticated() after initializeAuth().
+ * @returns {boolean}
+ */
+function hasSession() {
+  return hasUsableSession({
+    accessToken: memoryStore.access_token,
+    expiresAt: memoryStore.expires_at,
+    refreshToken: memoryStore.refresh_token,
+  });
+}
+
+/**
  * Logs the user out by clearing all token data and redirecting to the OIDC provider's end_session_endpoint
  * (if configured), or falling back to the local redirect URI.
  */
@@ -373,5 +389,6 @@ export {
   redirectToAuthProvider,
   fetchWithAuth,
   isAuthenticated,
+  hasSession,
   logout,
 };

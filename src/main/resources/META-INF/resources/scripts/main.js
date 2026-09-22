@@ -41,6 +41,7 @@ import {
   initSSOConfig,
   redirectToAuthProvider,
   isAuthenticated,
+  hasSession,
   logout,
   fetchWithAuth,
 } from "./pkce.js";
@@ -547,7 +548,7 @@ function setupScrollObserver() {
       if (!entry) return;
       if (
         entry.isIntersecting &&
-        isAuthenticated() &&
+        hasSession() &&
         !state.status.isLoadingArticles &&
         state.status.hasMoreArticles
       ) {
@@ -849,7 +850,7 @@ async function refreshFeeds() {
 }
 
 async function loadArticles() {
-  if (!isAuthenticated()) return;
+  if (!hasSession()) return;
 
   articlesAbortController?.abort();
   const controller = new AbortController();
@@ -940,7 +941,7 @@ function scheduleVisiblePageLoad() {
     if (
       !sentinel ||
       !root ||
-      !isAuthenticated() ||
+      !hasSession() ||
       state.status.isLoadingArticles ||
       !state.status.hasMoreArticles
     ) {
