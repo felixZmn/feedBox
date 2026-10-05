@@ -41,12 +41,14 @@ URL="https://cdn.jsdelivr.net/npm/dompurify@${LATEST}/dist/purify.es.mjs"
 echo "Downloading ${URL}"
 curl -fsSL "${URL}" -o "${TMP}"
 
-if ! grep -q "export { purify as default }" "${TMP}"; then
+# Bundlers may rename the local binding (e.g. purify vs purify_default).
+if ! grep -Eq 'export \{ [A-Za-z_][A-Za-z0-9_]* as default \}' "${TMP}"; then
   echo "error: downloaded file is missing expected ES module export" >&2
   exit 1
 fi
 
-if ! grep -q "DOMPurify.version = '${LATEST}'" "${TMP}"; then
+# Quote style around the version string varies by release (single vs double).
+if ! grep -Eq "DOMPurify\\.version = ['\"]${LATEST}['\"]" "${TMP}"; then
   echo "error: downloaded file version does not match ${LATEST}" >&2
   exit 1
 fi
