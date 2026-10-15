@@ -22,6 +22,11 @@
              Enabled in CI via -DskipITs=false; local `mvn test` stays unit-only. -->
         <skipITs>true</skipITs>
         <surefire-plugin.version>3.6.0</surefire-plugin.version>
+        <maven.build.timestamp.format>yyyyMMddHHmmss</maven.build.timestamp.format>
+        <!-- Overwritten by git-commit-id-maven-plugin when a git repo is present -->
+        <git.commit.id.abbrev>nogit</git.commit.id.abbrev>
+        <!-- Service-worker cache bust: git abbrev, else nogit + version + timestamp -->
+        <sw.version>${git.commit.id.abbrev}-${project.version}-${maven.build.timestamp}</sw.version>
     </properties>
 
     <dependencyManagement>
@@ -117,7 +122,46 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <exclude>META-INF/resources/sw.js</exclude>
+                </excludes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>META-INF/resources/sw.js</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
+            <plugin>
+                <groupId>io.github.git-commit-id</groupId>
+                <artifactId>git-commit-id-maven-plugin</artifactId>
+                <version>9.0.2</version>
+                <executions>
+                    <execution>
+                        <id>git-commit-id</id>
+                        <goals>
+                            <goal>revision</goal>
+                        </goals>
+                        <phase>initialize</phase>
+                    </execution>
+                </executions>
+                <configuration>
+                    <failOnNoGitDirectory>false</failOnNoGitDirectory>
+                    <failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
+                    <generateGitPropertiesFile>false</generateGitPropertiesFile>
+                    <includeOnlyProperties>
+                        <includeOnlyProperty>^git\.commit\.id\.abbrev$</includeOnlyProperty>
+                    </includeOnlyProperties>
+                    <commitIdGenerationMode>full</commitIdGenerationMode>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>${quarkus.platform.group-id}</groupId>
                 <artifactId>quarkus-maven-plugin</artifactId>

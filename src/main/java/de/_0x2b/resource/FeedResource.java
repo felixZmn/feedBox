@@ -32,13 +32,11 @@ public class FeedResource {
 
     @GET
     public List<Feed> getFeeds() {
-        logger.debug("getFeeds");
         return feedService.findAll();
     }
 
     @POST
     public Response createFeed(@Valid CreateFeedRequest request) {
-        logger.debug("createFeed");
         Feed feed = new Feed(-1, request.folderId, "", null, request.feedUrl);
         int id = feedService.create(feed);
         return Response.status(Response.Status.CREATED)
@@ -49,18 +47,14 @@ public class FeedResource {
     @PUT
     @Path("/{id}")
     public Response updateFeed(@PathParam("id") int id, @Valid UpdateFeedRequest request) {
-        logger.debug("updateFeed");
         Feed existing = feedService.findById(id);
-        existing.setFolderId(request.folderId);
-        existing.setFeedUrl(request.feedUrl);
-        feedService.update(existing);
+        feedService.update(existing.withFolderId(request.folderId).withFeedUrl(request.feedUrl));
         return Response.ok(id).build();
     }
 
     @DELETE
     @Path("/{id}")
     public Response deleteFeed(@PathParam("id") int id) {
-        logger.debug("deleteFeed");
         feedService.delete(id);
         return Response.noContent().build();
     }
@@ -81,7 +75,6 @@ public class FeedResource {
     @Path("/refresh")
     @Consumes(MediaType.WILDCARD)
     public Response refreshFeeds() {
-        logger.debug("refreshFeeds");
         JobSnapshot job = backgroundJobService.startRefresh(feedService::refresh);
         return Response.accepted(job).build();
     }

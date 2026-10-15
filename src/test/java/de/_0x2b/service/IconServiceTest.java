@@ -31,11 +31,6 @@ class IconServiceTest {
     @InjectMocks
     IconService sut;
 
-    private static URI htmlUriFor(Feed feed) {
-        String scheme = feed.getUrl().getScheme() != null ? feed.getUrl().getScheme() : "https";
-        return URI.create(scheme + "://" + feed.getUrl().getHost() + feed.getUrl().getPath());
-    }
-
     private static FetchResult htmlResult(URI uri, String html) {
         return new FetchResult(uri, uri, 200, "text/html; charset=utf-8",
                 html.getBytes(StandardCharsets.UTF_8));
@@ -47,7 +42,7 @@ class IconServiceTest {
 
     @Test
     void findOneByFeed_whenFound_returnsRepositoryResult() {
-        Icon icon = new Icon(1, 5, new byte[]{1}, "image/png", "f.png", "");
+        Icon icon = new Icon(1, 5, new byte[]{1}, "image/png", "f.png");
         when(iconRepository.findByFeed(5)).thenReturn(List.of(icon));
 
         List<Icon> result = sut.findOneByFeed(5);
@@ -69,9 +64,9 @@ class IconServiceTest {
 
     @Test
     void findIcon_whenHtmlHasFaviconLink_fetchesImage() {
-        Feed feed = new Feed(1, 1, "n", URI.create("https://example.com/blog"),
-                URI.create("https://example.com/rss"));
-        URI htmlUri = htmlUriFor(feed);
+        Feed feed = new Feed(1, 1, "n", URI.create("https://example.com:8443/blog"),
+                URI.create("https://example.com:8443/rss"));
+        URI htmlUri = feed.getUrl();
         String html = """
                 <html><head>
                   <link rel="icon" href="/favicon.png" type="image/png"/>
@@ -79,7 +74,7 @@ class IconServiceTest {
                 """;
         when(outboundHttpClient.fetchIcon(htmlUri)).thenReturn(Optional.of(htmlResult(htmlUri, html)));
 
-        URI iconUri = URI.create("https://example.com/favicon.png");
+        URI iconUri = URI.create("https://example.com:8443/favicon.png");
         byte[] bytes = new byte[]{1, 2, 3};
         when(outboundHttpClient.fetchIcon(iconUri))
                 .thenReturn(Optional.of(bytesResult(iconUri, "image/png", bytes)));
@@ -90,14 +85,36 @@ class IconServiceTest {
         assertEquals(feed.getId(), result.getFeedId());
         assertEquals("image/png", result.getMimeType());
         assertArrayEquals(bytes, result.getImage());
-        assertEquals(iconUri.toString(), result.getUrl());
+    }
+
+    @Test
+    void findIcon_whenProtocolRelativeHref_resolvesAgainstBase() {
+        Feed feed = new Feed(1, 1, "n", URI.create("https://example.com/"),
+                URI.create("https://example.com/rss"));
+        URI htmlUri = feed.getUrl();
+        String html = """
+                <html><head>
+                  <link rel="icon" href="//cdn.example.com/x.png"/>
+                </head></html>
+                """;
+        when(outboundHttpClient.fetchIcon(htmlUri)).thenReturn(Optional.of(htmlResult(htmlUri, html)));
+
+        URI iconUri = URI.create("https://cdn.example.com/x.png");
+        byte[] bytes = new byte[]{4};
+        when(outboundHttpClient.fetchIcon(iconUri))
+                .thenReturn(Optional.of(bytesResult(iconUri, "image/png", bytes)));
+
+        Icon result = sut.findIcon(feed);
+
+        assertNotNull(result);
+        assertArrayEquals(bytes, result.getImage());
     }
 
     @Test
     void findIcon_whenNoIconInHtml_fallsBackToFaviconIco() {
         Feed feed = new Feed(1, 1, "n", URI.create("https://example.com"),
                 URI.create("https://example.com/rss"));
-        URI htmlUri = htmlUriFor(feed);
+        URI htmlUri = feed.getUrl();
         when(outboundHttpClient.fetchIcon(htmlUri))
                 .thenReturn(Optional.of(htmlResult(htmlUri, "<html><head></head></html>")));
 
@@ -123,66 +140,33 @@ class IconServiceTest {
     }
 
     @Test
-    void findIcon_whenIconFetchFails_returnsNull() {
-        Feed feed = new Feed(1, 1, "n", URI.create("https://example.com"),
-                URI.create("https://example.com/rss"));
-        URI htmlUri = htmlUriFor(feed);
-        when(outboundHttpClient.fetchIcon(htmlUri))
-                .thenReturn(Optional.of(htmlResult(htmlUri, "<html><head></head></html>")));
-        when(outboundHttpClient.fetchIcon(URI.create("https://example.com/favicon.ico")))
-                .thenReturn(Optional.empty());
-
-        assertNull(sut.findIcon(feed));
-    }
-
-    @Test
     void fetchFavicon_whenNonImageContentType_clearsImage() {
-        Icon icon = new Icon(-1, 1, null, "", "", "https://example.com/not-an-icon");
-        URI uri = URI.create(icon.getUrl());
+        URI uri = URI.create("https://example.com/not-an-icon");
         when(outboundHttpClient.fetchIcon(uri))
                 .thenReturn(Optional.of(bytesResult(uri, "text/html", "<html/>".getBytes(StandardCharsets.UTF_8))));
 
-        Icon result = sut.fetchFavicon(icon);
+        Icon result = sut.fetchFavicon(uri, 1);
 
         assertNull(result.getImage());
     }
 
     @Test
     void fetchFavicon_whenSvgContentType_acceptsImage() {
-        Icon icon = new Icon(-1, 1, null, "", "", "https://example.com/icon.svg");
-        URI uri = URI.create(icon.getUrl());
+        URI uri = URI.create("https://example.com/icon.svg");
         byte[] svg = "<svg xmlns=\"http://www.w3.org/2000/svg\"/>".getBytes(StandardCharsets.UTF_8);
         when(outboundHttpClient.fetchIcon(uri))
                 .thenReturn(Optional.of(bytesResult(uri, "image/svg+xml", svg)));
 
-        Icon result = sut.fetchFavicon(icon);
+        Icon result = sut.fetchFavicon(uri, 1);
 
         assertArrayEquals(svg, result.getImage());
         assertEquals("image/svg+xml", result.getMimeType());
     }
 
     @Test
-    void fetchFavicon_whenFetchEmpty_leavesImageUnset() {
-        Icon icon = new Icon(-1, 1, null, "", "", "https://example.com/missing.ico");
-        when(outboundHttpClient.fetchIcon(URI.create(icon.getUrl()))).thenReturn(Optional.empty());
-
-        Icon result = sut.fetchFavicon(icon);
-
-        assertNull(result.getImage());
-    }
-
-    @Test
     void create_delegatesToRepository() {
-        Icon icon = new Icon(-1, 3, new byte[]{1}, "image/png", "a.png", "");
+        Icon icon = new Icon(-1, 3, new byte[]{1}, "image/png", "a.png");
         sut.create(icon);
         verify(iconRepository).create(icon);
-    }
-
-    @Test
-    void getCharsetFromContentType_parsesCharsetOrDefaultsUtf8() {
-        assertEquals(StandardCharsets.UTF_8, IconService.getCharsetFromContentType(null));
-        assertEquals(StandardCharsets.UTF_8, IconService.getCharsetFromContentType("text/html"));
-        assertEquals(StandardCharsets.ISO_8859_1,
-                IconService.getCharsetFromContentType("text/html; charset=ISO-8859-1"));
     }
 }

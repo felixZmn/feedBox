@@ -113,6 +113,7 @@ The following environment variables / properties can be configured:
 | `REFRESH_JOB_INTERVAL`             | `1h`            | Background feed refresh interval     |
 | `REFRESH_CONCURRENCY`              | `10`            | Max parallel feed refreshes          |
 | `IMPORT_CONCURRENCY`               | `5`             | Max parallel feed creates on OPML import |
+| `ARTICLES_RETENTION_DAYS`          | `90`            | Delete read articles older than N days after refresh (`0` disables); unread never deleted |
 
 ### Authentication notes
 

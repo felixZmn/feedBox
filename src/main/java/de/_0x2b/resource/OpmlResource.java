@@ -36,7 +36,6 @@ public class OpmlResource {
      */
     @POST
     public Response importOpml(InputStream bodyStream) {
-        logger.debug("importOPML");
         byte[] bytes;
         try {
             bytes = bodyStream.readNBytes(MAX_OPML_BYTES + 1);
@@ -60,7 +59,6 @@ public class OpmlResource {
 
     @GET
     public Response exportOpml() {
-        logger.debug("exportOPML");
         String opmlContent = opmlService.exportOpml();
         return Response.ok(opmlContent)
                 .type("text/x-opml; charset=UTF-8")

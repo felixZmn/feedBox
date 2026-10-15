@@ -1,7 +1,7 @@
 "use strict";
 
-// Bump for every frontend release so HTML + modules stay in lockstep.
-const VERSION = "2026-10-15-002";
+// Filtered at build time (${sw.version}) so HTML + modules stay in lockstep.
+const VERSION = "${sw.version}";
 const CACHE = `feedbox-${VERSION}`;
 const SHELL = [
   "/",
@@ -10,6 +10,11 @@ const SHELL = [
   "/manifest.json",
   "/sw.js",
   "/scripts/main.js",
+  "/scripts/state.js",
+  "/scripts/feeds.js",
+  "/scripts/articles.js",
+  "/scripts/reader.js",
+  "/scripts/menu.js",
   "/scripts/data.js",
   "/scripts/dom.js",
   "/scripts/dialog.js",
@@ -20,6 +25,8 @@ const SHELL = [
   "/scripts/util.js",
   "/scripts/types.js",
   "/scripts/boot-cache.js",
+  "/scripts/unread.js",
+  "/scripts/article-context.js",
   "/scripts/vendor/purify.es.mjs",
   "/icons/maskable_icon_x192.png",
   "/icons/maskable_icon_x512.png",

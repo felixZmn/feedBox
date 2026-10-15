@@ -180,11 +180,10 @@ class OPMLServiceTest {
         java.net.URI.create("https://unfiled.example"),
         java.net.URI.create("https://unfiled.example/rss"));
 
-    Folder tech = new Folder(10, "Tech", null, "f-base");
-    tech.setFeeds(List.of(
+    Folder tech = new Folder(10, "Tech", List.of(
         new Feed(2, 10, "HN",
             java.net.URI.create("https://news.ycombinator.com/"),
-            java.net.URI.create("https://news.ycombinator.com/rss"))));
+            java.net.URI.create("https://news.ycombinator.com/rss"))), "f-base");
 
     FolderTree folderTree = new FolderTree(List.of(tech), List.of(unfiledFeed));
     Document doc = sut.createOPML(folderTree);

@@ -36,13 +36,11 @@ public class FolderResource {
 
     @GET
     public List<Folder> getFolders() {
-        logger.debug("getFolders");
         return folderService.findAll();
     }
 
     @POST
     public Response createFolder(@Valid CreateFolderRequest request) {
-        logger.debug("createFolder");
         FolderColor color = request.color != null ? request.color : FolderColor.F_BASE;
         Folder folder = new Folder(-1, request.name.trim(), null, color.cssClass());
         int id = folderService.create(folder);
@@ -54,7 +52,6 @@ public class FolderResource {
     @PUT
     @Path("/{id}")
     public Response updateFolder(@PathParam("id") int id, @Valid UpdateFolderRequest request) {
-        logger.debug("updateFolder");
         Folder folder = new Folder(id, request.name.trim(), null, request.color.cssClass());
         folderService.update(folder);
         return Response.ok(id).build();
@@ -63,7 +60,6 @@ public class FolderResource {
     @DELETE
     @Path("/{id}")
     public Response deleteFolder(@PathParam("id") int id) {
-        logger.debug("deleteFolder");
         folderService.delete(id);
         return Response.noContent().build();
     }

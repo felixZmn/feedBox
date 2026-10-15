@@ -36,7 +36,7 @@ public class OutboundHttpClient {
 
     @Inject
     public OutboundHttpClient(
-            @ConfigProperty(name = "app.http.user-agent", defaultValue = "FeedBox/1.0.0") String userAgent,
+            @ConfigProperty(name = "app.http.user-agent", defaultValue = "FeedBox/${quarkus.application.version}") String userAgent,
             @ConfigProperty(name = "app.http.timeout", defaultValue = "30") int timeoutSeconds,
             @ConfigProperty(name = "app.http.max-redirects", defaultValue = "5") int maxRedirects,
             @ConfigProperty(name = "app.http.max-bytes.feed", defaultValue = "10485760") long feedMaxBytes,
@@ -130,7 +130,7 @@ public class OutboundHttpClient {
             logger.warn("Response too large (limit {} bytes) for {}", maxBytes, uri);
             return Optional.empty();
         } catch (IOException e) {
-            logger.warn("Could not fetch URI: {}", uri, e);
+            logger.debug("Could not fetch URI {}: {}", uri, e.toString());
             return Optional.empty();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

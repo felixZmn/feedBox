@@ -88,7 +88,6 @@ public class OPMLService {
      * with at most {@code import.concurrency} parallel creates.
      */
     public void importOPML(InputStream stream, ProgressCallback progress) throws XMLStreamException {
-        logger.debug("importOPML");
         ProgressCallback callback = progress != null ? progress : ProgressCallback.NONE;
 
         XMLInputFactory xmlFactory = XMLInputFactory.newInstance();

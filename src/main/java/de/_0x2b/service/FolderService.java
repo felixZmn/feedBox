@@ -31,7 +31,6 @@ public class FolderService {
      * @return all folders
      */
     public List<Folder> findAll() {
-        logger.debug("findAll");
         return folderRepository.findAll();
     }
 
@@ -60,7 +59,6 @@ public class FolderService {
      * @return
      */
     public List<Folder> findByName(String name) {
-        logger.debug("findByName");
         return folderRepository.findByName(name);
     }
 
@@ -72,7 +70,6 @@ public class FolderService {
      */
     @Transactional
     public int create(Folder folder) {
-        logger.debug("create");
         return folderRepository.create(folder);
     }
 
@@ -85,7 +82,6 @@ public class FolderService {
      */
     @Transactional
     public int update(Folder folder) {
-        logger.debug("update");
         int rows = folderRepository.update(folder);
         if (rows == 0) {
             throw new NotFoundException("Folder not found: " + folder.getId());
@@ -101,7 +97,6 @@ public class FolderService {
      */
     @Transactional
     public void delete(int folderId) {
-        logger.debug("delete");
         int rows = folderRepository.delete(folderId);
         if (rows == 0) {
             throw new NotFoundException("Folder not found: " + folderId);

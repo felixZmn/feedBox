@@ -8,10 +8,6 @@
     />
     <title>feedBox</title>
     <base href="/" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https: http:; font-src 'self'; connect-src 'self' https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com; object-src 'none'; base-uri 'self'; form-action 'self';"
-    />
     <link rel="stylesheet" href="./style.css" />
     <meta name="theme-color" content="#005e83" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -29,7 +25,7 @@
   <body>
     <ul class="context-menu" id="context-menu" role="menu">
       <li
-        class="context-menu-item context-add"
+        class="context-menu-item context-add d-none"
         id="trigger-feed-add"
         role="menuitem"
         tabindex="0"
@@ -37,7 +33,7 @@
         Add Feed
       </li>
       <li
-        class="context-menu-item context-add"
+        class="context-menu-item context-add d-none"
         id="trigger-folder-add"
         role="menuitem"
         tabindex="0"
@@ -46,7 +42,7 @@
       </li>
 
       <li
-        class="context-menu-item context-all"
+        class="context-menu-item context-all d-none"
         id="trigger-all-mark-read"
         role="menuitem"
         tabindex="0"
@@ -55,7 +51,7 @@
       </li>
 
       <li
-        class="context-menu-item context-feed"
+        class="context-menu-item context-feed d-none"
         id="trigger-open-website"
         role="menuitem"
         tabindex="0"
@@ -63,7 +59,7 @@
         Open Website
       </li>
       <li
-        class="context-menu-item context-feed"
+        class="context-menu-item context-feed d-none"
         id="trigger-feed-mark-read"
         role="menuitem"
         tabindex="0"
@@ -71,7 +67,7 @@
         Mark as read
       </li>
       <li
-        class="context-menu-item context-feed"
+        class="context-menu-item context-feed d-none"
         id="trigger-feed-edit"
         role="menuitem"
         tabindex="0"
@@ -79,7 +75,7 @@
         Edit Feed
       </li>
       <li
-        class="context-menu-item context-feed"
+        class="context-menu-item context-feed d-none"
         id="trigger-feed-delete"
         role="menuitem"
         tabindex="0"
@@ -88,7 +84,7 @@
       </li>
 
       <li
-        class="context-menu-item context-folder"
+        class="context-menu-item context-folder d-none"
         id="trigger-folder-mark-read"
         role="menuitem"
         tabindex="0"
@@ -96,7 +92,7 @@
         Mark as read
       </li>
       <li
-        class="context-menu-item context-folder"
+        class="context-menu-item context-folder d-none"
         id="trigger-folder-edit"
         role="menuitem"
         tabindex="0"
@@ -104,7 +100,7 @@
         Edit Folder
       </li>
       <li
-        class="context-menu-item context-folder"
+        class="context-menu-item context-folder d-none"
         id="trigger-folder-delete"
         role="menuitem"
         tabindex="0"

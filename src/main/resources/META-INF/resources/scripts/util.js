@@ -27,6 +27,22 @@ export function escapeHtml(str) {
 }
 
 /**
+ * Auto-escaping tagged template for HTML fragments.
+ * Values are escaped; use only for text/attrs, not intentional markup.
+ * @param {TemplateStringsArray} strings
+ * @param {...*} values
+ * @returns {string}
+ */
+export function html(strings, ...values) {
+  let out = "";
+  for (let i = 0; i < strings.length; i++) {
+    out += strings[i];
+    if (i < values.length) out += escapeHtml(values[i]);
+  }
+  return out;
+}
+
+/**
  * True when value is an absolute http(s) URL.
  * Used before navigating to feed-supplied links (article.link, feed.url).
  * @param {*} value
@@ -73,6 +89,11 @@ DOMPurify.addHook("afterSanitizeAttributes", (node) => {
       "sandbox",
       "allow-scripts allow-same-origin allow-presentation",
     );
+    node.setAttribute("referrerpolicy", "no-referrer");
+  }
+  if (node.tagName === "IMG") {
+    node.setAttribute("loading", "lazy");
+    node.setAttribute("decoding", "async");
     node.setAttribute("referrerpolicy", "no-referrer");
   }
 });

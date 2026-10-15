@@ -4,7 +4,7 @@ import { apiFetch } from "./auth.js";
 
 export const FOLDER_TREE_CACHE_KEY = "folder-tree-cache";
 export const FOLDER_STATE_KEY = "folder-state";
-export const FOLDER_TREE_CACHE_VERSION = 3;
+export const FOLDER_TREE_CACHE_VERSION = 4;
 
 class DataService {
   async getFolders() {
@@ -233,7 +233,7 @@ export function folderTreesEqual(a, b) {
 }
 
 /**
- * @returns {{ version: number, folders: Folder[], unfiledFeeds: Feed[], html: string }|null}
+ * @returns {{ version: number, folders: Folder[], unfiledFeeds: Feed[] }|null}
  */
 export function loadFolderTreeCache() {
   try {
@@ -244,8 +244,7 @@ export function loadFolderTreeCache() {
       !parsed ||
       parsed.version !== FOLDER_TREE_CACHE_VERSION ||
       !Array.isArray(parsed.folders) ||
-      !Array.isArray(parsed.unfiledFeeds) ||
-      typeof parsed.html !== "string"
+      !Array.isArray(parsed.unfiledFeeds)
     ) {
       return null;
     }
@@ -253,7 +252,6 @@ export function loadFolderTreeCache() {
       version: parsed.version,
       folders: parsed.folders.map(normalizeFolder),
       unfiledFeeds: parsed.unfiledFeeds.map(normalizeFeed),
-      html: parsed.html,
     };
   } catch (err) {
     console.warn("Could not load folder tree cache", err);
@@ -262,11 +260,11 @@ export function loadFolderTreeCache() {
 }
 
 /**
+ * Persist folder tree JSON only (never rendered HTML — avoids stored XSS).
  * @param {Folder[]} folders
  * @param {Feed[]} unfiledFeeds
- * @param {string} html
  */
-export function saveFolderTreeCache(folders, unfiledFeeds, html) {
+export function saveFolderTreeCache(folders, unfiledFeeds) {
   try {
     localStorage.setItem(
       FOLDER_TREE_CACHE_KEY,
@@ -274,7 +272,6 @@ export function saveFolderTreeCache(folders, unfiledFeeds, html) {
         version: FOLDER_TREE_CACHE_VERSION,
         folders: folders.map(normalizeFolder),
         unfiledFeeds: unfiledFeeds.map(normalizeFeed),
-        html,
       }),
     );
   } catch (err) {

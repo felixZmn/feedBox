@@ -871,8 +871,8 @@ dialog::backdrop {
   overflow: hidden;
 }
 
-.context-menu[style*="display: block"],
-.context-menu[style*="display:block"] {
+.context-menu.is-open {
+  display: block;
   animation: menu-in 0.12s ease-out;
 }
 
@@ -891,10 +891,13 @@ dialog::backdrop {
   display: none;
 }
 
+.context-menu-item:not(.d-none) {
+  display: block;
+}
+
 @media (prefers-reduced-motion: reduce) {
   dialog[open],
-  .context-menu[style*="display: block"],
-  .context-menu[style*="display:block"],
+  .context-menu.is-open,
   .spinner,
   .skeleton {
     animation: none;
