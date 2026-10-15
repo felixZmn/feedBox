@@ -1,12 +1,14 @@
 package de._0x2b.service;
 
 import de._0x2b.exception.DuplicateEntityException;
+import de._0x2b.job.ProgressCallback;
 import de._0x2b.model.Feed;
 import de._0x2b.model.Folder;
 import de._0x2b.model.FolderTree;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
@@ -30,13 +32,17 @@ import java.io.InputStream;
 import java.io.StringWriter;
 import java.net.URI;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Semaphore;
 
 record OutlineContext(String type, Integer folderId) {
+}
+
+record PendingFeed(String name, URI htmlUrl, URI xmlUrl, Integer folderId) {
 }
 
 @ApplicationScoped
@@ -52,12 +58,11 @@ public class OPMLService {
     @Inject
     FeedService feedService;
 
+    @ConfigProperty(name = "import.concurrency", defaultValue = "5")
+    int importConcurrency = 5;
+
     /**
      * Convert a Document to a formatted String
-     * 
-     * @param document
-     * @return
-     * @throws TransformerException
      */
     public static String documentToString(Document document) throws TransformerException {
         TransformerFactory transformerFactory = TransformerFactory.newInstance();
@@ -71,21 +76,28 @@ public class OPMLService {
     }
 
     /**
-     * Import OPML from InputStream
-     *
-     * @param stream
-     * @throws XMLStreamException
-     * @throws InterruptedException
+     * Import OPML from InputStream (blocking, no progress).
      */
-    public void importOPML(InputStream stream) throws XMLStreamException, InterruptedException {
+    public void importOPML(InputStream stream) throws XMLStreamException {
+        importOPML(stream, ProgressCallback.NONE);
+    }
+
+    /**
+     * Import OPML with bounded concurrency and optional progress reporting.
+     * Folders are created synchronously while parsing; feeds are created afterward
+     * with at most {@code import.concurrency} parallel creates.
+     */
+    public void importOPML(InputStream stream, ProgressCallback progress) throws XMLStreamException {
         logger.debug("importOPML");
+        ProgressCallback callback = progress != null ? progress : ProgressCallback.NONE;
 
         XMLInputFactory xmlFactory = XMLInputFactory.newInstance();
         xmlFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
         xmlFactory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
         XMLEventReader reader = xmlFactory.createXMLEventReader(stream);
 
-        try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
+        List<PendingFeed> pendingFeeds = new ArrayList<>();
+        try {
             Deque<OutlineContext> contextStack = new ArrayDeque<>();
             contextStack.push(new OutlineContext("body", null));
 
@@ -97,7 +109,7 @@ public class OPMLService {
                     if (!"outline".equals(startElement.getName().getLocalPart())) {
                         continue;
                     }
-                    handleStartOutline(startElement, contextStack, pool);
+                    handleStartOutline(startElement, contextStack, pendingFeeds);
 
                 } else if (event.isEndElement()) {
                     var endElement = event.asEndElement();
@@ -107,34 +119,70 @@ public class OPMLService {
                     handleEndOutline(contextStack);
                 }
             }
-
-            pool.shutdown();
-            if (!pool.awaitTermination(60, TimeUnit.SECONDS)) {
-                logger.warn("Timeout waiting for feed creation tasks; cancelling remaining tasks.");
-                pool.shutdownNow();
-                // Restore interrupt status so callers can react
-                Thread.currentThread().interrupt();
-            }
-
-        } catch (XMLStreamException | InterruptedException e) {
-            logger.error("Exception during OPML import: {}", e.getMessage(), e);
-            throw e;
         } finally {
             reader.close();
+        }
+
+        createFeedsBounded(pendingFeeds, callback);
+    }
+
+    private void createFeedsBounded(List<PendingFeed> pendingFeeds, ProgressCallback progress) {
+        progress.setTotal(pendingFeeds.size());
+        if (pendingFeeds.isEmpty()) {
+            return;
+        }
+
+        Semaphore semaphore = new Semaphore(Math.max(1, importConcurrency));
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<CompletableFuture<Void>> futures = pendingFeeds.stream()
+                    .map(pending -> CompletableFuture.runAsync(() -> {
+                        try {
+                            semaphore.acquire();
+                            try {
+                                feedService.create(new Feed(
+                                        -1,
+                                        pending.folderId(),
+                                        pending.name(),
+                                        pending.htmlUrl(),
+                                        pending.xmlUrl()));
+                                progress.itemSucceeded();
+                            } catch (DuplicateEntityException e) {
+                                logger.debug("Feed '{}' already exists; ignoring duplicate.", pending.name());
+                                progress.itemSucceeded();
+                            } catch (Exception ex) {
+                                logger.error("Exception creating feed '{}': {}", pending.name(), ex.getMessage(), ex);
+                                progress.itemFailed();
+                            } finally {
+                                semaphore.release();
+                            }
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            progress.itemFailed();
+                            logger.warn("OPML feed create interrupted for {}", pending.name(), e);
+                        }
+                    }, executor))
+                    .toList();
+
+            for (var future : futures) {
+                try {
+                    future.join();
+                } catch (Exception e) {
+                    logger.error("OPML feed create task failed", e);
+                }
+            }
         }
     }
 
     private void handleStartOutline(StartElement startElement, Deque<OutlineContext> contextStack,
-            ExecutorService pool) {
+            List<PendingFeed> pendingFeeds) {
         var typeAttr = startElement.getAttributeByName(ATTR_TYPE);
 
         if (typeAttr == null) {
             handleFolderOutline(startElement, contextStack);
         } else if ("rss".equals(typeAttr.getValue())) {
-            handleFeedOutline(startElement, contextStack, pool);
+            handleFeedOutline(startElement, contextStack, pendingFeeds);
         } else {
             logger.info("Unsupported outline type '{}'; skipping.", typeAttr.getValue());
-            // Still push so the matching end element pop is balanced
             contextStack.push(new OutlineContext("unknown", null));
         }
     }
@@ -143,7 +191,6 @@ public class OPMLService {
         var textAttr = startElement.getAttributeByName(ATTR_TEXT);
         if (textAttr == null) {
             logger.warn("Folder outline missing 'text' attribute; skipping.");
-            // Push placeholder so end-element pop stays balanced
             contextStack.push(new OutlineContext("invalid-folder", null));
             return;
         }
@@ -160,7 +207,7 @@ public class OPMLService {
     }
 
     private void handleFeedOutline(StartElement startElement, Deque<OutlineContext> contextStack,
-            ExecutorService pool) {
+            List<PendingFeed> pendingFeeds) {
         var textAttr = startElement.getAttributeByName(ATTR_TEXT);
         var xmlUrlAttr = startElement.getAttributeByName(ATTR_XMLURL);
         var htmlUrlAttr = startElement.getAttributeByName(ATTR_HTMLURL);
@@ -182,18 +229,7 @@ public class OPMLService {
 
         String name = textAttr.getValue();
         Integer parentFolderId = contextStack.peek().folderId();
-
-        pool.submit(() -> {
-            try {
-                feedService.create(new Feed(-1, parentFolderId, name, htmlUrl, xmlUrl));
-            } catch (DuplicateEntityException e) {
-                logger.debug("Feed '{}' already exists; ignoring duplicate.", name);
-            } catch (Exception ex) {
-                logger.error("Exception creating feed '{}': {}", name, ex.getMessage(), ex);
-            }
-        });
-
-        // Push so the matching end-element pop is balanced
+        pendingFeeds.add(new PendingFeed(name, htmlUrl, xmlUrl, parentFolderId));
         contextStack.push(new OutlineContext("feed", null));
     }
 
@@ -224,9 +260,6 @@ public class OPMLService {
         }
     }
 
-    /**
-     * Safely parses a URI, returning null instead of throwing on malformed input.
-     */
     private URI parseUri(String value) {
         try {
             return URI.create(value);
@@ -236,91 +269,57 @@ public class OPMLService {
         }
     }
 
-    /**
-     * Export OPML as String, for example for download
-     * 
-     * @return
-     */
     public String exportOpml() {
         List<Folder> folders = folderService.findAll();
         List<Feed> feeds = feedService.findAll();
         FolderTree folderTree = FolderTree.from(folders, feeds);
-        Document doc = null;
         try {
-            doc = createOPML(folderTree);
+            Document doc = createOPML(folderTree);
             return documentToString(doc);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    /**
-     * Create OPML Document from a FolderTree (folders + unfiled feeds)
-     * 
-     * @param folderTree the folder tree containing folders and unfiled feeds
-     * @return Document object representing the OPML
-     * @throws ParserConfigurationException
-     */
     public Document createOPML(FolderTree folderTree) throws ParserConfigurationException {
         DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
 
-        // root elements
         Document doc = docBuilder.newDocument();
         Element opml = doc.createElement("opml");
         opml.setAttribute("version", "2.0");
         doc.appendChild(opml);
 
-        // head
         Element head = doc.createElement("head");
         Element title = doc.createElement("title");
         title.appendChild(doc.createTextNode("My Feeds"));
         head.appendChild(title);
         opml.appendChild(head);
 
-        // body
         Element body = doc.createElement("body");
         opml.appendChild(body);
 
-        // Add unfiled feeds directly under <body>
         for (Feed feed : folderTree.getUnfiledFeeds()) {
-            Element feedOutline = createFeedElement(doc, feed);
-            body.appendChild(feedOutline);
+            body.appendChild(createFeedElement(doc, feed));
         }
 
-        // Add folders with their feeds
         for (Folder folder : folderTree.getFolders()) {
             Element folderOutline = createFolderElement(doc, folder);
             body.appendChild(folderOutline);
             for (Feed feed : folder.getFeeds()) {
-                Element feedOutline = createFeedElement(doc, feed);
-                folderOutline.appendChild(feedOutline);
+                folderOutline.appendChild(createFeedElement(doc, feed));
             }
         }
 
         return doc;
     }
 
-    /**
-     * Create folder outline element
-     * 
-     * @param doc
-     * @param folder
-     * @return
-     */
     private Element createFolderElement(Document doc, Folder folder) {
         var el = doc.createElement("outline");
         el.setAttribute("text", folder.getName());
         return el;
     }
 
-    /**
-     * Create feed outline element
-     * 
-     * @param doc
-     * @param feed
-     * @return
-     */
     private Element createFeedElement(Document doc, Feed feed) {
         var el = doc.createElement("outline");
         el.setAttribute("text", feed.getName());

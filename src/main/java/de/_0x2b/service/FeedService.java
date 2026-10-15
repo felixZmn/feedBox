@@ -6,6 +6,7 @@ import de._0x2b.exception.InvalidFeedException;
 import de._0x2b.exception.NotFoundException;
 import de._0x2b.http.FetchResult;
 import de._0x2b.http.OutboundHttpClient;
+import de._0x2b.job.ProgressCallback;
 import de._0x2b.model.Feed;
 import de._0x2b.model.Icon;
 import de._0x2b.repository.ArticleRepository;
@@ -144,33 +145,39 @@ public class FeedService {
     }
 
     /**
-     * Refresh all feeds in the database
+     * Refresh all feeds in the database.
      */
     public void refresh() {
-        logger.debug("refresh");
-        var feeds = feedRepository.findAll();
-        refresh(feeds);
+        refresh(ProgressCallback.NONE);
     }
 
     /**
-     * Refresh a single feed by its ID
+     * Refresh all feeds, reporting progress to {@code progress}.
+     */
+    public void refresh(ProgressCallback progress) {
+        logger.debug("refresh");
+        var feeds = feedRepository.findAll();
+        refresh(feeds, progress != null ? progress : ProgressCallback.NONE);
+    }
+
+    /**
+     * Refresh a single feed by its ID.
      *
      * @param id id of the feed to refresh
      */
     public void refresh(int id) {
         logger.debug("refresh");
         var feeds = feedRepository.findOne(id);
-        refresh(feeds);
+        refresh(feeds, ProgressCallback.NONE);
     }
 
     /**
      * Internal helper to refresh a list of feeds with bounded concurrency using
      * virtual threads.
-     *
-     * @param feeds
      */
-    private void refresh(List<Feed> feeds) {
+    private void refresh(List<Feed> feeds, ProgressCallback progress) {
         logger.info("Refreshing Feeds...");
+        progress.setTotal(feeds.size());
         Semaphore semaphore = new Semaphore(refreshConcurrency);
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             List<CompletableFuture<Void>> futures = feeds.stream()
@@ -178,12 +185,17 @@ public class FeedService {
                         try {
                             semaphore.acquire();
                             try {
-                                parseFeed(feed);
+                                if (parseFeed(feed)) {
+                                    progress.itemSucceeded();
+                                } else {
+                                    progress.itemFailed();
+                                }
                             } finally {
                                 semaphore.release();
                             }
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
+                            progress.itemFailed();
                             logger.warn("Feed refresh interrupted for {}", feed.getFeedUrl(), e);
                         }
                     }, executor))
@@ -368,8 +380,9 @@ public class FeedService {
      * and any previous error is cleared.
      *
      * @param feed
+     * @return {@code true} when the feed was refreshed successfully
      */
-    void parseFeed(Feed feed) { // package-private for direct testing
+    boolean parseFeed(Feed feed) { // package-private for direct testing
         var optional = outboundHttpClient.fetchFeed(feed.getFeedUrl());
         if (optional.isEmpty()) {
             // Unsafe URL, network error, non-2xx, or oversized body.
@@ -378,7 +391,7 @@ public class FeedService {
             } catch (SQLException e) {
                 logger.warn("Failed to record refresh error for feed [{}]", feed.getFeedUrl(), e);
             }
-            return;
+            return false;
         }
 
         var response = optional.get();
@@ -404,6 +417,7 @@ public class FeedService {
             articleRepository.create(articles);
             // Insert succeeded - mark the feed as healthy.
             feedRepository.markRefreshSuccess(feed.getId(), null);
+            return true;
         } catch (Exception e) {
             // The DataAccessException is the common case (the new
             // ArticleRepository.create throws it), but we also want to
@@ -415,6 +429,7 @@ public class FeedService {
             } catch (SQLException markEx) {
                 logger.warn("Failed to record refresh error for feed [{}]", feed.getFeedUrl(), markEx);
             }
+            return false;
         }
     }
 

@@ -42,8 +42,40 @@ class DataService {
   async checkFeed(feedUrl) {
     return this._request(`./api/feed/check?url=${encodeURIComponent(feedUrl)}`);
   }
+  /**
+   * Start (or join) an async refresh. Returns a job snapshot (HTTP 202).
+   * @returns {Promise<{id: string, type: string, status: string, total: number, completed: number, failed: number, error?: string}>}
+   */
   async refreshFeeds() {
     return this._request("./api/feed/refresh", { method: "POST" });
+  }
+
+  /**
+   * @param {string} jobId
+   * @returns {Promise<{id: string, type: string, status: string, total: number, completed: number, failed: number, error?: string}>}
+   */
+  async getJob(jobId) {
+    return this._request(`./api/jobs/${encodeURIComponent(jobId)}`);
+  }
+
+  /**
+   * Poll until the job reaches COMPLETED or FAILED.
+   * @param {string} jobId
+   * @param {{ intervalMs?: number, signal?: AbortSignal }} [options]
+   */
+  async waitForJob(jobId, { intervalMs = 500, signal } = {}) {
+    for (;;) {
+      if (signal?.aborted) {
+        const err = new Error("Aborted");
+        err.name = "AbortError";
+        throw err;
+      }
+      const job = await this.getJob(jobId);
+      if (job.status === "COMPLETED" || job.status === "FAILED") {
+        return job;
+      }
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
   }
 
   async loadArticles(params, { signal } = {}) {

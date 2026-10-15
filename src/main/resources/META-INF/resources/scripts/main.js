@@ -1411,20 +1411,39 @@ async function importFeeds() {
           method: "POST",
           body: file,
           headers: {
-            "Content-Type": file.type,
+            "Content-Type": file.type || "application/xml",
           },
         });
 
-        if (response.ok) {
-          await refreshFolders({ background: false });
-          await refreshFeeds();
-        } else {
+        if (!response.ok) {
           await modal.show({
             title: "Error",
             content: "Error importing feeds: " + response.statusText,
             type: "alert",
           });
+          return;
         }
+
+        const started = await response.json();
+        const job = await dataService.waitForJob(started.id);
+        if (job.status === "FAILED") {
+          await modal.show({
+            title: "Error",
+            content: job.error || "OPML import failed.",
+            type: "alert",
+          });
+          return;
+        }
+
+        await refreshFolders({ background: false });
+        await refreshFeeds();
+      } catch (error) {
+        console.error("[app] OPML import failed:", error);
+        await modal.show({
+          title: "Error",
+          content: "Error importing feeds. Please try again.",
+          type: "alert",
+        });
       } finally {
         cleanup();
       }
@@ -1481,11 +1500,27 @@ async function refreshFeeds() {
   state.status.isRefreshing = true;
   dom.refreshSpinner.classList.add("spinner");
   try {
-    await dataService.refreshFeeds();
+    const started = await dataService.refreshFeeds();
+    const job = await dataService.waitForJob(started.id);
+    if (job.status === "FAILED") {
+      await modal.show({
+        title: "Error",
+        content: job.error || "Feed refresh failed.",
+        type: "alert",
+      });
+      return;
+    }
     await refreshFolders({ background: false });
     await selectAndLoadArticles(itemType.ALL, null, {
       syncUrl: "replace",
       column: columns.ARTICLES,
+    });
+  } catch (error) {
+    console.error("[app] Feed refresh failed:", error);
+    await modal.show({
+      title: "Error",
+      content: "Feed refresh failed. Please try again.",
+      type: "alert",
     });
   } finally {
     dom.refreshSpinner.classList.remove("spinner");
