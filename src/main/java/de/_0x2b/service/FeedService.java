@@ -4,6 +4,8 @@ import com.apptasticsoftware.rssreader.RssReader;
 import de._0x2b.exception.DataAccessException;
 import de._0x2b.exception.InvalidFeedException;
 import de._0x2b.exception.NotFoundException;
+import de._0x2b.http.FetchResult;
+import de._0x2b.http.OutboundHttpClient;
 import de._0x2b.model.Feed;
 import de._0x2b.model.Icon;
 import de._0x2b.repository.ArticleRepository;
@@ -12,16 +14,16 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
-import org.jsoup.Connection;
-import org.jsoup.HttpStatusException;
+import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,7 +39,7 @@ public class FeedService {
     private static final Logger logger = LoggerFactory.getLogger(FeedService.class);
 
     @Inject
-    HTTPSService httpsService;
+    OutboundHttpClient outboundHttpClient;
     @Inject
     IconService iconService;
     @Inject
@@ -207,11 +209,19 @@ public class FeedService {
      */
     public Feed getFeedMetadata(Feed feed) {
         logger.debug("getFeedMetadata");
-        RssReader rssReader = new RssReader();
         try {
-            var channel = rssReader.read(feed.getFeedUrl().toString()).toList().getFirst().getChannel();
+            var fetched = outboundHttpClient.fetchFeed(feed.getFeedUrl());
+            if (fetched.isEmpty()) {
+                throw new InvalidFeedException(
+                        "Feed not reachable or not a valid RSS/Atom feed: " + feed.getFeedUrl());
+            }
+            RssReader rssReader = new RssReader();
+            rssReader.setUserAgent(outboundHttpClient.userAgent());
+            var channel = rssReader.read(fetched.get().bodyStream()).toList().getFirst().getChannel();
             feed.setUrl(URI.create(channel.getLink()));
             feed.setName(channel.getTitle());
+        } catch (InvalidFeedException e) {
+            throw e;
         } catch (Exception e) {
             logger.error("Error querying feed [{}]: {}", feed.getFeedUrl(), e.getMessage());
             throw new InvalidFeedException(
@@ -221,56 +231,71 @@ public class FeedService {
     }
 
     /**
-     * Check if a URL is a valid feed or contains feed links
+     * Check if a URL is a valid feed or contains feed links.
+     * Fetches through {@link OutboundHttpClient} (SSRF guard + size limit).
      *
      * @param url URL to check
      * @return List of valid feeds found
      */
     public List<Feed> checkFeedUrl(String url) {
-        return checkFeedUrl(url, new JsoupProvider());
-    }
-
-    public List<Feed> checkFeedUrl(String url, JsoupProvider provider) {
         logger.debug("checkFeedUrl: {}", url);
         List<Feed> validFeeds = new ArrayList<>();
 
+        URI requestUri;
         try {
-            Connection.Response queryResponse = provider.execute(url);
-
-            String body = queryResponse.body();
-            String contentType = queryResponse.contentType();
-
-            if (isFeed(contentType, body)) {
-                logger.debug("URL is a direct feed: {}", url);
-                validFeeds.add(new Feed(-1, null, "", null, URI.create(url)));
-            } else {
-                Document doc = queryResponse.parse();
-
-                Elements links = doc.select(
-                        "link[rel=alternate][type=application/rss+xml], link[rel=alternate][type=application/atom+xml]");
-
-                for (Element link : links) {
-                    String feedUrl = extractFeedUrl(link);
-                    String feedName = link.attr("title");
-                    if (!feedUrl.isBlank()) {
-                        validFeeds.add(new Feed(-1, null, feedName.isBlank() ? feedUrl : feedName, URI.create(url),
-                                URI.create(feedUrl)));
-                    }
-                }
-            }
-
-        } catch (HttpStatusException e) {
-            logger.warn("Remote server returned HTTP {} for URL: {}", e.getStatusCode(), url);
-            validFeeds = Collections.emptyList();
-        } catch (IOException e) {
-            logger.error("Error fetching URL: {}", url, e);
-            validFeeds = Collections.emptyList();
+            requestUri = URI.create(url);
         } catch (IllegalArgumentException e) {
             logger.warn("Malformed or non-absolute URL provided: {}", url);
-            validFeeds = Collections.emptyList();
+            return Collections.emptyList();
+        }
+
+        var fetched = outboundHttpClient.fetchFeed(requestUri);
+        if (fetched.isEmpty()) {
+            return Collections.emptyList();
+        }
+        FetchResult result = fetched.get();
+        String body = new String(result.body(), charsetFromContentType(result.contentType()));
+        String contentType = result.contentType();
+        String baseUri = result.finalUri().toString();
+
+        if (isFeed(contentType, body)) {
+            logger.debug("URL is a direct feed: {}", url);
+            validFeeds.add(new Feed(-1, null, "", null, result.finalUri()));
+        } else {
+            Document doc = Jsoup.parse(body, baseUri);
+
+            Elements links = doc.select(
+                    "link[rel=alternate][type=application/rss+xml], link[rel=alternate][type=application/atom+xml]");
+
+            for (Element link : links) {
+                String feedUrl = extractFeedUrl(link);
+                String feedName = link.attr("title");
+                if (!feedUrl.isBlank()) {
+                    validFeeds.add(new Feed(-1, null, feedName.isBlank() ? feedUrl : feedName,
+                            result.finalUri(), URI.create(feedUrl)));
+                }
+            }
         }
 
         return validFeeds;
+    }
+
+    private static Charset charsetFromContentType(String contentType) {
+        if (contentType == null) {
+            return StandardCharsets.UTF_8;
+        }
+        for (String part : contentType.split(";")) {
+            part = part.trim();
+            if (part.regionMatches(true, 0, "charset=", 0, 8)) {
+                String name = part.substring(8).trim().replace("\"", "");
+                try {
+                    return Charset.forName(name);
+                } catch (Exception e) {
+                    return StandardCharsets.UTF_8;
+                }
+            }
+        }
+        return StandardCharsets.UTF_8;
     }
 
     /**
@@ -345,16 +370,11 @@ public class FeedService {
      * @param feed
      */
     void parseFeed(Feed feed) { // package-private for direct testing
-        var optional = httpsService.fetchUriAsStream(feed.getFeedUrl());
-        if (optional.isEmpty() || optional.get().statusCode() != 200) {
-            // The server did not give us a feed body. Could be a transient
-            // outage - record the error but don't penalise a feed that
-            // worked yesterday and is broken today.
+        var optional = outboundHttpClient.fetchFeed(feed.getFeedUrl());
+        if (optional.isEmpty()) {
+            // Unsafe URL, network error, non-2xx, or oversized body.
             try {
-                feedRepository.markRefreshError(feed.getId(),
-                        "No successful HTTP response (status="
-                                + (optional.isPresent() ? optional.get().statusCode() : "no-response")
-                                + ")");
+                feedRepository.markRefreshError(feed.getId(), "No successful HTTP response");
             } catch (SQLException e) {
                 logger.warn("Failed to record refresh error for feed [{}]", feed.getFeedUrl(), e);
             }
@@ -362,7 +382,7 @@ public class FeedService {
         }
 
         var response = optional.get();
-        var items = mediaRssParser.parse(response.body());
+        var items = mediaRssParser.parse(response.bodyStream());
 
         var articles = new java.util.ArrayList<de._0x2b.model.Article>(items.size());
         int skipped = 0;
