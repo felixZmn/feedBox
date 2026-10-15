@@ -2,6 +2,7 @@ package de._0x2b.repository;
 
 import de._0x2b.exception.DataAccessException;
 import de._0x2b.model.Article;
+import de._0x2b.resource.dto.ArticleSummary;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import org.slf4j.Logger;
@@ -22,12 +23,18 @@ import java.util.Map;
 import java.util.TimeZone;
 
 @ApplicationScoped
-public class ArticleRepository extends AbstractRepository<Article> {
+public class ArticleRepository extends AbstractRepository {
 
     private static final Logger logger = LoggerFactory.getLogger(ArticleRepository.class);
-    private static final String SELECT_COLS = """
+    /** Full row for the reader ({@code GET /api/article/{id}}). */
+    private static final String SELECT_DETAIL_COLS = """
             SELECT a.id, a.feed_id, f.name AS publisher, a.title, a.description,
                    a.content, a.link, a.guid, a.published, a.authors, a.image_url, a.categories, a.read
+            """;
+    /** List/pagination projection — no HTML bodies. */
+    private static final String SELECT_LIST_COLS = """
+            SELECT a.id, a.feed_id, f.name AS publisher, a.title,
+                   a.link, a.published, a.authors, a.image_url, a.read
             """;
     private static final String FROM_JOIN = """
             FROM article a
@@ -79,10 +86,17 @@ public class ArticleRepository extends AbstractRepository<Article> {
     // UTC value into the JVM's default time zone), then
     // Timestamp.toInstant().
     private static final Calendar UTC = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+    private static final String EXISTS_BY_ID_SQL = "SELECT 1 FROM article WHERE id = ?";
+
     private final RowMapper<Article> articleMapper = rs -> new Article(rs.getLong("id"), rs.getInt("feed_id"),
             rs.getString("publisher"), rs.getString("title"), rs.getString("description"), rs.getString("content"),
             rs.getString("link"), rs.getString("guid"), readPublished(rs), rs.getString("authors"),
             rs.getString("image_url"), rs.getString("categories"), rs.getBoolean("read"));
+
+    private final RowMapper<ArticleSummary> summaryMapper = rs -> new ArticleSummary(
+            rs.getLong("id"), rs.getInt("feed_id"), rs.getString("publisher"), rs.getString("title"),
+            rs.getString("link"), readPublished(rs), rs.getString("authors"), rs.getString("image_url"),
+            rs.getBoolean("read"));
 
     private static Instant readPublished(java.sql.ResultSet rs) throws SQLException {
         Timestamp ts = rs.getTimestamp("published", UTC);
@@ -93,32 +107,36 @@ public class ArticleRepository extends AbstractRepository<Article> {
     }
 
     public Article findById(long id) {
-        String sql = SELECT_COLS + FROM_JOIN + " WHERE a.id = ?";
+        String sql = SELECT_DETAIL_COLS + FROM_JOIN + " WHERE a.id = ?";
         List<Article> results = super.query(sql, articleMapper, List.of(id));
         return results.isEmpty() ? null : results.getFirst();
     }
 
-    public List<Article> findAll(String q) {
+    public boolean exists(long id) {
+        return super.exists(EXISTS_BY_ID_SQL, List.of(id));
+    }
+
+    public List<ArticleSummary> findAll(String q) {
         return findInternal(null, null, null, null, false, q);
     }
 
-    public List<Article> findAll(long paginationId, Instant paginationPublished, String q) {
+    public List<ArticleSummary> findAll(long paginationId, Instant paginationPublished, String q) {
         return findInternal(null, null, paginationId, paginationPublished, false, q);
     }
 
-    public List<Article> findByFeed(int feedId, String q) {
+    public List<ArticleSummary> findByFeed(int feedId, String q) {
         return findInternal("f.id = ?", List.of(feedId), null, null, false, q);
     }
 
-    public List<Article> findByFeed(int feedId, long paginationId, Instant paginationPublished, String q) {
+    public List<ArticleSummary> findByFeed(int feedId, long paginationId, Instant paginationPublished, String q) {
         return findInternal("f.id = ?", List.of(feedId), paginationId, paginationPublished, false, q);
     }
 
-    public List<Article> findByFolder(int folderId, String q) {
+    public List<ArticleSummary> findByFolder(int folderId, String q) {
         return findInternal("fo.id = ?", List.of(folderId), null, null, true, q);
     }
 
-    public List<Article> findByFolder(int folderId, long paginationId, Instant paginationPublished, String q) {
+    public List<ArticleSummary> findByFolder(int folderId, long paginationId, Instant paginationPublished, String q) {
         return findInternal("fo.id = ?", List.of(folderId), paginationId, paginationPublished, true, q);
     }
 
@@ -235,10 +253,10 @@ public class ArticleRepository extends AbstractRepository<Article> {
         }
     }
 
-    private List<Article> findInternal(String whereClause, List<Object> initialParams, Long pagId,
+    private List<ArticleSummary> findInternal(String whereClause, List<Object> initialParams, Long pagId,
             Instant pagPublished, boolean joinFolder, String q) {
 
-        StringBuilder sql = new StringBuilder(SELECT_COLS).append(FROM_JOIN);
+        StringBuilder sql = new StringBuilder(SELECT_LIST_COLS).append(FROM_JOIN);
         List<Object> params = new ArrayList<>();
 
         if (initialParams != null) {
@@ -272,7 +290,7 @@ public class ArticleRepository extends AbstractRepository<Article> {
 
         sql.append(ORDER_LIMIT);
 
-        return super.query(sql.toString(), articleMapper, params);
+        return super.query(sql.toString(), summaryMapper, params);
     }
 
     /**

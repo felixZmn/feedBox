@@ -6,7 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import de._0x2b.exception.NotFoundException;
-import de._0x2b.model.Article;
+import de._0x2b.resource.dto.ArticleSummary;
 import de._0x2b.resource.dto.PaginationCursor;
 import de._0x2b.service.ArticleService;
 import io.quarkus.security.Authenticated;
@@ -43,7 +43,7 @@ public class ArticleResource {
         PaginationCursor cursor = PaginationCursor.from(paginationId, paginationDate);
         String search = normalizeSearch(q);
 
-        List<Article> result;
+        List<ArticleSummary> result;
         if (folderId != null) {
             result = articleService.findByFolder(folderId, cursor, search);
         } else if (feedId != null) {

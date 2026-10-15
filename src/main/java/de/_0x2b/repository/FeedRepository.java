@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.TimeZone;
 
 @ApplicationScoped
-public class FeedRepository extends AbstractRepository<Feed> {
+public class FeedRepository extends AbstractRepository {
     private static final Logger logger = LoggerFactory.getLogger(FeedRepository.class);
     private static final String SELECT_COLS = """
             SELECT id, folder_id, name, url, feed_url, last_refreshed_at, last_error
@@ -94,6 +94,10 @@ public class FeedRepository extends AbstractRepository<Feed> {
 
     public List<Feed> findOne(int id) {
         return findInternal("id = ?", List.of(id));
+    }
+
+    public boolean exists(int id) {
+        return super.exists("SELECT 1 FROM feed WHERE id = ?", List.of(id));
     }
 
     /**

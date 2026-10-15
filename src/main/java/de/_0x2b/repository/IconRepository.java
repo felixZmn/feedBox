@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @ApplicationScoped
-public class IconRepository extends AbstractRepository<Icon> {
+public class IconRepository extends AbstractRepository {
     private static final Logger logger = LoggerFactory.getLogger(IconRepository.class);
     private static final String SELECT_COLS = """
             SELECT id, feed_id, image, mime_type, file_name

@@ -43,11 +43,11 @@ public class FolderService {
      */
     public void markRead(int folderId) {
         logger.debug("markRead folder {}", folderId);
-        if (folderRepository.findById(folderId) == null) {
-            throw new NotFoundException("Folder not found: " + folderId);
-        }
         try {
-            articleRepository.markReadByFolder(folderId);
+            int updated = articleRepository.markReadByFolder(folderId);
+            if (updated == 0 && !folderRepository.exists(folderId)) {
+                throw new NotFoundException("Folder not found: " + folderId);
+            }
         } catch (SQLException e) {
             throw new DataAccessException("Failed to mark folder read: " + folderId, e);
         }

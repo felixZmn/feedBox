@@ -4,7 +4,12 @@ import { FOLDER_STATE_KEY } from "./data.js";
 import { unreadBadgeHtml, totalUnreadCount } from "./unread.js";
 import { escapeHtml, getRelativeTime, parseDate, sanitizeHTML, isSafeHttpUrl } from "./util.js";
 
-export { unreadBadgeHtml, totalUnreadCount } from "./unread.js";
+export {
+  unreadBadgeHtml,
+  totalUnreadCount,
+  setFeedUnreadBadge,
+  setFolderUnreadBadge,
+} from "./unread.js";
 
 const articlesContainer = document.querySelector(
   "#articles-list #articles-container",

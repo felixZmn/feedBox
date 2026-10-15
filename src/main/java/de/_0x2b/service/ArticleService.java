@@ -4,6 +4,7 @@ import de._0x2b.exception.DataAccessException;
 import de._0x2b.exception.NotFoundException;
 import de._0x2b.model.Article;
 import de._0x2b.repository.ArticleRepository;
+import de._0x2b.resource.dto.ArticleSummary;
 import de._0x2b.resource.dto.PaginationCursor;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -23,7 +24,7 @@ public class ArticleService {
 
     /**
      * @param id article primary key
-     * @return the article, or null when missing
+     * @return the full article, or null when missing
      */
     public Article findById(long id) {
         logger.debug("findById {}", id);
@@ -38,11 +39,11 @@ public class ArticleService {
      */
     public void markRead(long id) {
         logger.debug("markRead {}", id);
-        if (articleRepository.findById(id) == null) {
-            throw new NotFoundException("Article not found: " + id);
-        }
         try {
-            articleRepository.markRead(id);
+            int updated = articleRepository.markRead(id);
+            if (updated == 0 && !articleRepository.exists(id)) {
+                throw new NotFoundException("Article not found: " + id);
+            }
         } catch (SQLException e) {
             throw new DataAccessException("Failed to mark article read: " + id, e);
         }
@@ -61,9 +62,9 @@ public class ArticleService {
     }
 
     /**
-     * Get all articles with pagination and optional search.
+     * Get all articles with pagination and optional search (list projection).
      */
-    public List<Article> getAll(PaginationCursor cursor, String q) {
+    public List<ArticleSummary> getAll(PaginationCursor cursor, String q) {
         logger.debug("getAll");
         if (cursor == null || cursor.isEmpty()) {
             return articleRepository.findAll(q);
@@ -72,9 +73,9 @@ public class ArticleService {
     }
 
     /**
-     * Get articles by folder with pagination and optional search.
+     * Get articles by folder with pagination and optional search (list projection).
      */
-    public List<Article> findByFolder(int folderId, PaginationCursor cursor, String q) {
+    public List<ArticleSummary> findByFolder(int folderId, PaginationCursor cursor, String q) {
         logger.debug("findByFolder");
         if (cursor == null || cursor.isEmpty()) {
             return articleRepository.findByFolder(folderId, q);
@@ -83,9 +84,9 @@ public class ArticleService {
     }
 
     /**
-     * Get articles by feed with pagination and optional search.
+     * Get articles by feed with pagination and optional search (list projection).
      */
-    public List<Article> findByFeed(int feedId, PaginationCursor cursor, String q) {
+    public List<ArticleSummary> findByFeed(int feedId, PaginationCursor cursor, String q) {
         logger.debug("findByFeed");
         if (cursor == null || cursor.isEmpty()) {
             return articleRepository.findByFeed(feedId, q);
