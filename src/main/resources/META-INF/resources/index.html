@@ -46,12 +46,29 @@
       </li>
 
       <li
+        class="context-menu-item context-all"
+        id="trigger-all-mark-read"
+        role="menuitem"
+        tabindex="0"
+      >
+        Mark as read
+      </li>
+
+      <li
         class="context-menu-item context-feed"
         id="trigger-open-website"
         role="menuitem"
         tabindex="0"
       >
         Open Website
+      </li>
+      <li
+        class="context-menu-item context-feed"
+        id="trigger-feed-mark-read"
+        role="menuitem"
+        tabindex="0"
+      >
+        Mark as read
       </li>
       <li
         class="context-menu-item context-feed"
@@ -70,6 +87,14 @@
         Delete Feed
       </li>
 
+      <li
+        class="context-menu-item context-folder"
+        id="trigger-folder-mark-read"
+        role="menuitem"
+        tabindex="0"
+      >
+        Mark as read
+      </li>
       <li
         class="context-menu-item context-folder"
         id="trigger-folder-edit"
@@ -143,6 +168,13 @@
               <img src="icons/package.svg" class="icon f-base" alt="" /><span
                 class="tree-name"
                 >All Feeds</span
+              ><span class="tree-unread" id="all-feeds-unread" hidden></span
+              ><span
+                class="tree-options"
+                role="button"
+                tabindex="0"
+                aria-label="All feeds options"
+                >⋮</span
               >
             </div>
           </div>

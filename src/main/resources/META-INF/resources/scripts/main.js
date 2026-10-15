@@ -30,8 +30,11 @@ import {
   showFeedsSpinner,
   hideFeedsSpinner,
   setSelectedArticleHighlight,
+  setArticleReadState,
   updateNavSelection,
   setFolderOpenState,
+  updateAllFeedsUnreadBadge,
+  totalUnreadCount,
 } from "./dom.js";
 import { NavigationService, columns } from "./nav.js";
 import { buildPath, parseRoute } from "./router.js";
@@ -92,10 +95,13 @@ const dom = {
     addFeed: document.getElementById("trigger-feed-add"),
     editFeed: document.getElementById("trigger-feed-edit"),
     deleteFeed: document.getElementById("trigger-feed-delete"),
+    markFeedRead: document.getElementById("trigger-feed-mark-read"),
+    markAllRead: document.getElementById("trigger-all-mark-read"),
     openWebsite: document.getElementById("trigger-open-website"),
     addFolder: document.getElementById("trigger-folder-add"),
     editFolder: document.getElementById("trigger-folder-edit"),
     deleteFolder: document.getElementById("trigger-folder-delete"),
+    markFolderRead: document.getElementById("trigger-folder-mark-read"),
     logout: document.getElementById("trigger-logout"),
   },
 };
@@ -145,6 +151,9 @@ function restoreFolderCache() {
   const container = document.getElementById("folder-container");
   if (container?.dataset.cachePainted === "1") {
     syncFolderOpenStatesFromStorage();
+    updateAllFeedsUnreadBadge(
+      totalUnreadCount(cached.folders, cached.unfiledFeeds),
+    );
     hideFeedsSpinner();
   } else {
     renderFoldersList(cached.folders, cached.unfiledFeeds);
@@ -229,9 +238,10 @@ function initEventListeners() {
       navigationService.navigateTo(columns.FEEDS);
     });
   }
-  dom.button.showAllFeeds.addEventListener("click", () =>
-    selectAndLoadArticles(itemType.ALL, null),
-  );
+  dom.button.showAllFeeds.addEventListener("click", (e) => {
+    if (e.target.closest(".tree-options")) return;
+    selectAndLoadArticles(itemType.ALL, null);
+  });
   dom.button.add.addEventListener("click", (e) => {
     e.stopPropagation();
     openAddContextMenu(e.clientX, e.clientY);
@@ -286,6 +296,22 @@ function initEventListeners() {
     const websiteUrl = state.lastClickedItem.obj.url;
     if (websiteUrl && isSafeHttpUrl(websiteUrl)) {
       window.open(websiteUrl, "_blank", "noopener,noreferrer");
+    }
+  });
+  dom.button.markAllRead?.addEventListener("click", async () => {
+    await markAllAsRead();
+  });
+  dom.button.markFeedRead?.addEventListener("click", async () => {
+    if (state.lastClickedItem.type === itemType.FEED && state.lastClickedItem.obj) {
+      await markFeedAsRead(state.lastClickedItem.obj);
+    }
+  });
+  dom.button.markFolderRead?.addEventListener("click", async () => {
+    if (
+      state.lastClickedItem.type === itemType.FOLDER &&
+      state.lastClickedItem.obj
+    ) {
+      await markFolderAsRead(state.lastClickedItem.obj);
     }
   });
   dom.button.deleteFeed.addEventListener("click", async () => {
@@ -344,6 +370,10 @@ function registerDelegatedEvents() {
     if (options) {
       e.preventDefault();
       e.stopPropagation();
+      if (options.closest("#trigger-show-all-feeds")) {
+        allFeedsContextMenu(e.clientX, e.clientY);
+        return;
+      }
       const feedLi = options.closest("li[data-feed-id]");
       if (feedLi) {
         const feed = findFeedById(Number(feedLi.dataset.feedId));
@@ -382,6 +412,10 @@ function registerDelegatedEvents() {
     if (!options || !feedsList.contains(options)) return;
     e.preventDefault();
     const rect = options.getBoundingClientRect();
+    if (options.closest("#trigger-show-all-feeds")) {
+      allFeedsContextMenu(rect.left, rect.bottom);
+      return;
+    }
     const feedLi = options.closest("li[data-feed-id]");
     if (feedLi) {
       const feed = findFeedById(Number(feedLi.dataset.feedId));
@@ -542,6 +576,178 @@ function loadArticle(article) {
   setSelectedArticleHighlight(result.id);
   renderReaderView(result);
   document.querySelector("#reader .column").scrollTop = 0;
+  void markArticleAsRead(result);
+}
+
+/**
+ * Re-render the sidebar from current state and refresh the folder-tree cache.
+ */
+function rerenderFolderTree() {
+  const html = renderFoldersList(state.folders, state.unfiledFeeds);
+  saveFolderTreeCache(state.folders, state.unfiledFeeds, html);
+  updateNavSelection(state.lastClickedItem.type, state.lastClickedItem.obj);
+}
+
+/**
+ * @param {number} feedId
+ * @returns {Feed|null}
+ */
+function findFeedMutable(feedId) {
+  for (const folder of state.folders) {
+    const feed = (folder.feeds ?? []).find((f) => f.id === feedId);
+    if (feed) return feed;
+  }
+  return state.unfiledFeeds.find((f) => f.id === feedId) ?? null;
+}
+
+/**
+ * Decrement a feed's unread badge after marking one article read.
+ * @param {number} feedId
+ */
+function decrementFeedUnreadCount(feedId) {
+  const feed = findFeedMutable(feedId);
+  if (!feed || !feed.unreadCount) return;
+  feed.unreadCount = Math.max(0, (Number(feed.unreadCount) || 0) - 1);
+  rerenderFolderTree();
+}
+
+/**
+ * Mark a single article read on the server and update local UI.
+ * @param {Article} article
+ */
+async function markArticleAsRead(article) {
+  if (!article || article.read) return;
+
+  const previousCount = findFeedMutable(article.feedId)?.unreadCount ?? 0;
+  article.read = true;
+  setArticleReadState(article.id, true);
+  decrementFeedUnreadCount(article.feedId);
+
+  try {
+    await dataService.markArticleRead(article.id);
+  } catch (error) {
+    console.error("[app] Failed to mark article read:", error);
+    article.read = false;
+    setArticleReadState(article.id, false);
+    const feed = findFeedMutable(article.feedId);
+    if (feed) {
+      feed.unreadCount = previousCount;
+      rerenderFolderTree();
+    }
+  }
+}
+
+async function markAllAsRead() {
+  const previousCounts = [];
+  for (const folder of state.folders) {
+    for (const feed of folder.feeds ?? []) {
+      previousCounts.push({ feed, unreadCount: Number(feed.unreadCount) || 0 });
+      feed.unreadCount = 0;
+    }
+  }
+  for (const feed of state.unfiledFeeds) {
+    previousCounts.push({ feed, unreadCount: Number(feed.unreadCount) || 0 });
+    feed.unreadCount = 0;
+  }
+  const previousArticleReads = state.articles.map((a) => ({
+    article: a,
+    read: !!a.read,
+  }));
+
+  for (const article of state.articles) {
+    article.read = true;
+    setArticleReadState(article.id, true);
+  }
+  rerenderFolderTree();
+
+  try {
+    await dataService.markAllArticlesRead();
+  } catch (error) {
+    console.error("[app] Failed to mark all articles read:", error);
+    for (const { feed, unreadCount } of previousCounts) {
+      feed.unreadCount = unreadCount;
+    }
+    for (const { article, read } of previousArticleReads) {
+      article.read = read;
+      setArticleReadState(article.id, read);
+    }
+    rerenderFolderTree();
+  }
+}
+
+/**
+ * @param {Feed} feed
+ */
+async function markFeedAsRead(feed) {
+  if (!feed) return;
+  const target = findFeedMutable(feed.id) ?? feed;
+  const previousCount = Number(target.unreadCount) || 0;
+  const previousArticleReads = state.articles
+    .filter((a) => a.feedId === feed.id)
+    .map((a) => ({ article: a, read: !!a.read }));
+
+  target.unreadCount = 0;
+  for (const article of state.articles) {
+    if (article.feedId === feed.id) {
+      article.read = true;
+      setArticleReadState(article.id, true);
+    }
+  }
+  rerenderFolderTree();
+
+  try {
+    await dataService.markFeedRead(feed.id);
+  } catch (error) {
+    console.error("[app] Failed to mark feed read:", error);
+    target.unreadCount = previousCount;
+    for (const { article, read } of previousArticleReads) {
+      article.read = read;
+      setArticleReadState(article.id, read);
+    }
+    rerenderFolderTree();
+  }
+}
+
+/**
+ * @param {Folder} folder
+ */
+async function markFolderAsRead(folder) {
+  if (!folder) return;
+  const live = state.folders.find((f) => f.id === folder.id) ?? folder;
+  const feeds = live.feeds ?? [];
+  const previousCounts = feeds.map((f) => ({
+    feed: f,
+    unreadCount: Number(f.unreadCount) || 0,
+  }));
+  const feedIds = new Set(feeds.map((f) => f.id));
+  const previousArticleReads = state.articles
+    .filter((a) => feedIds.has(a.feedId))
+    .map((a) => ({ article: a, read: !!a.read }));
+
+  for (const feed of feeds) {
+    feed.unreadCount = 0;
+  }
+  for (const article of state.articles) {
+    if (feedIds.has(article.feedId)) {
+      article.read = true;
+      setArticleReadState(article.id, true);
+    }
+  }
+  rerenderFolderTree();
+
+  try {
+    await dataService.markFolderRead(folder.id);
+  } catch (error) {
+    console.error("[app] Failed to mark folder read:", error);
+    for (const { feed, unreadCount } of previousCounts) {
+      feed.unreadCount = unreadCount;
+    }
+    for (const { article, read } of previousArticleReads) {
+      article.read = read;
+      setArticleReadState(article.id, read);
+    }
+    rerenderFolderTree();
+  }
 }
 
 function setupScrollObserver() {
@@ -613,6 +819,12 @@ function folderContextMenu(x, y, folder) {
   state.lastClickedItem.type = itemType.FOLDER;
   state.lastClickedItem.obj = folder;
   showContextMenuGroup("context-folder", x, y);
+}
+
+function allFeedsContextMenu(x, y) {
+  state.lastClickedItem.type = itemType.ALL;
+  state.lastClickedItem.obj = null;
+  showContextMenuGroup("context-all", x, y);
 }
 
 function openContextMenu(x, y) {
@@ -809,10 +1021,15 @@ async function openArticleById(articleId) {
     return false;
   }
 
+  // Prefer the in-list object so mark-read updates shared state.
+  const listed = state.articles.find((a) => a.id === article.id);
+  if (listed) article = listed;
+
   state.selectedArticle = article;
   setSelectedArticleHighlight(article.id);
   renderReaderView(article);
   document.querySelector("#reader .column").scrollTop = 0;
+  void markArticleAsRead(article);
   return true;
 }
 
@@ -1146,6 +1363,7 @@ async function refreshFeeds() {
   dom.refreshSpinner.classList.add("spinner");
   try {
     await dataService.refreshFeeds();
+    await refreshFolders({ background: false });
     await selectAndLoadArticles(itemType.ALL, null, {
       syncUrl: "replace",
       column: columns.ARTICLES,

@@ -202,6 +202,16 @@ button {
   border-radius: var(--radius-sm);
 }
 
+.tree-unread {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--font-color-muted);
+  padding: 0 0.15rem;
+  line-height: 1;
+}
+
 .feed-error {
   flex: 0 0 auto;
   font-weight: bold;
@@ -338,6 +348,12 @@ details[open] summary img {
   padding: var(--default-space) 0.75rem;
   margin-inline: var(--articles-inline);
   border-radius: var(--radius-sm);
+}
+
+/* Read articles stay the same weight; slightly muted so unread matches the
+   previous default look (everything starts unread). */
+.articles-list .article:not(.unread) .article-title {
+  color: var(--font-color-muted);
 }
 
 .articles-list .article:hover {
