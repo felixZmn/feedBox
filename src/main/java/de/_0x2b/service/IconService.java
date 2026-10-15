@@ -24,12 +24,28 @@ import java.util.List;
 @ApplicationScoped
 public class IconService {
     private static final Logger logger = LoggerFactory.getLogger(IconService.class);
+    private static final byte[] DEFAULT_ICON_BYTES = loadDefaultIconBytes();
+    private static final String DEFAULT_ICON_MIME = "image/svg+xml";
+    private static final String DEFAULT_ICON_NAME = "icon.svg";
 
     @Inject
     IconRepository iconRepository;
 
     @Inject
     OutboundHttpClient outboundHttpClient;
+
+    private static byte[] loadDefaultIconBytes() {
+        try (InputStream is = IconService.class.getResourceAsStream("/META-INF/resources/icons/rss.svg")) {
+            if (is == null) {
+                logger.error("Default feed icon resource missing");
+                return new byte[0];
+            }
+            return is.readAllBytes();
+        } catch (IOException e) {
+            logger.error("Error reading default feed icon, Error: {}", e.getMessage());
+            return new byte[0];
+        }
+    }
 
     /**
      * Extracts the charset from the Content-Type header.
@@ -211,12 +227,7 @@ public class IconService {
     }
 
     public List<Icon> getDefaultIcon() {
-        ArrayList<Icon> icons = new ArrayList<>();
-        try (InputStream is = getClass().getResourceAsStream("/META-INF/resources/icons/rss.svg")) {
-            icons.add(new Icon(-1, -1, is.readAllBytes(), "image/svg+xml", "icon.svg", ""));
-        } catch (IOException e) {
-            logger.error("Error reading default feed icon, Error: {}", e.getMessage());
-        }
-        return icons;
+        // Clone so callers cannot mutate the cached classpath bytes.
+        return List.of(new Icon(-1, -1, DEFAULT_ICON_BYTES.clone(), DEFAULT_ICON_MIME, DEFAULT_ICON_NAME, ""));
     }
 }

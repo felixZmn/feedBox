@@ -133,11 +133,11 @@ public class FeedService {
      */
     public void markRead(int feedId) {
         logger.debug("markRead feed {}", feedId);
-        if (feedRepository.findOne(feedId).isEmpty()) {
-            throw new NotFoundException("Feed not found: " + feedId);
-        }
         try {
-            articleRepository.markReadByFeed(feedId);
+            int updated = articleRepository.markReadByFeed(feedId);
+            if (updated == 0 && !feedRepository.exists(feedId)) {
+                throw new NotFoundException("Feed not found: " + feedId);
+            }
         } catch (SQLException e) {
             throw new DataAccessException("Failed to mark feed read: " + feedId, e);
         }

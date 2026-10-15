@@ -12,7 +12,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-public abstract class AbstractRepository<T> {
+public abstract class AbstractRepository {
     private static final Logger logger = LoggerFactory.getLogger(AbstractRepository.class);
 
     @Inject
@@ -22,7 +22,7 @@ public abstract class AbstractRepository<T> {
     }
 
     // Generic select method
-    protected List<T> query(String sql, RowMapper<T> mapper, List<Object> params) {
+    protected <R> List<R> query(String sql, RowMapper<R> mapper, List<Object> params) {
         logger.debug("Executing Query: {}", sql);
 
         try (Connection conn = dataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -30,7 +30,7 @@ public abstract class AbstractRepository<T> {
             setParameters(stmt, params);
 
             try (ResultSet rs = stmt.executeQuery()) {
-                List<T> results = new ArrayList<>();
+                List<R> results = new ArrayList<>();
                 while (rs.next()) {
                     results.add(mapper.map(rs));
                 }
@@ -41,6 +41,20 @@ public abstract class AbstractRepository<T> {
             // into "no data" - the previous behaviour was impossible to debug
             // and indistinguishable from an empty table.
             throw new DataAccessException("Query failed: " + sql, e);
+        }
+    }
+
+    /** @return true when at least one row matches */
+    protected boolean exists(String sql, List<Object> params) {
+        logger.debug("Executing exists: {}", sql);
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
+            setParameters(stmt, params);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            throw new DataAccessException("Exists query failed: " + sql, e);
         }
     }
 

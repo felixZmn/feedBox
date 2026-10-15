@@ -12,7 +12,7 @@ import java.sql.SQLException;
 import java.util.List;
 
 @ApplicationScoped
-public class FolderRepository extends AbstractRepository<Folder> {
+public class FolderRepository extends AbstractRepository {
 
     private static final Logger logger = LoggerFactory.getLogger(FolderRepository.class);
     private static final String SELECT_ALL = """
@@ -52,6 +52,10 @@ public class FolderRepository extends AbstractRepository<Folder> {
         logger.debug("findById {}", id);
         List<Folder> results = super.query(SELECT_BY_ID, folderMapper, List.of(id));
         return results.isEmpty() ? null : results.getFirst();
+    }
+
+    public boolean exists(int id) {
+        return super.exists("SELECT 1 FROM folder WHERE id = ?", List.of(id));
     }
 
     public List<Folder> findByName(String name) {

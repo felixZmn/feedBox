@@ -7,10 +7,6 @@ export const FOLDER_STATE_KEY = "folder-state";
 export const FOLDER_TREE_CACHE_VERSION = 3;
 
 class DataService {
-  constructor() {
-    this.articleCache = [];
-  }
-
   async getFolders() {
     return this._request("./api/folder");
   }
@@ -50,19 +46,13 @@ class DataService {
     return this._request("./api/feed/refresh", { method: "POST" });
   }
 
-  getArticles() {
-    return [...this.articleCache];
-  }
-  clearArticles() {
-    this.articleCache = [];
-  }
-
   async loadArticles(params, { signal } = {}) {
     const queryString = new URLSearchParams(params).toString();
     return this._request(`./api/article?${queryString}`, { signal });
   }
 
   /**
+   * Full article for the reader (list endpoints omit content/description).
    * @param {number|string} articleId
    * @param {{ signal?: AbortSignal }} [options]
    */
@@ -84,17 +74,6 @@ class DataService {
 
   async markFolderRead(folderId) {
     return this._request(`./api/folder/${folderId}/read`, { method: "POST" });
-  }
-
-  /**
-   * Append a page of articles to the local cache. Call only after the
-   * caller has confirmed the response is still the latest request.
-   * @param {Article[]} articles
-   */
-  appendArticles(articles) {
-    if (Array.isArray(articles)) {
-      this.articleCache.push(...articles);
-    }
   }
 
   /**

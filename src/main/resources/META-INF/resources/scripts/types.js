@@ -6,14 +6,14 @@
  * @property {number} feedId - The unique identifier of the feed the article belongs to.
  * @property {string} feedName - The name of the feed the article belongs to.
  * @property {string} title - The title of the article.
- * @property {string} description - A short HTML description of the article.
- * @property {string} content - The full HTML content of the article.
+ * @property {string} [description] - Short HTML description (detail endpoint only).
+ * @property {string} [content] - Full HTML body (detail endpoint only; omitted from list).
  * @property {string|null} link - The URL link to the original article (null when missing).
- * @property {string} guid - Per-feed stable identity (RSS guid, else link, else hash).
+ * @property {string} [guid] - Per-feed stable identity (detail endpoint).
  * @property {string|null} published - Publication instant (ISO-8601); null when the feed omitted it.
  * @property {string} authors - The author(s) of the article.
  * @property {string} imageUrl - The URL of the article's image (empty string if none).
- * @property {string} categories - JSON array of category strings, e.g. `["news","tech"]`.
+ * @property {string} [categories] - JSON array of category strings (detail endpoint).
  * @property {boolean} [read] - Whether the article has been marked read.
  */
 

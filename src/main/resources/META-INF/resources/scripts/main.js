@@ -35,6 +35,9 @@ import {
   setFolderOpenState,
   updateAllFeedsUnreadBadge,
   totalUnreadCount,
+  setFeedUnreadBadge,
+  setFolderUnreadBadge,
+  buildFoldersHtml,
   loadFeedIcons,
   prepareCachedIconsForHydration,
 } from "./dom.js";
@@ -575,27 +578,126 @@ async function refreshFolders({ background = true } = {}) {
   }
 }
 
-function loadArticle(article) {
-  const result = state.articles.find((a) => a.id === article.id);
-  if (!result) {
+/** @type {Map<number, object>} full articles fetched for the reader */
+const articleDetailCache = new Map();
+const ARTICLE_DETAIL_CACHE_MAX = 24;
+/** @type {ReturnType<typeof setTimeout>|null} */
+let folderTreeCacheSaveTimer = null;
+
+/**
+ * @param {object} article
+ */
+function cacheArticleDetail(article) {
+  if (!article?.id) return;
+  articleDetailCache.set(article.id, article);
+  while (articleDetailCache.size > ARTICLE_DETAIL_CACHE_MAX) {
+    const oldest = articleDetailCache.keys().next().value;
+    articleDetailCache.delete(oldest);
+  }
+}
+
+/**
+ * List rows omit content; resolve a full article for the reader.
+ * @param {object} summary
+ * @returns {Promise<object>}
+ */
+async function resolveFullArticle(summary) {
+  if (summary?.content || summary?.description) {
+    cacheArticleDetail(summary);
+    return summary;
+  }
+  const cached = articleDetailCache.get(summary.id);
+  if (cached) return cached;
+  const full = await dataService.getArticle(summary.id);
+  if (summary.read) full.read = true;
+  cacheArticleDetail(full);
+  return full;
+}
+
+/**
+ * Prefetch neighboring list rows for snappy prev/next navigation.
+ * @param {number} articleId
+ */
+function prefetchAdjacentArticles(articleId) {
+  const idx = state.articles.findIndex((a) => a.id === articleId);
+  if (idx < 0) return;
+  for (const offset of [-1, 1]) {
+    const neighbor = state.articles[idx + offset];
+    if (!neighbor || articleDetailCache.has(neighbor.id)) continue;
+    void dataService
+      .getArticle(neighbor.id)
+      .then((full) => cacheArticleDetail(full))
+      .catch(() => {});
+  }
+}
+
+/**
+ * @param {object} article list summary or full article
+ */
+async function loadArticle(article) {
+  const listed = state.articles.find((a) => a.id === article.id);
+  if (!listed && !article?.id) {
     console.error("Article not found:", article);
     return;
   }
-  state.selectedArticle = result;
-  setSelectedArticleHighlight(result.id);
-  renderReaderView(result);
-  document.querySelector("#reader .column").scrollTop = 0;
-  void markArticleAsRead(result);
+  const summary = listed ?? article;
+  try {
+    const full = await resolveFullArticle(summary);
+    state.selectedArticle = full;
+    setSelectedArticleHighlight(full.id);
+    renderReaderView(full);
+    document.querySelector("#reader .column").scrollTop = 0;
+    void markArticleAsRead(summary);
+    prefetchAdjacentArticles(full.id);
+  } catch (error) {
+    console.error("[app] Failed to open article:", error);
+  }
 }
 
 /**
  * Re-render the sidebar from current state and refresh the folder-tree cache.
+ * Prefer {@link syncUnreadBadgesFromState} for badge-only updates.
  */
 function rerenderFolderTree() {
   const html = renderFoldersList(state.folders, state.unfiledFeeds);
   saveFolderTreeCache(state.folders, state.unfiledFeeds, html);
   updateNavSelection(state.lastClickedItem.type, state.lastClickedItem.obj);
   hydrateFeedIcons();
+}
+
+/**
+ * Debounced localStorage write of the folder tree (HTML + data) without
+ * rebuilding the live DOM.
+ */
+function scheduleFolderTreeCacheSave() {
+  if (folderTreeCacheSaveTimer != null) {
+    clearTimeout(folderTreeCacheSaveTimer);
+  }
+  folderTreeCacheSaveTimer = setTimeout(() => {
+    folderTreeCacheSaveTimer = null;
+    const html = buildFoldersHtml(state.folders, state.unfiledFeeds);
+    saveFolderTreeCache(state.folders, state.unfiledFeeds, html);
+  }, 400);
+}
+
+/**
+ * Update every visible unread badge from state without re-rendering the tree.
+ */
+function syncUnreadBadgesFromState() {
+  for (const folder of state.folders) {
+    let folderUnread = 0;
+    for (const feed of folder.feeds ?? []) {
+      const n = Number(feed.unreadCount) || 0;
+      folderUnread += n;
+      setFeedUnreadBadge(feed.id, n);
+    }
+    setFolderUnreadBadge(folder.id, folderUnread);
+  }
+  for (const feed of state.unfiledFeeds) {
+    setFeedUnreadBadge(feed.id, Number(feed.unreadCount) || 0);
+  }
+  updateAllFeedsUnreadBadge(totalUnreadCount(state.folders, state.unfiledFeeds));
+  scheduleFolderTreeCacheSave();
 }
 
 /**
@@ -618,7 +720,19 @@ function decrementFeedUnreadCount(feedId) {
   const feed = findFeedMutable(feedId);
   if (!feed || !feed.unreadCount) return;
   feed.unreadCount = Math.max(0, (Number(feed.unreadCount) || 0) - 1);
-  rerenderFolderTree();
+  setFeedUnreadBadge(feedId, feed.unreadCount);
+  const folder = state.folders.find((f) =>
+    (f.feeds ?? []).some((x) => x.id === feedId),
+  );
+  if (folder) {
+    const folderUnread = (folder.feeds ?? []).reduce(
+      (sum, f) => sum + (Number(f.unreadCount) || 0),
+      0,
+    );
+    setFolderUnreadBadge(folder.id, folderUnread);
+  }
+  updateAllFeedsUnreadBadge(totalUnreadCount(state.folders, state.unfiledFeeds));
+  scheduleFolderTreeCacheSave();
 }
 
 /**
@@ -630,6 +744,11 @@ async function markArticleAsRead(article) {
 
   const previousCount = findFeedMutable(article.feedId)?.unreadCount ?? 0;
   article.read = true;
+  if (state.selectedArticle?.id === article.id) {
+    state.selectedArticle.read = true;
+  }
+  const cached = articleDetailCache.get(article.id);
+  if (cached) cached.read = true;
   setArticleReadState(article.id, true);
   decrementFeedUnreadCount(article.feedId);
 
@@ -638,11 +757,15 @@ async function markArticleAsRead(article) {
   } catch (error) {
     console.error("[app] Failed to mark article read:", error);
     article.read = false;
+    if (state.selectedArticle?.id === article.id) {
+      state.selectedArticle.read = false;
+    }
+    if (cached) cached.read = false;
     setArticleReadState(article.id, false);
     const feed = findFeedMutable(article.feedId);
     if (feed) {
       feed.unreadCount = previousCount;
-      rerenderFolderTree();
+      syncUnreadBadgesFromState();
     }
   }
 }
@@ -668,7 +791,8 @@ async function markAllAsRead() {
     article.read = true;
     setArticleReadState(article.id, true);
   }
-  rerenderFolderTree();
+  if (state.selectedArticle) state.selectedArticle.read = true;
+  syncUnreadBadgesFromState();
 
   try {
     await dataService.markAllArticlesRead();
@@ -681,7 +805,7 @@ async function markAllAsRead() {
       article.read = read;
       setArticleReadState(article.id, read);
     }
-    rerenderFolderTree();
+    syncUnreadBadgesFromState();
   }
 }
 
@@ -703,7 +827,10 @@ async function markFeedAsRead(feed) {
       setArticleReadState(article.id, true);
     }
   }
-  rerenderFolderTree();
+  if (state.selectedArticle?.feedId === feed.id) {
+    state.selectedArticle.read = true;
+  }
+  syncUnreadBadgesFromState();
 
   try {
     await dataService.markFeedRead(feed.id);
@@ -714,7 +841,7 @@ async function markFeedAsRead(feed) {
       article.read = read;
       setArticleReadState(article.id, read);
     }
-    rerenderFolderTree();
+    syncUnreadBadgesFromState();
   }
 }
 
@@ -743,7 +870,10 @@ async function markFolderAsRead(folder) {
       setArticleReadState(article.id, true);
     }
   }
-  rerenderFolderTree();
+  if (state.selectedArticle && feedIds.has(state.selectedArticle.feedId)) {
+    state.selectedArticle.read = true;
+  }
+  syncUnreadBadgesFromState();
 
   try {
     await dataService.markFolderRead(folder.id);
@@ -756,7 +886,7 @@ async function markFolderAsRead(folder) {
       article.read = read;
       setArticleReadState(article.id, read);
     }
-    rerenderFolderTree();
+    syncUnreadBadgesFromState();
   }
 }
 
@@ -803,7 +933,7 @@ function openAddContextMenu(x, y) {
   showContextMenuGroup("context-add", x, y);
 }
 
-function navigateArticle(direction) {
+async function navigateArticle(direction) {
   if (!state.selectedArticle) return;
 
   const idx = state.articles.findIndex(
@@ -813,8 +943,9 @@ function navigateArticle(direction) {
 
   const nextIdx = idx + direction;
   if (nextIdx >= 0 && nextIdx < state.articles.length) {
-    loadArticle(state.articles[nextIdx]);
-    replaceAppUrl(pathForSelection(state.selectedArticle.id), columns.READER);
+    const next = state.articles[nextIdx];
+    await loadArticle(next);
+    replaceAppUrl(pathForSelection(next.id), columns.READER);
     updateDocumentTitle();
   }
 }
@@ -892,7 +1023,7 @@ async function showArticleLoadError(error) {
 }
 
 function articleClickListener(article) {
-  loadArticle(article);
+  void loadArticle(article);
   pushAppUrl(pathForSelection(article.id), columns.READER);
   articleHistoryPushed = true;
   updateDocumentTitle();
@@ -1009,10 +1140,13 @@ function articleBelongsToContext(article, type, obj) {
  * @returns {Promise<boolean>}
  */
 async function openArticleById(articleId) {
-  let article = state.articles.find((a) => a.id === articleId) ?? null;
-  if (!article) {
+  let summary = state.articles.find((a) => a.id === articleId) ?? null;
+  let full = null;
+  if (!summary) {
     try {
-      article = await dataService.getArticle(articleId);
+      full = await dataService.getArticle(articleId);
+      cacheArticleDetail(full);
+      summary = full;
     } catch (error) {
       if (error.status === 404 || error.cause?.status === 404) {
         return false;
@@ -1023,7 +1157,7 @@ async function openArticleById(articleId) {
 
   if (
     !articleBelongsToContext(
-      article,
+      summary,
       state.lastClickedItem.type,
       state.lastClickedItem.obj,
     )
@@ -1031,15 +1165,8 @@ async function openArticleById(articleId) {
     return false;
   }
 
-  // Prefer the in-list object so mark-read updates shared state.
-  const listed = state.articles.find((a) => a.id === article.id);
-  if (listed) article = listed;
-
-  state.selectedArticle = article;
-  setSelectedArticleHighlight(article.id);
-  renderReaderView(article);
-  document.querySelector("#reader .column").scrollTop = 0;
-  void markArticleAsRead(article);
+  const listed = state.articles.find((a) => a.id === summary.id);
+  await loadArticle(listed ?? summary);
   return true;
 }
 
@@ -1177,7 +1304,7 @@ async function onPopState(event) {
 
 function clearArticles() {
   state.articles = [];
-  dataService.clearArticles();
+  articleDetailCache.clear();
   clearArticlesList();
   removeSkeletons();
   document.querySelector("#articles-list .column").scrollTop = 0;
@@ -1431,7 +1558,7 @@ async function loadArticles() {
 
     if (!newArticles || newArticles.length === 0) {
       state.status.hasMoreArticles = false;
-      if (dataService.getArticles().length === 0) {
+      if (state.articles.length === 0) {
         const emptyMessage = state.filter.isActive
           ? `No articles match "${state.filter.term}"`
           : undefined;
@@ -1440,8 +1567,7 @@ async function loadArticles() {
       return;
     }
 
-    dataService.appendArticles(newArticles);
-    state.articles = dataService.getArticles();
+    state.articles.push(...newArticles);
     state.status.hasMoreArticles = newArticles.length >= ARTICLES_PAGE_SIZE;
 
     const lastArticle = newArticles[newArticles.length - 1];
