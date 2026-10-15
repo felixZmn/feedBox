@@ -54,6 +54,18 @@ public class ArticleResource {
         return Response.ok(result).build();
     }
 
+    @GET
+    @Path("/{id}")
+    @Authenticated
+    public Response getArticle(@PathParam("id") long id) {
+        logger.debug("getArticle {}", id);
+        var article = articleService.findById(id);
+        if (article == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        return Response.ok(article).build();
+    }
+
     /** Null → empty; trim; cap length so a runaway client cannot send huge patterns. */
     static String normalizeSearch(String q) {
         if (q == null) {

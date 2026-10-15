@@ -23,6 +23,18 @@ class ArticleServiceTest {
     ArticleService service;
 
     @Test
+    void findById_forwardsToRepository() {
+        Article expected = mock(Article.class);
+        when(articleRepository.findById(42L)).thenReturn(expected);
+
+        Article result = service.findById(42L);
+
+        assertSame(expected, result);
+        verify(articleRepository).findById(42L);
+        verifyNoMoreInteractions(articleRepository);
+    }
+
+    @Test
     void getAll_noPagination_blankQ_callsRepoFindAll() {
         List<Article> expected = List.of(mock(Article.class));
         when(articleRepository.findAll("")).thenReturn(expected);

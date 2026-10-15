@@ -66,6 +66,12 @@ public class ArticleRepository extends AbstractRepository<Article> {
     public ArticleRepository() {
     }
 
+    public Article findById(long id) {
+        String sql = SELECT_COLS + FROM_JOIN + " WHERE a.id = ?";
+        List<Article> results = super.query(sql, articleMapper, List.of(id));
+        return results.isEmpty() ? null : results.getFirst();
+    }
+
     public List<Article> findAll(String q) {
         return findInternal(null, null, null, null, false, q);
     }

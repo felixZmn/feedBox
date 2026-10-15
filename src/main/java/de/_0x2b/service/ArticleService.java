@@ -18,6 +18,15 @@ public class ArticleService {
     ArticleRepository articleRepository;
 
     /**
+     * @param id article primary key
+     * @return the article, or null when missing
+     */
+    public Article findById(long id) {
+        logger.debug("findById {}", id);
+        return articleRepository.findById(id);
+    }
+
+    /**
      * Get all articles with pagination and optional search.
      *
      * @param paginationId

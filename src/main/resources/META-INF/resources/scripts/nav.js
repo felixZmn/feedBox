@@ -6,33 +6,20 @@ export const columns = Object.freeze({
   READER: "reader",
 });
 
+/**
+ * Owns mobile/medium pane visibility. History and URLs are handled by main.js.
+ */
 export class NavigationService {
-  #popstateHandler;
   #domReadyListener;
   #pageshowHandler;
 
   currentState = { column: columns.FEEDS };
 
   constructor() {
-    this.#popstateHandler = (event) => {
-      if (this.#isAuthCallback()) return;
-
-      let rawColumn = event.state?.column;
-      if (!Object.values(columns).includes(rawColumn)) {
-        rawColumn = columns.FEEDS;
-        history.replaceState({ column: rawColumn }, "", "");
-      }
-
-      this.currentState = { column: rawColumn };
-      this.#renderColumn(rawColumn);
-    };
-
-    // Mobile-friendly initialization
     if (document.readyState === "loading") {
       this.#domReadyListener = () => this.#init();
       document.addEventListener("DOMContentLoaded", this.#domReadyListener);
     } else {
-      // Defer slightly on desktop to match mobile behavior
       requestAnimationFrame(() => this.#init());
     }
   }
@@ -42,60 +29,36 @@ export class NavigationService {
     this.articlesEl = document.getElementById("articles-list");
     this.readerEl = document.getElementById("reader");
 
-    // Guard against missing elements
     if (!this.feedsEl || !this.articlesEl || !this.readerEl) {
       console.warn("NavigationService: Column elements not found in DOM");
       return;
     }
 
-    if (this.#isAuthCallback()) {
-      console.info("Auth callback detected. Initializing with fallback state.");
-    }
+    this.#renderColumn(this.currentState.column);
 
-    // Restore state if valid, otherwise default to FEEDS
-    const savedColumn = history.state?.column;
-    this.currentState = {
-      column:
-        savedColumn && Object.values(columns).includes(savedColumn)
-          ? savedColumn
-          : columns.FEEDS,
-    };
-
-    requestAnimationFrame(() => {
-      // Never strip OAuth callback params before token exchange.
-      if (!this.#isAuthCallback()) {
-        history.replaceState(this.currentState, "", "");
-      }
-      this.#renderColumn(this.currentState.column);
-    });
-
-    window.addEventListener("popstate", this.#popstateHandler);
-
-    this.#pageshowHandler = (event) => {
+    this.#pageshowHandler = () => {
       this.#renderColumn(this.currentState.column);
     };
     window.addEventListener("pageshow", this.#pageshowHandler);
   }
 
+  /**
+   * Show a column without touching history.
+   * @param {string} column
+   */
   navigateTo(column) {
     if (!Object.values(columns).includes(column)) {
       console.warn(`Invalid column: ${column}`);
       return;
     }
 
-    if (this.#isAuthCallback()) return;
-    if (this.currentState.column === column) return;
+    if (this.currentState.column === column) {
+      this.#renderColumn(column);
+      return;
+    }
 
     this.currentState = { column };
-    history.pushState(this.currentState, "", "");
     this.#renderColumn(column);
-  }
-
-  #isAuthCallback() {
-    const params = new URLSearchParams(window.location.search);
-    return (
-      params.has("code") || params.has("state") || params.has("session_state")
-    );
   }
 
   #renderColumn(column) {
@@ -130,7 +93,6 @@ export class NavigationService {
       document.removeEventListener("DOMContentLoaded", this.#domReadyListener);
       this.#domReadyListener = null;
     }
-    window.removeEventListener("popstate", this.#popstateHandler);
     window.removeEventListener("pageshow", this.#pageshowHandler);
   }
 }
