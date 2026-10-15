@@ -32,9 +32,12 @@ function showDialogError(bodyEl, message) {
 }
 
 export async function showConfirmDialog(headline, message) {
+  // Callers pass plain text (or already-escaped); wrap safely via textContent.
+  const p = document.createElement("p");
+  p.textContent = message;
   return modal.show({
     title: headline,
-    content: `<p>${message}</p>`,
+    content: p.outerHTML,
     type: "confirm",
   });
 }

@@ -34,7 +34,6 @@ public class ArticleResource {
             @QueryParam("pagination_date") String paginationDate,
             @QueryParam("q") String q) {
 
-        logger.debug("getAllArticles");
 
         if (folderId != null && feedId != null) {
             throw new BadRequestException("Specify at most one of folder or feed");
@@ -69,7 +68,6 @@ public class ArticleResource {
     @POST
     @Path("/read")
     public Response markAllRead() {
-        logger.debug("markAllRead");
         articleService.markAllRead();
         return Response.noContent().build();
     }

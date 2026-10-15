@@ -9,10 +9,13 @@ import de._0x2b.resource.dto.PaginationCursor;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @ApplicationScoped
@@ -21,6 +24,9 @@ public class ArticleService {
 
     @Inject
     ArticleRepository articleRepository;
+
+    @ConfigProperty(name = "articles.retention.days", defaultValue = "90")
+    int retentionDays;
 
     /**
      * @param id article primary key
@@ -53,7 +59,6 @@ public class ArticleService {
      * Mark every article as read.
      */
     public void markAllRead() {
-        logger.debug("markAllRead");
         try {
             articleRepository.markAllRead();
         } catch (SQLException e) {
@@ -65,7 +70,6 @@ public class ArticleService {
      * Get all articles with pagination and optional search (list projection).
      */
     public List<ArticleSummary> getAll(PaginationCursor cursor, String q) {
-        logger.debug("getAll");
         if (cursor == null || cursor.isEmpty()) {
             return articleRepository.findAll(q);
         }
@@ -76,7 +80,6 @@ public class ArticleService {
      * Get articles by folder with pagination and optional search (list projection).
      */
     public List<ArticleSummary> findByFolder(int folderId, PaginationCursor cursor, String q) {
-        logger.debug("findByFolder");
         if (cursor == null || cursor.isEmpty()) {
             return articleRepository.findByFolder(folderId, q);
         }
@@ -87,10 +90,31 @@ public class ArticleService {
      * Get articles by feed with pagination and optional search (list projection).
      */
     public List<ArticleSummary> findByFeed(int feedId, PaginationCursor cursor, String q) {
-        logger.debug("findByFeed");
         if (cursor == null || cursor.isEmpty()) {
             return articleRepository.findByFeed(feedId, q);
         }
         return articleRepository.findByFeed(feedId, cursor.id(), cursor.published(), q);
+    }
+
+    /**
+     * Delete read articles older than {@code articles.retention.days}. Unread
+     * articles are never removed.
+     *
+     * @return number of articles deleted
+     */
+    public int purgeExpiredReadArticles() {
+        if (retentionDays <= 0) {
+            return 0;
+        }
+        Instant cutoff = Instant.now().minus(retentionDays, ChronoUnit.DAYS);
+        try {
+            int deleted = articleRepository.deleteReadOlderThan(cutoff);
+            if (deleted > 0) {
+                logger.info("Purged {} read articles older than {} days", deleted, retentionDays);
+            }
+            return deleted;
+        } catch (SQLException e) {
+            throw new DataAccessException("Failed to purge expired read articles", e);
+        }
     }
 }

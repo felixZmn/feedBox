@@ -43,6 +43,8 @@ class FeedServiceTest {
     MediaRssParser mediaRssParser;
     @Mock
     ArticleMapper articleMapper;
+    @Mock
+    ArticleService articleService;
 
     @InjectMocks
     FeedService sut;
@@ -55,7 +57,7 @@ class FeedServiceTest {
     void create_withIcon_storesFeedAndIconAndReturnsFeedId() {
         Feed feed = new Feed(-1, -1, "name", URI.create("https://site.example"),
                 URI.create("https://site.example/rss"));
-        Icon icon = new Icon(); // adapt if your Icon needs ctor args
+        Icon icon = new Icon(-1, -1, new byte[]{1}, "image/png", "f.png");
 
         when(feedRepository.create(feed)).thenReturn(42);
 
@@ -63,8 +65,7 @@ class FeedServiceTest {
 
         assertEquals(42, id);
         verify(feedRepository).create(feed);
-        assertEquals(42, icon.getFeedId(), "Icon.feedId must be set to returned feed id");
-        verify(iconService).create(icon);
+        verify(iconService).create(icon.withFeedId(42));
     }
 
     @Test
@@ -89,7 +90,7 @@ class FeedServiceTest {
         Feed input = new Feed(-1, -1, "", null, URI.create("https://example.com/rss"));
         Feed enriched = new Feed(-1, -1, "Feed Title", URI.create("https://example.com"),
                 URI.create("https://example.com/rss"));
-        Icon icon = new Icon();
+        Icon icon = new Icon(-1, -1, new byte[]{1}, "image/png", "f.png");
 
         doReturn(enriched).when(spy).getFeedMetadata(input);
         when(iconService.findIcon(enriched)).thenReturn(icon);
@@ -101,8 +102,7 @@ class FeedServiceTest {
         verify(spy).getFeedMetadata(input);
         verify(iconService).findIcon(enriched);
         verify(feedRepository).create(enriched);
-        verify(iconService).create(icon);
-        assertEquals(99, icon.getFeedId());
+        verify(iconService).create(icon.withFeedId(99));
     }
 
     @Test
@@ -136,10 +136,10 @@ class FeedServiceTest {
 
         List<Feed> result = sut.findAll();
 
-        assertSame(withUnread, result.get(0));
-        assertSame(withoutUnread, result.get(1));
-        assertEquals(5, withUnread.getUnreadCount());
-        assertEquals(0, withoutUnread.getUnreadCount());
+        assertEquals(1, result.get(0).getId());
+        assertEquals(2, result.get(1).getId());
+        assertEquals(5, result.get(0).getUnreadCount());
+        assertEquals(0, result.get(1).getUnreadCount());
         verify(feedRepository).findAll();
         verify(articleRepository).countUnreadByFeed();
     }
@@ -309,43 +309,27 @@ class FeedServiceTest {
 
         sut.parseFeed(feed);
 
-        verify(feedRepository).markRefreshError(eq(feed.getId()), contains("DB down"));
+        verify(feedRepository).markRefreshError(eq(feed.getId()), eq("Could not store articles"));
         verify(feedRepository, never()).markRefreshSuccess(anyInt(), any());
     }
 
     @Test
-    void delete_whenAllDeletesSucceed_completes() throws Exception {
+    void delete_whenFeedExists_deletesFeed() {
         int feedId = 10;
-
-        doNothing().when(articleRepository).deleteByFeed(feedId);
         when(feedRepository.delete(feedId)).thenReturn(1);
 
         sut.delete(feedId);
 
-        verify(articleRepository).deleteByFeed(feedId);
         verify(feedRepository).delete(feedId);
+        verifyNoInteractions(articleRepository);
     }
 
     @Test
-    void delete_whenArticleDeleteThrowsSQLException_throwsDataAccessAndDoesNotDeleteFeed()
-            throws Exception {
+    void delete_whenFeedMissing_throwsNotFound() {
         int feedId = 10;
-
-        doThrow(new SQLException("db")).when(articleRepository).deleteByFeed(feedId);
-
-        assertThrows(DataAccessException.class, () -> sut.delete(feedId));
-        verify(feedRepository, never()).delete(anyInt());
-    }
-
-    @Test
-    void delete_whenFeedMissing_throwsNotFound() throws Exception {
-        int feedId = 10;
-
-        doNothing().when(articleRepository).deleteByFeed(feedId);
         when(feedRepository.delete(feedId)).thenReturn(0);
 
         assertThrows(NotFoundException.class, () -> sut.delete(feedId));
-        verify(articleRepository).deleteByFeed(feedId);
         verify(feedRepository).delete(feedId);
     }
 }

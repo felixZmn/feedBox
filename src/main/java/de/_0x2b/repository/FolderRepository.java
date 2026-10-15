@@ -44,7 +44,6 @@ public class FolderRepository extends AbstractRepository {
     }
 
     public List<Folder> findAll() {
-        logger.debug("findAll");
         return super.query(SELECT_ALL, folderMapper, List.of());
     }
 
@@ -59,7 +58,6 @@ public class FolderRepository extends AbstractRepository {
     }
 
     public List<Folder> findByName(String name) {
-        logger.debug("findByName");
         return super.query(SELECT_BY_NAME, folderMapper, List.of(name));
     }
 

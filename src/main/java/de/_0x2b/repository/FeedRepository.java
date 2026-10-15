@@ -45,12 +45,16 @@ public class FeedRepository extends AbstractRepository {
     // getTimestamp(idx, UTC) and convert.
     private static final Calendar UTC = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
     private final RowMapper<Feed> feedMapper = rs -> {
-        Feed f = new Feed(rs.getInt("id"), rs.getObject("folder_id", Integer.class),
-                rs.getString("name"), URI.create(rs.getString("url")), URI.create(rs.getString("feed_url")));
         Timestamp ts = rs.getTimestamp("last_refreshed_at", UTC);
-        f.setLastRefreshedAt(ts == null ? null : ts.toInstant());
-        f.setLastError(rs.getString("last_error"));
-        return f;
+        return new Feed(
+                rs.getInt("id"),
+                rs.getObject("folder_id", Integer.class),
+                rs.getString("name"),
+                URI.create(rs.getString("url")),
+                URI.create(rs.getString("feed_url")),
+                ts == null ? null : ts.toInstant(),
+                rs.getString("last_error"),
+                0);
     };
 
     public FeedRepository() {
@@ -132,28 +136,30 @@ public class FeedRepository extends AbstractRepository {
      *               multi-MB stack traces out of the database
      */
     public void markRefreshError(int feedId, String error) throws SQLException {
-        String trimmed = error == null ? null
-                : (error.length() > 1000 ? error.substring(0, 1000) : error);
-        super.update(MARK_REFRESH_ERROR, List.of(trimmed, java.sql.Timestamp.from(Instant.now()), feedId));
+        super.update(MARK_REFRESH_ERROR,
+                List.of(sanitizeLastError(error), java.sql.Timestamp.from(Instant.now()), feedId));
+    }
+
+    /**
+     * Keep sidebar tooltips free of SQL / stack traces. Categories only when
+     * the message looks like an internal exception dump.
+     */
+    static String sanitizeLastError(String error) {
+        if (error == null || error.isBlank()) {
+            return "Refresh failed";
+        }
+        String trimmed = error.length() > 200 ? error.substring(0, 200) : error;
+        String lower = trimmed.toLowerCase();
+        if (lower.contains("select ") || lower.contains("insert ") || lower.contains("update ")
+                || lower.contains("delete ") || lower.contains("sql") || lower.contains("exception")
+                || lower.contains("query failed")) {
+            return "Refresh failed";
+        }
+        // Strip control chars that break tooltips / HTML attrs.
+        return trimmed.replaceAll("[\\p{Cntrl}&&[^\t]]", " ").trim();
     }
 
     private List<Feed> findInternal(String whereClause, List<Object> initialParams) {
-
-        StringBuilder sql = new StringBuilder(SELECT_COLS).append(FROM);
-        List<Object> params = new ArrayList<>();
-
-        if (initialParams != null) {
-            params.addAll(initialParams);
-        }
-
-        // Add where
-        sql.append(" WHERE 1=1 ");
-        if (whereClause != null) {
-            sql.append(" AND ").append(whereClause);
-        }
-
-        sql.append(" ORDER BY name");
-
-        return super.query(sql.toString(), feedMapper, params);
+        return queryWhere(SELECT_COLS + FROM, whereClause, initialParams, "ORDER BY name", feedMapper);
     }
 }

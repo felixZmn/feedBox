@@ -51,35 +51,36 @@ public class FeedService {
     MediaRssParser mediaRssParser;
     @Inject
     ArticleMapper articleMapper;
+    @Inject
+    ArticleService articleService;
 
     @ConfigProperty(name = "refresh.concurrency", defaultValue = "10")
     int refreshConcurrency = 10;
 
     /**
-     * Store a new feed in the database
+     * Fetch metadata and favicon (network I/O), then persist in a short transaction.
      *
-     * @param feed
      * @return generated feed id
      * @throws InvalidFeedException when the feed URL is unreachable or invalid
      */
-    @Transactional
     public int create(Feed feed) {
-        logger.debug("create");
         feed = this.getFeedMetadata(feed);
         Icon icon = iconService.findIcon(feed);
+        return persistNewFeed(feed, icon);
+    }
 
-        int feedId = create(feed, icon);
+    @Transactional
+    public int persistNewFeed(Feed feed, Icon icon) {
+        int feedId = feedRepository.create(feed);
+        if (icon != null) {
+            iconService.create(icon.withFeedId(feedId));
+        }
         return feedId;
     }
 
+    /** Persist an already-resolved feed + optional icon (e.g. OPML import). */
     public int create(Feed feed, Icon icon) {
-        logger.debug("storeData");
-        int feedId = feedRepository.create(feed);
-        if (icon != null) {
-            icon.setFeedId(feedId);
-            iconService.create(icon);
-        }
-        return feedId;
+        return persistNewFeed(feed, icon);
     }
 
     /**
@@ -91,7 +92,6 @@ public class FeedService {
      */
     @Transactional
     public int update(Feed feed) {
-        logger.debug("update");
         int rows = feedRepository.update(feed);
         if (rows == 0) {
             throw new NotFoundException("Feed not found: " + feed.getId());
@@ -107,10 +107,9 @@ public class FeedService {
     public List<Feed> findAll() {
         List<Feed> feeds = feedRepository.findAll();
         var unreadCounts = articleRepository.countUnreadByFeed();
-        for (Feed feed : feeds) {
-            feed.setUnreadCount(unreadCounts.getOrDefault(feed.getId(), 0));
-        }
-        return feeds;
+        return feeds.stream()
+                .map(feed -> feed.withUnreadCount(unreadCounts.getOrDefault(feed.getId(), 0)))
+                .toList();
     }
 
     /**
@@ -155,7 +154,6 @@ public class FeedService {
      * Refresh all feeds, reporting progress to {@code progress}.
      */
     public void refresh(ProgressCallback progress) {
-        logger.debug("refresh");
         var feeds = feedRepository.findAll();
         refresh(feeds, progress != null ? progress : ProgressCallback.NONE);
     }
@@ -166,7 +164,6 @@ public class FeedService {
      * @param id id of the feed to refresh
      */
     public void refresh(int id) {
-        logger.debug("refresh");
         var feeds = feedRepository.findOne(id);
         refresh(feeds, ProgressCallback.NONE);
     }
@@ -209,6 +206,11 @@ public class FeedService {
                 }
             }
         }
+        try {
+            articleService.purgeExpiredReadArticles();
+        } catch (Exception e) {
+            logger.warn("Article retention purge failed: {}", e.toString());
+        }
         logger.info("Feeds refreshed!");
     }
 
@@ -220,7 +222,6 @@ public class FeedService {
      * @throws InvalidFeedException when the URL is unreachable or not a feed
      */
     public Feed getFeedMetadata(Feed feed) {
-        logger.debug("getFeedMetadata");
         try {
             var fetched = outboundHttpClient.fetchFeed(feed.getFeedUrl());
             if (fetched.isEmpty()) {
@@ -229,17 +230,43 @@ public class FeedService {
             }
             RssReader rssReader = new RssReader();
             rssReader.setUserAgent(outboundHttpClient.userAgent());
-            var channel = rssReader.read(fetched.get().bodyStream()).toList().getFirst().getChannel();
-            feed.setUrl(URI.create(channel.getLink()));
-            feed.setName(channel.getTitle());
+            var items = rssReader.read(fetched.get().bodyStream()).toList();
+            if (!items.isEmpty()) {
+                var channel = items.getFirst().getChannel();
+                String link = channel.getLink();
+                String title = channel.getTitle();
+                URI siteUrl = (link != null && !link.isBlank())
+                        ? URI.create(link)
+                        : (feed.getUrl() != null ? feed.getUrl() : feed.getFeedUrl());
+                String name = (title != null && !title.isBlank())
+                        ? title
+                        : (feed.getName() != null && !feed.getName().isBlank()
+                                ? feed.getName()
+                                : fallbackFeedName(feed.getFeedUrl()));
+                feed = feed.withUrl(siteUrl).withName(name);
+            } else {
+                URI siteUrl = feed.getUrl() != null ? feed.getUrl() : feed.getFeedUrl();
+                String name = (feed.getName() != null && !feed.getName().isBlank())
+                        ? feed.getName()
+                        : fallbackFeedName(feed.getFeedUrl());
+                feed = feed.withUrl(siteUrl).withName(name);
+            }
         } catch (InvalidFeedException e) {
             throw e;
         } catch (Exception e) {
-            logger.error("Error querying feed [{}]: {}", feed.getFeedUrl(), e.getMessage());
+            logger.warn("Error querying feed [{}]: {}", feed.getFeedUrl(), e.getMessage());
             throw new InvalidFeedException(
                     "Feed not reachable or not a valid RSS/Atom feed: " + feed.getFeedUrl(), e);
         }
         return feed;
+    }
+
+    private static String fallbackFeedName(URI feedUrl) {
+        if (feedUrl == null) {
+            return "Untitled feed";
+        }
+        String host = feedUrl.getHost();
+        return host != null && !host.isBlank() ? host : feedUrl.toString();
     }
 
     /**
@@ -414,18 +441,12 @@ public class FeedService {
         }
 
         try {
-            articleRepository.create(articles);
-            // Insert succeeded - mark the feed as healthy.
-            feedRepository.markRefreshSuccess(feed.getId(), null);
+            persistRefreshSuccess(feed.getId(), articles);
             return true;
         } catch (Exception e) {
-            // The DataAccessException is the common case (the new
-            // ArticleRepository.create throws it), but we also want to
-            // catch anything thrown by the parser or the success-mark
-            // path so a single bad feed doesn't kill the whole batch.
-            logger.error("Refresh failed for feed [{}]", feed.getFeedUrl(), e);
+            logger.warn("Refresh failed for feed [{}]: {}", feed.getFeedUrl(), e.getMessage());
             try {
-                feedRepository.markRefreshError(feed.getId(), e.getMessage());
+                feedRepository.markRefreshError(feed.getId(), "Could not store articles");
             } catch (SQLException markEx) {
                 logger.warn("Failed to record refresh error for feed [{}]", feed.getFeedUrl(), markEx);
             }
@@ -433,20 +454,17 @@ public class FeedService {
         }
     }
 
+    @Transactional
+    void persistRefreshSuccess(int feedId, List<de._0x2b.model.Article> articles) throws SQLException {
+        articleRepository.create(articles);
+        feedRepository.markRefreshSuccess(feedId, null);
+    }
+
     /**
-     * Delete a feed and its articles
-     *
-     * @param feedId
-     * @throws NotFoundException when the feed does not exist
+     * Delete a feed; articles and icons are removed via ON DELETE CASCADE.
      */
     @Transactional
     public void delete(int feedId) {
-        logger.debug("delete");
-        try {
-            articleRepository.deleteByFeed(feedId);
-        } catch (SQLException e) {
-            throw new DataAccessException("Failed to delete articles for feed: " + feedId, e);
-        }
         int rows = feedRepository.delete(feedId);
         if (rows == 0) {
             throw new NotFoundException("Feed not found: " + feedId);

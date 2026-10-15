@@ -25,7 +25,7 @@ public class IconRepository extends AbstractRepository {
             INSERT INTO icon (feed_id, mime_type, file_name, image) VALUES (?, ?, ?, ?) RETURNING id
             """;
     private final RowMapper<Icon> iconMapper = rs -> new Icon(rs.getInt("id"), rs.getInt("feed_id"),
-            rs.getBytes("image"), rs.getString("mime_type"), rs.getString("file_name"), "");
+            rs.getBytes("image"), rs.getString("mime_type"), rs.getString("file_name"));
 
     public IconRepository() {
     }
@@ -49,20 +49,6 @@ public class IconRepository extends AbstractRepository {
     }
 
     private List<Icon> findInternal(String whereClause, List<Object> initialParams) {
-
-        StringBuilder sql = new StringBuilder(SELECT_COLS).append(FROM);
-        List<Object> params = new ArrayList<>();
-
-        if (initialParams != null) {
-            params.addAll(initialParams);
-        }
-
-        // Add where
-        sql.append(" WHERE 1=1 ");
-        if (whereClause != null) {
-            sql.append(" AND ").append(whereClause);
-        }
-
-        return super.query(sql.toString(), iconMapper, params);
+        return queryWhere(SELECT_COLS + FROM, whereClause, initialParams, null, iconMapper);
     }
 }

@@ -37,7 +37,6 @@ public class IconResource {
     @GET
     @Path("/{id}")
     public Response getIconByFeedId(@PathParam("id") int id) {
-        logger.debug("getIconByFeedId");
         var icon = iconService.findOneByFeed(id);
 
         if (icon.isEmpty()) {

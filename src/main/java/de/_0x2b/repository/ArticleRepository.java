@@ -61,7 +61,6 @@ public class ArticleRepository extends AbstractRepository {
                 image_url = EXCLUDED.image_url,
                 categories = EXCLUDED.categories
             """;
-    private static final String DELETE_BY_FEED_SQL = "DELETE FROM article WHERE feed_id = ?";
     private static final String MARK_READ_SQL = "UPDATE article SET read = true WHERE id = ? AND read = false";
     private static final String MARK_READ_ALL_SQL = "UPDATE article SET read = true WHERE read = false";
     private static final String MARK_READ_BY_FEED_SQL =
@@ -87,6 +86,12 @@ public class ArticleRepository extends AbstractRepository {
     // Timestamp.toInstant().
     private static final Calendar UTC = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
     private static final String EXISTS_BY_ID_SQL = "SELECT 1 FROM article WHERE id = ?";
+    private static final String DELETE_OLD_READ_SQL = """
+            DELETE FROM article
+            WHERE read = true
+              AND published IS NOT NULL
+              AND published < ?
+            """;
 
     private final RowMapper<Article> articleMapper = rs -> new Article(rs.getLong("id"), rs.getInt("feed_id"),
             rs.getString("publisher"), rs.getString("title"), rs.getString("description"), rs.getString("content"),
@@ -140,10 +145,6 @@ public class ArticleRepository extends AbstractRepository {
         return findInternal("fo.id = ?", List.of(folderId), paginationId, paginationPublished, true, q);
     }
 
-    public void deleteByFeed(int feedId) throws SQLException {
-        super.update(DELETE_BY_FEED_SQL, List.of(feedId));
-    }
-
     /**
      * Mark a single article as read.
      *
@@ -185,7 +186,6 @@ public class ArticleRepository extends AbstractRepository {
      * Feeds with zero unread are omitted.
      */
     public Map<Integer, Integer> countUnreadByFeed() {
-        logger.debug("countUnreadByFeed");
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(COUNT_UNREAD_BY_FEED_SQL);
                 ResultSet rs = stmt.executeQuery()) {
@@ -199,57 +199,46 @@ public class ArticleRepository extends AbstractRepository {
         }
     }
 
+    /**
+     * Batch-insert articles. Callers must run inside a JTA {@code @Transactional}
+     * boundary — this method does not manage commits itself.
+     */
     public void create(List<Article> articles) {
         if (articles == null || articles.isEmpty())
             return;
 
         logger.debug("Starting batch create for {} articles", articles.size());
 
-        try (Connection conn = dataSource.getConnection()) {
-            conn.setAutoCommit(false); // Start Transaction
-
-            try (PreparedStatement stmt = conn.prepareStatement(INSERT_SQL)) {
-                int count = 0;
-                for (Article a : articles) {
-                    stmt.setInt(1, a.getFeedId());
-                    stmt.setString(2, a.getTitle());
-                    stmt.setString(3, a.getDescription());
-                    stmt.setString(4, a.getContent());
-                    if (a.getLink() != null && !a.getLink().isBlank()) {
-                        stmt.setString(5, a.getLink());
-                    } else {
-                        stmt.setNull(5, Types.VARCHAR);
-                    }
-                    stmt.setString(6, a.getGuid());
-                    if (a.getPublished() != null) {
-                        stmt.setTimestamp(7, Timestamp.from(a.getPublished()));
-                    } else {
-                        stmt.setNull(7, Types.TIMESTAMP_WITH_TIMEZONE);
-                    }
-                    stmt.setString(8, a.getAuthors());
-                    stmt.setString(9, a.getImageUrl());
-                    stmt.setString(10, a.getCategories());
-                    stmt.addBatch();
-
-                    if (++count % 500 == 0)
-                        stmt.executeBatch();
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(INSERT_SQL)) {
+            int count = 0;
+            for (Article a : articles) {
+                stmt.setInt(1, a.getFeedId());
+                stmt.setString(2, a.getTitle());
+                stmt.setString(3, a.getDescription());
+                stmt.setString(4, a.getContent());
+                if (a.getLink() != null && !a.getLink().isBlank()) {
+                    stmt.setString(5, a.getLink());
+                } else {
+                    stmt.setNull(5, Types.VARCHAR);
                 }
-                stmt.executeBatch(); // Execute remaining
-                conn.commit(); // Commit Transaction
-            } catch (SQLException e) {
-                // Roll back the open transaction before propagating the failure.
-                // The previous implementation swallowed this, which meant the
-                // scheduler would silently lose a batch of articles and the
-                // caller (FeedService.parseFeed) had no way to know.
-                try {
-                    conn.rollback();
-                } catch (SQLException rollbackEx) {
-                    e.addSuppressed(rollbackEx);
+                stmt.setString(6, a.getGuid());
+                if (a.getPublished() != null) {
+                    stmt.setTimestamp(7, Timestamp.from(a.getPublished()));
+                } else {
+                    stmt.setNull(7, Types.TIMESTAMP_WITH_TIMEZONE);
                 }
-                throw new DataAccessException("Batch insert failed for feed_id=" + articles.getFirst().getFeedId(), e);
+                stmt.setString(8, a.getAuthors());
+                stmt.setString(9, a.getImageUrl());
+                stmt.setString(10, a.getCategories());
+                stmt.addBatch();
+
+                if (++count % 500 == 0)
+                    stmt.executeBatch();
             }
+            stmt.executeBatch();
         } catch (SQLException e) {
-            throw new DataAccessException("Database connection error during batch insert", e);
+            throw new DataAccessException("Batch insert failed for feed_id=" + articles.getFirst().getFeedId(), e);
         }
     }
 
@@ -316,5 +305,15 @@ public class ArticleRepository extends AbstractRepository {
     /** Escape {@code \}, {@code %} and {@code _} for use with {@code ILIKE ... ESCAPE '\'}. */
     static String escapeIlike(String token) {
         return token.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+    }
+
+    /**
+     * Delete read articles whose {@code published} timestamp is strictly before
+     * {@code olderThan}. Unread articles are never deleted.
+     *
+     * @return number of rows deleted
+     */
+    public int deleteReadOlderThan(Instant olderThan) throws SQLException {
+        return super.update(DELETE_OLD_READ_SQL, List.of(olderThan));
     }
 }

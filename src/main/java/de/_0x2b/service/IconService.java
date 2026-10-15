@@ -13,11 +13,10 @@ import org.jsoup.nodes.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,53 +41,12 @@ public class IconService {
             }
             return is.readAllBytes();
         } catch (IOException e) {
-            logger.error("Error reading default feed icon, Error: {}", e.getMessage());
+            logger.error("Error reading default feed icon: {}", e.getMessage());
             return new byte[0];
         }
     }
 
-    /**
-     * Extracts the charset from the Content-Type header.
-     * If charset is not specified or unsupported, returns UTF-8 as default.
-     * 
-     * @param contentType the Content-Type header string, e.g. "text/html;
-     *                    charset=UTF-8"
-     * @return the Charset to be used for decoding
-     */
-    public static Charset getCharsetFromContentType(String contentType) {
-        if (contentType == null) {
-            return StandardCharsets.UTF_8;
-        }
-
-        // Split the header into parts separated by ';'
-        String[] parts = contentType.split(";");
-        for (String part : parts) {
-            part = part.trim().toLowerCase();
-            // Check if part starts with "charset="
-            if (!part.toLowerCase().startsWith("charset=")) {
-                continue;
-            }
-            String charsetName = part.substring("charset=".length()).trim();
-            // Remove quotes if present
-            charsetName = charsetName.startsWith("\"") ? charsetName.substring(1) : charsetName;
-            charsetName = charsetName.endsWith("\"") ? charsetName.substring(0, charsetName.length() - 1) : charsetName;
-            try {
-                return Charset.forName(charsetName);
-            } catch (Exception e) {
-                return StandardCharsets.UTF_8;
-            }
-        }
-        return StandardCharsets.UTF_8;
-    }
-
-    /**
-     * Find icon by feed id
-     * 
-     * @param id
-     * @return
-     */
     public List<Icon> findOneByFeed(int id) {
-        logger.debug("findOne");
         var icon = iconRepository.findByFeed(id);
         if (icon.isEmpty()) {
             return getDefaultIcon();
@@ -96,137 +54,84 @@ public class IconService {
         return icon;
     }
 
-    /**
-     * Find icon for a given feed by parsing its HTML for icon links
-     * 
-     * @param feed
-     * @return Icon object with the found icon data - or the default icon
-     */
     public Icon findIcon(Feed feed) {
-        var urls = constructHtmlUris(feed);
-
-        for (URI uri : urls) {
-            var optional = outboundHttpClient.fetchIcon(uri);
+        for (URI pageUri : htmlPageCandidates(feed)) {
+            var optional = outboundHttpClient.fetchIcon(pageUri);
             if (optional.isEmpty()) {
-                continue; // try next url
+                continue;
             }
             var response = optional.get();
-            var charset = getCharsetFromContentType(response.contentType() != null ? response.contentType() : "");
-            var iconUrl = parseHtml(new String(response.body(), charset));
-            URI absoluteIcon = response.finalUri().resolve(iconUrl);
-            var icon = fetchFavicon(new Icon(-1, feed.getId(), null, "", "", absoluteIcon.toString()));
-
-            if (icon.getImage() != null) {
+            URI iconUri = resolveIconHref(response.body(), response.finalUri());
+            Icon icon = fetchFavicon(iconUri, feed.getId());
+            if (icon.image() != null) {
                 return icon;
             }
         }
         return null;
     }
 
-    /**
-     * Helper method to construct a list of urls to check for a reference to a
-     * favicon
-     *
-     * @param feed feed to use as a base
-     * @return list of uris to use to search a favicon
-     */
-    private List<URI> constructHtmlUris(Feed feed) {
-        var iconUris = new ArrayList<URI>();
-
-        var scheme = feed.getUrl().getScheme();
-        if (scheme == null) {
-            scheme = "https";
+    private List<URI> htmlPageCandidates(Feed feed) {
+        var uris = new ArrayList<URI>(1);
+        URI site = feed.getUrl();
+        if (site != null && site.isAbsolute()) {
+            uris.add(site);
         }
-
-        var host = feed.getUrl().getHost();
-        var path = feed.getUrl().getPath();
-
-        iconUris.add(URI.create(scheme + "://" + host + path));
-        return iconUris;
+        return uris;
     }
 
-    /**
-     * Helper method to filter favicon links from a given html page
-     *
-     * @param content html to search
-     * @return first found favicon url
-     */
-    private URI parseHtml(String content) {
-        if (content == null || content.isBlank()) {
-            return URI.create("/favicon.ico");
+    private URI resolveIconHref(byte[] htmlBytes, URI baseUri) {
+        URI fallback = baseUri.resolve("/favicon.ico");
+        if (htmlBytes == null || htmlBytes.length == 0) {
+            return fallback;
         }
-
         try {
-            Document doc = Jsoup.parse(content);
+            Document doc = Jsoup.parse(new ByteArrayInputStream(htmlBytes), null, baseUri.toString());
             Element link = doc.selectFirst("link[rel~=icon]");
             if (link != null) {
-                String href = link.attr("href");
+                String abs = link.attr("abs:href");
+                if (!abs.isBlank()) {
+                    return URI.create(abs);
+                }
+                String href = link.attr("href").trim();
                 if (!href.isBlank()) {
-                    return URI.create(href.trim());
+                    return baseUri.resolve(href);
                 }
             }
-
-            // try <icon></icon>
-            Element iconEl = doc.selectFirst("icon");
-            if (iconEl != null && iconEl.childNodeSize() > 0) {
-                return URI.create(iconEl.childNode(0).toString());
-            }
         } catch (Exception e) {
-            logger.error("Error while searching html for icon url, error: {}", e.getMessage());
+            logger.warn("Error while searching html for icon url: {}", e.getMessage());
         }
-
-        return URI.create("/favicon.ico");
+        return fallback;
     }
 
-    /**
-     * Method to fetch a favicon from a given url
-     *
-     * @param icon Icon object that contains the url - other fields are not relevant
-     * @return Icon object that, in case of success is filled with icon data.
-     *         If the response is not an image, the icon is returned with
-     *         a null image byte[] so the caller can try the next URL or
-     *         fall back to the default icon.
-     */
-    public Icon fetchFavicon(Icon icon) {
-        URI iconUri;
-        try {
-            iconUri = URI.create(icon.getUrl());
-        } catch (IllegalArgumentException e) {
-            logger.warn("Malformed favicon URL: {}", icon.getUrl());
-            return icon;
+    public Icon fetchFavicon(URI iconUri, int feedId) {
+        if (iconUri == null || !iconUri.isAbsolute()) {
+            logger.warn("Malformed favicon URL: {}", iconUri);
+            return new Icon(-1, feedId, null, "", "");
         }
 
         var optional = outboundHttpClient.fetchIcon(iconUri);
         if (optional.isEmpty()) {
-            logger.warn("Failed to fetch favicon from {}", icon.getUrl());
-            return icon;
+            logger.debug("Failed to fetch favicon from {}", iconUri);
+            return new Icon(-1, feedId, null, "", "");
         }
 
         var response = optional.get();
         String mime = response.contentType() != null ? response.contentType() : "application/octet-stream";
-        // Reject non-images (HTML/JS as "icons"). SVG is allowed: many sites
-        // use SVG favicons, and IconResource serves icons with
-        // CSP default-src 'none' plus nosniff (scripts in SVG won't run in <img>).
         String mimeLower = mime.toLowerCase();
         int sc = mimeLower.indexOf(';');
         String mimeBase = (sc >= 0 ? mimeLower.substring(0, sc) : mimeLower).trim();
         if (!mimeBase.startsWith("image/")) {
-            logger.warn("Refusing non-image favicon (content-type={}) from {}", mime, icon.getUrl());
-            icon.setImage(null);
-            return icon;
+            logger.warn("Refusing non-image favicon (content-type={}) from {}", mime, iconUri);
+            return new Icon(-1, feedId, null, "", "");
         }
-        icon.setImage(response.body());
-        icon.setMimeType(mimeBase);
-        return icon;
+        return new Icon(-1, feedId, response.body(), mimeBase, "");
     }
 
     public void create(Icon icon) {
-        logger.debug("insert");
         iconRepository.create(icon);
     }
 
     public List<Icon> getDefaultIcon() {
-        // Clone so callers cannot mutate the cached classpath bytes.
-        return List.of(new Icon(-1, -1, DEFAULT_ICON_BYTES.clone(), DEFAULT_ICON_MIME, DEFAULT_ICON_NAME, ""));
+        return List.of(new Icon(-1, -1, DEFAULT_ICON_BYTES.clone(), DEFAULT_ICON_MIME, DEFAULT_ICON_NAME));
     }
 }

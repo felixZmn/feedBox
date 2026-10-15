@@ -312,8 +312,11 @@ function createArticleElement(article) {
   headerDiv.appendChild(ageSpan);
   articleDiv.appendChild(headerDiv);
 
-  if (article.imageUrl) {
+  if (article.imageUrl && isSafeHttpUrl(article.imageUrl)) {
     const image = document.createElement("img");
+    image.loading = "lazy";
+    image.decoding = "async";
+    image.referrerPolicy = "no-referrer";
     image.src = article.imageUrl;
     image.alt = "";
     imageDiv.appendChild(image);

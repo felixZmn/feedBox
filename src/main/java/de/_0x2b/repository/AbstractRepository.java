@@ -140,6 +140,26 @@ public abstract class AbstractRepository {
         }
     }
 
+    /**
+     * {@code SELECT … FROM … WHERE 1=1 [AND where] [orderBy]} helper for simple
+     * finders (Feed / Icon).
+     */
+    protected <R> List<R> queryWhere(String selectFrom, String whereClause, List<Object> initialParams,
+            String orderBy, RowMapper<R> mapper) {
+        StringBuilder sql = new StringBuilder(selectFrom).append(" WHERE 1=1 ");
+        List<Object> params = new ArrayList<>();
+        if (initialParams != null) {
+            params.addAll(initialParams);
+        }
+        if (whereClause != null && !whereClause.isBlank()) {
+            sql.append(" AND ").append(whereClause);
+        }
+        if (orderBy != null && !orderBy.isBlank()) {
+            sql.append(' ').append(orderBy);
+        }
+        return query(sql.toString(), mapper, params);
+    }
+
     @FunctionalInterface
     protected interface RowMapper<T> {
         T map(ResultSet rs) throws SQLException;
