@@ -350,12 +350,6 @@ details[open] summary img {
   border-radius: var(--radius-sm);
 }
 
-/* Read articles stay the same weight; slightly muted so unread matches the
-   previous default look (everything starts unread). */
-.articles-list .article:not(.unread) .article-title {
-  color: var(--font-color-muted);
-}
-
 .articles-list .article:hover {
   background-color: var(--hover-bg);
 }
