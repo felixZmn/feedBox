@@ -158,6 +158,19 @@ cp application-local.properties.example application-local.properties
 # required: real mp.jwt.verify.issuer + mp.jwt.verify.audiences (not NONE)
 ```
 
+## Tests
+
+```bash
+# Unit tests (Mockito; no Docker)
+./mvnw test
+
+# Unit + integration tests (Postgres Dev Services / Testcontainers; needs Docker)
+./mvnw verify -DskipITs=false
+
+# Frontend unit tests
+npm run test:frontend
+```
+
 ## Build the application
 
 ```bash
