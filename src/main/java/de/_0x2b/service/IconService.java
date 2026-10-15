@@ -204,20 +204,19 @@ public class IconService {
 
         var response = optional.get();
         String mime = response.contentType() != null ? response.contentType() : "application/octet-stream";
-        // Security: a feed author could try to make us serve HTML or
-        // JavaScript as the "icon". Reject anything that doesn't look
-        // like an image MIME type. SVG is intentionally excluded here:
-        // an SVG can contain <script> and is a script-capable format
-        // when served as the document body. If you trust your feeds,
-        // add "image/svg+xml" to the allow list.
+        // Reject non-images (HTML/JS as "icons"). SVG is allowed: many sites
+        // use SVG favicons, and IconResource serves icons with
+        // CSP default-src 'none' plus nosniff (scripts in SVG won't run in <img>).
         String mimeLower = mime.toLowerCase();
-        if (!mimeLower.startsWith("image/") || mimeLower.startsWith("image/svg")) {
+        int sc = mimeLower.indexOf(';');
+        String mimeBase = (sc >= 0 ? mimeLower.substring(0, sc) : mimeLower).trim();
+        if (!mimeBase.startsWith("image/")) {
             logger.warn("Refusing non-image favicon (content-type={}) from {}", mime, icon.getUrl());
             icon.setImage(null);
             return icon;
         }
         icon.setImage(response.body());
-        icon.setMimeType(mime);
+        icon.setMimeType(mimeBase);
         return icon;
     }
 

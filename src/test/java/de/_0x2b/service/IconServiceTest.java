@@ -148,15 +148,17 @@ class IconServiceTest {
     }
 
     @Test
-    void fetchFavicon_whenSvgContentType_clearsImage() {
+    void fetchFavicon_whenSvgContentType_acceptsImage() {
         Icon icon = new Icon(-1, 1, null, "", "", "https://example.com/icon.svg");
         URI uri = URI.create(icon.getUrl());
+        byte[] svg = "<svg xmlns=\"http://www.w3.org/2000/svg\"/>".getBytes(StandardCharsets.UTF_8);
         when(outboundHttpClient.fetchIcon(uri))
-                .thenReturn(Optional.of(bytesResult(uri, "image/svg+xml", "<svg/>".getBytes(StandardCharsets.UTF_8))));
+                .thenReturn(Optional.of(bytesResult(uri, "image/svg+xml", svg)));
 
         Icon result = sut.fetchFavicon(icon);
 
-        assertNull(result.getImage());
+        assertArrayEquals(svg, result.getImage());
+        assertEquals("image/svg+xml", result.getMimeType());
     }
 
     @Test
