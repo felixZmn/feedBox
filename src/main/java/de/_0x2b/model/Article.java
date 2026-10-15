@@ -14,6 +14,7 @@ public class Article {
     String description;
     String content;
     String link;
+    String guid;
     Instant published;
     String authors;
     String imageUrl;
@@ -25,11 +26,24 @@ public class Article {
 
     public Article(long id, int feedId, String feedName, String title, String description, String content, String link,
             Instant published, String authors, String imageUrl, String categories) {
-        this(id, feedId, feedName, title, description, content, link, published, authors, imageUrl, categories, false);
+        this(id, feedId, feedName, title, description, content, link, link, published, authors, imageUrl, categories,
+                false);
+    }
+
+    public Article(long id, int feedId, String feedName, String title, String description, String content, String link,
+            String guid, Instant published, String authors, String imageUrl, String categories) {
+        this(id, feedId, feedName, title, description, content, link, guid, published, authors, imageUrl, categories,
+                false);
     }
 
     public Article(long id, int feedId, String feedName, String title, String description, String content, String link,
             Instant published, String authors, String imageUrl, String categories, boolean read) {
+        this(id, feedId, feedName, title, description, content, link, link, published, authors, imageUrl, categories,
+                read);
+    }
+
+    public Article(long id, int feedId, String feedName, String title, String description, String content, String link,
+            String guid, Instant published, String authors, String imageUrl, String categories, boolean read) {
         this.id = id;
         this.feedId = feedId;
         this.feedName = feedName;
@@ -37,6 +51,7 @@ public class Article {
         this.description = description;
         this.content = content;
         this.link = link;
+        this.guid = guid;
         this.published = published;
         this.authors = authors;
         this.imageUrl = imageUrl;
@@ -53,14 +68,15 @@ public class Article {
                 && Objects.equals(feedName, article.feedName)
                 && Objects.equals(title, article.title) && Objects.equals(description, article.description)
                 && Objects.equals(content, article.content) && Objects.equals(link, article.link)
+                && Objects.equals(guid, article.guid)
                 && Objects.equals(published, article.published) && Objects.equals(authors, article.authors)
                 && Objects.equals(imageUrl, article.imageUrl) && Objects.equals(categories, article.categories);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, feedId, feedName, title, description, content, link, published, authors, imageUrl,
-                categories, read);
+        return Objects.hash(id, feedId, feedName, title, description, content, link, guid, published, authors,
+                imageUrl, categories, read);
     }
 
     public long getId() {
@@ -89,6 +105,10 @@ public class Article {
 
     public String getLink() {
         return link;
+    }
+
+    public String getGuid() {
+        return guid;
     }
 
     public Instant getPublished() {

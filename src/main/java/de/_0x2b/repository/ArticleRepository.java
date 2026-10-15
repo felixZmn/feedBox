@@ -27,7 +27,7 @@ public class ArticleRepository extends AbstractRepository<Article> {
     private static final Logger logger = LoggerFactory.getLogger(ArticleRepository.class);
     private static final String SELECT_COLS = """
             SELECT a.id, a.feed_id, f.name AS publisher, a.title, a.description,
-                   a.content, a.link, a.published, a.authors, a.image_url, a.categories, a.read
+                   a.content, a.link, a.guid, a.published, a.authors, a.image_url, a.categories, a.read
             """;
     private static final String FROM_JOIN = """
             FROM article a
@@ -42,9 +42,17 @@ public class ArticleRepository extends AbstractRepository<Article> {
     private static final String SEARCH_TOKEN_CLAUSE =
             " AND (a.title ILIKE ? ESCAPE '\\' OR a.description ILIKE ? ESCAPE '\\') ";
     private static final String INSERT_SQL = """
-            INSERT INTO article (feed_id, title, description, content, link, published, authors, image_url, categories)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT (link) DO NOTHING
+            INSERT INTO article (feed_id, title, description, content, link, guid, published, authors, image_url, categories)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (feed_id, guid) DO UPDATE SET
+                title = EXCLUDED.title,
+                description = EXCLUDED.description,
+                content = EXCLUDED.content,
+                link = EXCLUDED.link,
+                published = EXCLUDED.published,
+                authors = EXCLUDED.authors,
+                image_url = EXCLUDED.image_url,
+                categories = EXCLUDED.categories
             """;
     private static final String DELETE_BY_FEED_SQL = "DELETE FROM article WHERE feed_id = ?";
     private static final String MARK_READ_SQL = "UPDATE article SET read = true WHERE id = ? AND read = false";
@@ -73,7 +81,7 @@ public class ArticleRepository extends AbstractRepository<Article> {
     private static final Calendar UTC = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
     private final RowMapper<Article> articleMapper = rs -> new Article(rs.getLong("id"), rs.getInt("feed_id"),
             rs.getString("publisher"), rs.getString("title"), rs.getString("description"), rs.getString("content"),
-            rs.getString("link"), readPublished(rs), rs.getString("authors"),
+            rs.getString("link"), rs.getString("guid"), readPublished(rs), rs.getString("authors"),
             rs.getString("image_url"), rs.getString("categories"), rs.getBoolean("read"));
 
     private static Instant readPublished(java.sql.ResultSet rs) throws SQLException {
@@ -189,15 +197,20 @@ public class ArticleRepository extends AbstractRepository<Article> {
                     stmt.setString(2, a.getTitle());
                     stmt.setString(3, a.getDescription());
                     stmt.setString(4, a.getContent());
-                    stmt.setString(5, a.getLink());
-                    if (a.getPublished() != null) {
-                        stmt.setTimestamp(6, Timestamp.from(a.getPublished()));
+                    if (a.getLink() != null && !a.getLink().isBlank()) {
+                        stmt.setString(5, a.getLink());
                     } else {
-                        stmt.setNull(6, Types.TIMESTAMP_WITH_TIMEZONE);
+                        stmt.setNull(5, Types.VARCHAR);
                     }
-                    stmt.setString(7, a.getAuthors());
-                    stmt.setString(8, a.getImageUrl());
-                    stmt.setString(9, a.getCategories());
+                    stmt.setString(6, a.getGuid());
+                    if (a.getPublished() != null) {
+                        stmt.setTimestamp(7, Timestamp.from(a.getPublished()));
+                    } else {
+                        stmt.setNull(7, Types.TIMESTAMP_WITH_TIMEZONE);
+                    }
+                    stmt.setString(8, a.getAuthors());
+                    stmt.setString(9, a.getImageUrl());
+                    stmt.setString(10, a.getCategories());
                     stmt.addBatch();
 
                     if (++count % 500 == 0)
