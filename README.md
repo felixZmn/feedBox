@@ -111,6 +111,8 @@ The following environment variables / properties can be configured:
 | `APP_HTTP_MAX_BYTES_FEED`          | `10485760`      | Max feed response size (10 MiB)      |
 | `APP_HTTP_MAX_BYTES_ICON`          | `2097152`       | Max favicon response size (2 MiB)    |
 | `REFRESH_JOB_INTERVAL`             | `1h`            | Background feed refresh interval     |
+| `REFRESH_CONCURRENCY`              | `10`            | Max parallel feed refreshes          |
+| `IMPORT_CONCURRENCY`               | `5`             | Max parallel feed creates on OPML import |
 
 ### Authentication notes
 

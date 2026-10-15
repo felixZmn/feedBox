@@ -1,40 +1,61 @@
 package de._0x2b.resource;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import de._0x2b.job.BackgroundJobService;
+import de._0x2b.job.JobSnapshot;
 import de._0x2b.service.OPMLService;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.xml.stream.XMLStreamException;
-import java.io.InputStream;
 
 @Path("/api/opml")
 @Authenticated
 public class OpmlResource {
     private static final Logger logger = LoggerFactory.getLogger(OpmlResource.class);
+    /** 5 MiB — enough for large OPML exports without unbounded buffering. */
+    private static final int MAX_OPML_BYTES = 5 * 1024 * 1024;
 
     @Inject
     OPMLService opmlService;
+    @Inject
+    BackgroundJobService backgroundJobService;
 
+    /**
+     * Accept an OPML body and import feeds asynchronously. Returns 202 with a
+     * job snapshot; poll {@code GET /api/jobs/{id}} until terminal.
+     */
     @POST
     public Response importOpml(InputStream bodyStream) {
         logger.debug("importOPML");
+        byte[] bytes;
         try {
-            opmlService.importOPML(bodyStream);
-            return Response.noContent().build();
-        } catch (XMLStreamException e) {
-            logger.error("Error while importing opml file", e);
-            return Response.serverError().build();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            logger.error("Error while importing opml file", e);
-            return Response.serverError().build();
+            bytes = bodyStream.readNBytes(MAX_OPML_BYTES + 1);
+        } catch (IOException e) {
+            throw new WebApplicationException("Failed to read OPML body", e, 400);
         }
+        if (bytes.length > MAX_OPML_BYTES) {
+            throw new WebApplicationException("OPML payload too large (max 5 MiB)", 413);
+        }
+
+        final byte[] payload = bytes;
+        JobSnapshot job = backgroundJobService.startImport(progress -> {
+            try {
+                opmlService.importOPML(new ByteArrayInputStream(payload), progress);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+        return Response.accepted(job).type("application/json").build();
     }
 
     @GET

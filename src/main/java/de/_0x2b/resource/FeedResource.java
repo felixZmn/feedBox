@@ -5,6 +5,8 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import de._0x2b.job.BackgroundJobService;
+import de._0x2b.job.JobSnapshot;
 import de._0x2b.model.Feed;
 import de._0x2b.resource.dto.CreateFeedRequest;
 import de._0x2b.resource.dto.UpdateFeedRequest;
@@ -25,6 +27,8 @@ public class FeedResource {
 
     @Inject
     FeedService feedService;
+    @Inject
+    BackgroundJobService backgroundJobService;
 
     @GET
     public List<Feed> getFeeds() {
@@ -69,12 +73,17 @@ public class FeedResource {
         return Response.noContent().build();
     }
 
+    /**
+     * Start (or join) an asynchronous full refresh. Returns 202 with a job
+     * snapshot; poll {@code GET /api/jobs/{id}} until terminal.
+     */
     @POST
     @Path("/refresh")
+    @Consumes(MediaType.WILDCARD)
     public Response refreshFeeds() {
         logger.debug("refreshFeeds");
-        feedService.refresh();
-        return Response.noContent().build();
+        JobSnapshot job = backgroundJobService.startRefresh(feedService::refresh);
+        return Response.accepted(job).build();
     }
 
     @GET
