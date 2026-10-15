@@ -1,5 +1,6 @@
 package de._0x2b.repository;
 
+import de._0x2b.exception.DataAccessException;
 import de._0x2b.exception.DuplicateEntityException;
 import de._0x2b.model.Icon;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -43,8 +44,7 @@ public class IconRepository extends AbstractRepository<Icon> {
             if ("23505".equals(e.getSQLState())) {
                 throw new DuplicateEntityException("Icon already exists");
             }
-            logger.error("Error creating Icon", e);
-            return -1;
+            throw new DataAccessException("Error creating icon", e);
         }
     }
 

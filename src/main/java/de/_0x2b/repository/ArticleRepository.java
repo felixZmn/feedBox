@@ -94,30 +94,24 @@ public class ArticleRepository extends AbstractRepository<Article> {
         return findInternal(null, null, null, null, false, q);
     }
 
-    public List<Article> findAll(long paginationId, String paginationDate, String q) {
-        return findInternal(null, null, paginationId, paginationDate, false, q);
+    public List<Article> findAll(long paginationId, Instant paginationPublished, String q) {
+        return findInternal(null, null, paginationId, paginationPublished, false, q);
     }
 
     public List<Article> findByFeed(int feedId, String q) {
         return findInternal("f.id = ?", List.of(feedId), null, null, false, q);
     }
 
-    public List<Article> findByFeed(int feedId, long paginationId, String paginationDate, String q) {
-        return findInternal("f.id = ?", List.of(feedId), paginationId, paginationDate, false, q);
+    public List<Article> findByFeed(int feedId, long paginationId, Instant paginationPublished, String q) {
+        return findInternal("f.id = ?", List.of(feedId), paginationId, paginationPublished, false, q);
     }
 
     public List<Article> findByFolder(int folderId, String q) {
-        if (folderId == 0) {
-            return findInternal("f.folder_id IS NULL", List.of(), null, null, false, q);
-        }
         return findInternal("fo.id = ?", List.of(folderId), null, null, true, q);
     }
 
-    public List<Article> findByFolder(int folderId, long paginationId, String paginationDate, String q) {
-        if (folderId == 0) {
-            return findInternal("f.folder_id IS NULL", List.of(), paginationId, paginationDate, false, q);
-        }
-        return findInternal("fo.id = ?", List.of(folderId), paginationId, paginationDate, true, q);
+    public List<Article> findByFolder(int folderId, long paginationId, Instant paginationPublished, String q) {
+        return findInternal("fo.id = ?", List.of(folderId), paginationId, paginationPublished, true, q);
     }
 
     public void deleteByFeed(int feedId) throws SQLException {
@@ -228,8 +222,8 @@ public class ArticleRepository extends AbstractRepository<Article> {
         }
     }
 
-    private List<Article> findInternal(String whereClause, List<Object> initialParams, Long pagId, String pagDate,
-            boolean joinFolder, String q) {
+    private List<Article> findInternal(String whereClause, List<Object> initialParams, Long pagId,
+            Instant pagPublished, boolean joinFolder, String q) {
 
         StringBuilder sql = new StringBuilder(SELECT_COLS).append(FROM_JOIN);
         List<Object> params = new ArrayList<>();
@@ -256,10 +250,10 @@ public class ArticleRepository extends AbstractRepository<Article> {
         // Add Pagination. The cursor is (published, id) and id is a
         // bigint on the database - JDBC's setObject picks up the Long
         // argument and binds it as BIGINT.
-        if (pagId != null && pagDate != null) {
+        if (pagId != null && pagPublished != null) {
             sql.append(WHERE_PAGINATION);
-            params.add(java.time.Instant.parse(pagDate));
-            params.add(java.time.Instant.parse(pagDate));
+            params.add(pagPublished);
+            params.add(pagPublished);
             params.add(pagId);
         }
 

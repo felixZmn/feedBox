@@ -1,17 +1,20 @@
 package de._0x2b.service;
 
+import de._0x2b.exception.NotFoundException;
 import de._0x2b.model.Article;
 import de._0x2b.repository.ArticleRepository;
+import de._0x2b.resource.dto.PaginationCursor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -37,10 +40,10 @@ class ArticleServiceTest {
     }
 
     @Test
-    void markRead_whenMissing_returnsFalseWithoutUpdate() throws Exception {
+    void markRead_whenMissing_throwsNotFound() throws Exception {
         when(articleRepository.findById(99L)).thenReturn(null);
 
-        assertEquals(false, service.markRead(99L));
+        assertThrows(NotFoundException.class, () -> service.markRead(99L));
 
         verify(articleRepository).findById(99L);
         verify(articleRepository, never()).markRead(anyLong());
@@ -48,11 +51,11 @@ class ArticleServiceTest {
     }
 
     @Test
-    void markRead_whenPresent_updatesAndReturnsTrue() throws Exception {
+    void markRead_whenPresent_updates() throws Exception {
         when(articleRepository.findById(42L)).thenReturn(mock(Article.class));
         when(articleRepository.markRead(42L)).thenReturn(1);
 
-        assertEquals(true, service.markRead(42L));
+        service.markRead(42L);
 
         verify(articleRepository).findById(42L);
         verify(articleRepository).markRead(42L);
@@ -74,11 +77,11 @@ class ArticleServiceTest {
         List<Article> expected = List.of(mock(Article.class));
         when(articleRepository.findAll("")).thenReturn(expected);
 
-        List<Article> result = service.getAll(-1L, "", "");
+        List<Article> result = service.getAll(PaginationCursor.from(null, null), "");
 
         assertSame(expected, result);
         verify(articleRepository).findAll("");
-        verify(articleRepository, never()).findAll(anyLong(), anyString(), anyString());
+        verify(articleRepository, never()).findAll(anyLong(), any(), anyString());
         verifyNoMoreInteractions(articleRepository);
     }
 
@@ -87,7 +90,7 @@ class ArticleServiceTest {
         List<Article> expected = List.of(mock(Article.class));
         when(articleRepository.findAll("postgres")).thenReturn(expected);
 
-        List<Article> result = service.getAll(-1L, "", "postgres");
+        List<Article> result = service.getAll(new PaginationCursor(null, null), "postgres");
 
         assertSame(expected, result);
         verify(articleRepository).findAll("postgres");
@@ -96,32 +99,32 @@ class ArticleServiceTest {
 
     @Test
     void getAll_withPagination_callsRepoFindAllWithArgs() {
-        long pagId = 123L;
-        String pagPublished = "2026-01-01T10:00:00Z";
+        Instant published = Instant.parse("2026-01-01T10:00:00Z");
+        PaginationCursor cursor = new PaginationCursor(123L, published);
 
         List<Article> expected = List.of(mock(Article.class));
-        when(articleRepository.findAll(pagId, pagPublished, "")).thenReturn(expected);
+        when(articleRepository.findAll(123L, published, "")).thenReturn(expected);
 
-        List<Article> result = service.getAll(pagId, pagPublished, "");
+        List<Article> result = service.getAll(cursor, "");
 
         assertSame(expected, result);
-        verify(articleRepository).findAll(pagId, pagPublished, "");
+        verify(articleRepository).findAll(123L, published, "");
         verify(articleRepository, never()).findAll(anyString());
         verifyNoMoreInteractions(articleRepository);
     }
 
     @Test
     void getAll_withPagination_withQ_forwardsQ() {
-        long pagId = 123L;
-        String pagPublished = "2026-01-01T10:00:00Z";
+        Instant published = Instant.parse("2026-01-01T10:00:00Z");
+        PaginationCursor cursor = new PaginationCursor(123L, published);
 
         List<Article> expected = List.of(mock(Article.class));
-        when(articleRepository.findAll(pagId, pagPublished, "index")).thenReturn(expected);
+        when(articleRepository.findAll(123L, published, "index")).thenReturn(expected);
 
-        List<Article> result = service.getAll(pagId, pagPublished, "index");
+        List<Article> result = service.getAll(cursor, "index");
 
         assertSame(expected, result);
-        verify(articleRepository).findAll(pagId, pagPublished, "index");
+        verify(articleRepository).findAll(123L, published, "index");
         verifyNoMoreInteractions(articleRepository);
     }
 
@@ -132,27 +135,27 @@ class ArticleServiceTest {
         List<Article> expected = List.of(mock(Article.class));
         when(articleRepository.findByFolder(folderId, "")).thenReturn(expected);
 
-        List<Article> result = service.findByFolder(-1L, "", folderId, "");
+        List<Article> result = service.findByFolder(folderId, new PaginationCursor(null, null), "");
 
         assertSame(expected, result);
         verify(articleRepository).findByFolder(folderId, "");
-        verify(articleRepository, never()).findByFolder(anyInt(), anyLong(), anyString(), anyString());
+        verify(articleRepository, never()).findByFolder(anyInt(), anyLong(), any(), anyString());
         verifyNoMoreInteractions(articleRepository);
     }
 
     @Test
     void findByFolder_withPagination_withQ_forwardsQ() {
         int folderId = 7;
-        long pagId = 10L;
-        String pagPublished = "2026-01-01T10:00:00Z";
+        Instant published = Instant.parse("2026-01-01T10:00:00Z");
+        PaginationCursor cursor = new PaginationCursor(10L, published);
 
         List<Article> expected = List.of(mock(Article.class));
-        when(articleRepository.findByFolder(folderId, pagId, pagPublished, "news")).thenReturn(expected);
+        when(articleRepository.findByFolder(folderId, 10L, published, "news")).thenReturn(expected);
 
-        List<Article> result = service.findByFolder(pagId, pagPublished, folderId, "news");
+        List<Article> result = service.findByFolder(folderId, cursor, "news");
 
         assertSame(expected, result);
-        verify(articleRepository).findByFolder(folderId, pagId, pagPublished, "news");
+        verify(articleRepository).findByFolder(folderId, 10L, published, "news");
         verify(articleRepository, never()).findByFolder(anyInt(), anyString());
         verifyNoMoreInteractions(articleRepository);
     }
@@ -164,27 +167,27 @@ class ArticleServiceTest {
         List<Article> expected = List.of(mock(Article.class));
         when(articleRepository.findByFeed(feedId, "")).thenReturn(expected);
 
-        List<Article> result = service.findByFeed(-1L, "", feedId, "");
+        List<Article> result = service.findByFeed(feedId, new PaginationCursor(null, null), "");
 
         assertSame(expected, result);
         verify(articleRepository).findByFeed(feedId, "");
-        verify(articleRepository, never()).findByFeed(anyInt(), anyLong(), anyString(), anyString());
+        verify(articleRepository, never()).findByFeed(anyInt(), anyLong(), any(), anyString());
         verifyNoMoreInteractions(articleRepository);
     }
 
     @Test
     void findByFeed_withPagination_withQ_forwardsQ() {
         int feedId = 3;
-        long pagId = 10L;
-        String pagPublished = "2026-01-01T10:00:00Z";
+        Instant published = Instant.parse("2026-01-01T10:00:00Z");
+        PaginationCursor cursor = new PaginationCursor(10L, published);
 
         List<Article> expected = List.of(mock(Article.class));
-        when(articleRepository.findByFeed(feedId, pagId, pagPublished, "rust")).thenReturn(expected);
+        when(articleRepository.findByFeed(feedId, 10L, published, "rust")).thenReturn(expected);
 
-        List<Article> result = service.findByFeed(pagId, pagPublished, feedId, "rust");
+        List<Article> result = service.findByFeed(feedId, cursor, "rust");
 
         assertSame(expected, result);
-        verify(articleRepository).findByFeed(feedId, pagId, pagPublished, "rust");
+        verify(articleRepository).findByFeed(feedId, 10L, published, "rust");
         verify(articleRepository, never()).findByFeed(anyInt(), anyString());
         verifyNoMoreInteractions(articleRepository);
     }

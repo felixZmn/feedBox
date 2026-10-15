@@ -1,6 +1,8 @@
 package de._0x2b.service;
 
 import com.apptasticsoftware.rssreader.module.mediarss.MediaRssItem;
+import de._0x2b.exception.DataAccessException;
+import de._0x2b.exception.NotFoundException;
 import de._0x2b.model.Article;
 import de._0x2b.model.Feed;
 import de._0x2b.model.Icon;
@@ -109,13 +111,22 @@ class FeedServiceTest {
     }
 
     @Test
-    void update_delegatesToRepository() {
+    void update_whenFound_returnsId() {
         Feed feed = new Feed(1, 1, "n", URI.create("https://site.example"), URI.create("https://site.example/rss"));
         when(feedRepository.update(feed)).thenReturn(1);
 
         int updated = sut.update(feed);
 
         assertEquals(1, updated);
+        verify(feedRepository).update(feed);
+    }
+
+    @Test
+    void update_whenMissing_throwsNotFound() {
+        Feed feed = new Feed(1, 1, "n", URI.create("https://site.example"), URI.create("https://site.example/rss"));
+        when(feedRepository.update(feed)).thenReturn(0);
+
+        assertThrows(NotFoundException.class, () -> sut.update(feed));
         verify(feedRepository).update(feed);
     }
 
@@ -401,42 +412,37 @@ class FeedServiceTest {
     }
 
     @Test
-    void delete_whenAllDeletesSucceed_returnsRepoResult() throws Exception {
+    void delete_whenAllDeletesSucceed_completes() throws Exception {
         int feedId = 10;
 
-        // articleRepository.deleteByFeed is void but can throw SQLException
         doNothing().when(articleRepository).deleteByFeed(feedId);
         when(feedRepository.delete(feedId)).thenReturn(1);
 
-        int result = sut.delete(feedId);
+        sut.delete(feedId);
 
-        assertEquals(1, result);
         verify(articleRepository).deleteByFeed(feedId);
         verify(feedRepository).delete(feedId);
     }
 
     @Test
-    void delete_whenArticleDeleteThrowsSQLException_returnsMinus1AndDoesNotDeleteFeed() throws Exception {
+    void delete_whenArticleDeleteThrowsSQLException_throwsDataAccessAndDoesNotDeleteFeed()
+            throws Exception {
         int feedId = 10;
 
         doThrow(new SQLException("db")).when(articleRepository).deleteByFeed(feedId);
 
-        int result = sut.delete(feedId);
-
-        assertEquals(-1, result);
+        assertThrows(DataAccessException.class, () -> sut.delete(feedId));
         verify(feedRepository, never()).delete(anyInt());
     }
 
     @Test
-    void delete_whenFeedDeleteThrowsSQLException_returnsMinus1() throws Exception {
+    void delete_whenFeedMissing_throwsNotFound() throws Exception {
         int feedId = 10;
 
         doNothing().when(articleRepository).deleteByFeed(feedId);
-        when(feedRepository.delete(feedId)).thenThrow(new SQLException("db"));
+        when(feedRepository.delete(feedId)).thenReturn(0);
 
-        int result = sut.delete(feedId);
-
-        assertEquals(-1, result);
+        assertThrows(NotFoundException.class, () -> sut.delete(feedId));
         verify(articleRepository).deleteByFeed(feedId);
         verify(feedRepository).delete(feedId);
     }

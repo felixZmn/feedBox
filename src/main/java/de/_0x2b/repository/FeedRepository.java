@@ -1,5 +1,6 @@
 package de._0x2b.repository;
 
+import de._0x2b.exception.DataAccessException;
 import de._0x2b.exception.DuplicateEntityException;
 import de._0x2b.model.Feed;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -66,21 +67,24 @@ public class FeedRepository extends AbstractRepository<Feed> {
             if ("23505".equals(e.getSQLState())) {
                 throw new DuplicateEntityException("Feed with this URL already exists");
             }
-            logger.error("Error creating feed", e);
-            return -1;
+            throw new DataAccessException("Error creating feed", e);
         }
     }
 
+    /**
+     * @return number of rows updated (0 if the feed id does not exist)
+     */
     public int update(Feed feed) {
         try {
             List<Object> params = Arrays.asList(feed.getFolderId(), feed.getName(), feed.getUrl().toString(),
                     feed.getFeedUrl().toString(), feed.getId());
 
-            int rows = super.update(UPDATE, params);
-            return (rows > 0) ? feed.getId() : -1;
+            return super.update(UPDATE, params);
         } catch (SQLException e) {
-            logger.error("Error updating feed", e);
-            return -1;
+            if ("23505".equals(e.getSQLState())) {
+                throw new DuplicateEntityException("Feed with this URL already exists");
+            }
+            throw new DataAccessException("Error updating feed", e);
         }
     }
 
@@ -92,8 +96,15 @@ public class FeedRepository extends AbstractRepository<Feed> {
         return findInternal("id = ?", List.of(id));
     }
 
-    public int delete(int id) throws SQLException {
-        return super.update(DELETE, List.of(id));
+    /**
+     * @return number of rows deleted (0 if the feed id does not exist)
+     */
+    public int delete(int id) {
+        try {
+            return super.update(DELETE, List.of(id));
+        } catch (SQLException e) {
+            throw new DataAccessException("Error deleting feed: " + id, e);
+        }
     }
 
     /**

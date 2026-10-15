@@ -4,7 +4,7 @@ import { fetchWithAuth } from "./pkce.js";
 
 export const FOLDER_TREE_CACHE_KEY = "folder-tree-cache";
 export const FOLDER_STATE_KEY = "folder-state";
-export const FOLDER_TREE_CACHE_VERSION = 2;
+export const FOLDER_TREE_CACHE_VERSION = 3;
 
 class DataService {
   constructor() {

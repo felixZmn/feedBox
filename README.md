@@ -100,16 +100,24 @@ The following environment variables / properties can be configured:
 | ---------------------------------- | --------------- | ------------------------------------ |
 | `QUARKUS_DATASOURCE_JDBC_URL`      | -               | ! Database connection URL (required) |
 | `QUARKUS_DATASOURCE_JDBC_MAX_SIZE` | `16`            | Maximum connection pool size         |
-| `MP_JWT_VERIFY_PUBLICKEY_LOCATION` | -               | JWT public key URL                   |
-| `MP_JWT_VERIFY_ISSUER`             | -               | JWT issuer validation                |
-| `SSO_CLIENTID`                     | -               | SSO client ID                        |
+| `MP_JWT_VERIFY_PUBLICKEY_LOCATION` | -               | ! JWT public key / JWKS URL (required) |
+| `MP_JWT_VERIFY_ISSUER`             | -               | ! JWT issuer (required; never `NONE`) |
+| `MP_JWT_VERIFY_AUDIENCES`          | -               | ! JWT audience, usually the client id (required) |
+| `SSO_CLIENTID`                     | -               | ! SSO client ID (required)           |
 | `SSO_REDIRECTURI`                  | -               | SSO redirect URI after login         |
 | `SSO_AUTHSERVERURL`                | -               | SSO authorization server URL         |
 | `SSO_ENDSESSIONENDPOINT`           | -               | SSO logout endpoint                  |
 | `QUARKUS_HTTP_PORT`                | `8080`          | HTTP port for the application        |
-| `APP_HTTP_USER_AGENT`              | `FeedBox/2.0.5` | User agent string for HTTP requests  |
+| `APP_HTTP_USER_AGENT`              | `FeedBox/<ver>` | User agent string for HTTP requests  |
 | `REFRESH_JOB_INTERVAL`             | `1h`            | Background feed refresh interval     |
 | `APP_HTTP_TIMEOUT`                 | `30`            | HTTP request timeout in seconds      |
+
+### Authentication notes
+
+FeedBox is **single-tenant**: any valid JWT for the configured issuer and audience
+gets full read/write access. Restrict who can obtain tokens at the IdP (group /
+application assignment). Do **not** set `mp.jwt.verify.issuer=NONE` — that
+disables issuer validation.
 
 # Local Development
 
@@ -144,6 +152,7 @@ First-time local setup:
 ```bash
 cp application-local.properties.example application-local.properties
 # edit application-local.properties with your values
+# required: real mp.jwt.verify.issuer + mp.jwt.verify.audiences (not NONE)
 ```
 
 ## Build the application

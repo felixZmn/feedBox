@@ -2,8 +2,10 @@
 quarkus.datasource.jdbc.url=jdbc:postgresql://localhost:5432/postgres?user=user&password=password
 
 # JWT / SSO (required)
+# Issuer and audience MUST match your IdP. Do not use NONE — that disables issuer checks.
 mp.jwt.verify.publickey.location=https://your-idp.example/application/o/your-app/jwks/
-mp.jwt.verify.issuer=NONE
+mp.jwt.verify.issuer=https://your-idp.example/application/o/your-app/
+mp.jwt.verify.audiences=your-client-id
 
 sso.clientid=your-client-id
 sso.redirectUri=http://localhost:8080

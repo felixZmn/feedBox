@@ -1,5 +1,6 @@
 package de._0x2b.repository;
 
+import de._0x2b.exception.DataAccessException;
 import de._0x2b.exception.DuplicateEntityException;
 import de._0x2b.model.Folder;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -68,24 +69,34 @@ public class FolderRepository extends AbstractRepository<Folder> {
             if ("23505".equals(e.getSQLState())) {
                 throw new DuplicateEntityException("Folder with this Name already exists");
             }
-            logger.error("Error creating folder", e);
-            return -1;
+            throw new DataAccessException("Error creating folder", e);
         }
     }
 
+    /**
+     * @return number of rows updated (0 if the folder id does not exist)
+     */
     public int update(Folder folder) {
         try {
             List<Object> params = List.of(folder.getName(), folder.getColor(), folder.getId());
 
-            int rows = super.update(UPDATE, params);
-            return (rows > 0) ? folder.getId() : -1;
+            return super.update(UPDATE, params);
         } catch (SQLException e) {
-            logger.error("Error updating folder", e);
-            return -1;
+            if ("23505".equals(e.getSQLState())) {
+                throw new DuplicateEntityException("Folder with this Name already exists");
+            }
+            throw new DataAccessException("Error updating folder", e);
         }
     }
 
-    public int delete(int id) throws SQLException {
-        return super.update(DELETE, List.of(id));
+    /**
+     * @return number of rows deleted (0 if the folder id does not exist)
+     */
+    public int delete(int id) {
+        try {
+            return super.update(DELETE, List.of(id));
+        } catch (SQLException e) {
+            throw new DataAccessException("Error deleting folder: " + id, e);
+        }
     }
 }

@@ -2,6 +2,7 @@ package de._0x2b.service;
 
 import com.apptasticsoftware.rssreader.RssReader;
 import de._0x2b.exception.DataAccessException;
+import de._0x2b.exception.InvalidFeedException;
 import de._0x2b.exception.NotFoundException;
 import de._0x2b.model.Feed;
 import de._0x2b.model.Icon;
@@ -55,11 +56,11 @@ public class FeedService {
      * Store a new feed in the database
      *
      * @param feed
-     * @return
-     * @throws NotFoundException
+     * @return generated feed id
+     * @throws InvalidFeedException when the feed URL is unreachable or invalid
      */
     @Transactional
-    public int create(Feed feed) throws NotFoundException {
+    public int create(Feed feed) {
         logger.debug("create");
         feed = this.getFeedMetadata(feed);
         Icon icon = iconService.findIcon(feed);
@@ -82,12 +83,17 @@ public class FeedService {
      * Update an existing feed
      *
      * @param feed
-     * @return
+     * @return the feed id
+     * @throws NotFoundException when the feed does not exist
      */
     @Transactional
     public int update(Feed feed) {
         logger.debug("update");
-        return feedRepository.update(feed);
+        int rows = feedRepository.update(feed);
+        if (rows == 0) {
+            throw new NotFoundException("Feed not found: " + feed.getId());
+        }
+        return feed.getId();
     }
 
     /**
@@ -105,19 +111,31 @@ public class FeedService {
     }
 
     /**
+     * @param id feed primary key
+     * @return the feed
+     * @throws NotFoundException when missing
+     */
+    public Feed findById(int id) {
+        List<Feed> feeds = feedRepository.findOne(id);
+        if (feeds.isEmpty()) {
+            throw new NotFoundException("Feed not found: " + id);
+        }
+        return feeds.getFirst();
+    }
+
+    /**
      * Mark every article in a feed as read.
      *
      * @param feedId feed primary key
-     * @return false when the feed does not exist
+     * @throws NotFoundException when the feed does not exist
      */
-    public boolean markRead(int feedId) {
+    public void markRead(int feedId) {
         logger.debug("markRead feed {}", feedId);
         if (feedRepository.findOne(feedId).isEmpty()) {
-            return false;
+            throw new NotFoundException("Feed not found: " + feedId);
         }
         try {
             articleRepository.markReadByFeed(feedId);
-            return true;
         } catch (SQLException e) {
             throw new DataAccessException("Failed to mark feed read: " + feedId, e);
         }
@@ -185,8 +203,9 @@ public class FeedService {
      *
      * @param feed Feed object with feed_url filled
      * @return Feed object with name and url filled
+     * @throws InvalidFeedException when the URL is unreachable or not a feed
      */
-    public Feed getFeedMetadata(Feed feed) throws NotFoundException {
+    public Feed getFeedMetadata(Feed feed) {
         logger.debug("getFeedMetadata");
         RssReader rssReader = new RssReader();
         try {
@@ -194,8 +213,9 @@ public class FeedService {
             feed.setUrl(URI.create(channel.getLink()));
             feed.setName(channel.getTitle());
         } catch (Exception e) {
-            logger.error("Error querying feed [{}] \n {}\n", feed.getFeedUrl(), e.getMessage());
-            throw new NotFoundException("Feed not reachable or not a valid RSS/Atom feed: " + feed.getFeedUrl());
+            logger.error("Error querying feed [{}]: {}", feed.getFeedUrl(), e.getMessage());
+            throw new InvalidFeedException(
+                    "Feed not reachable or not a valid RSS/Atom feed: " + feed.getFeedUrl(), e);
         }
         return feed;
     }
@@ -382,20 +402,20 @@ public class FeedService {
      * Delete a feed and its articles
      *
      * @param feedId
-     * @return
+     * @throws NotFoundException when the feed does not exist
      */
     @Transactional
-    public int delete(int feedId) {
+    public void delete(int feedId) {
         logger.debug("delete");
         try {
             articleRepository.deleteByFeed(feedId);
         } catch (SQLException e) {
-            return -1;
+            throw new DataAccessException("Failed to delete articles for feed: " + feedId, e);
         }
-        try {
-            return feedRepository.delete(feedId);
-        } catch (SQLException e) {
-            return -1;
+        int rows = feedRepository.delete(feedId);
+        if (rows == 0) {
+            throw new NotFoundException("Feed not found: " + feedId);
         }
     }
 }
+

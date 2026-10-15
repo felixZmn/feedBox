@@ -5,7 +5,9 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import de._0x2b.exception.NotFoundException;
 import de._0x2b.model.Article;
+import de._0x2b.resource.dto.PaginationCursor;
 import de._0x2b.service.ArticleService;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
@@ -14,6 +16,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
 @Path("/api/article")
+@Authenticated
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class ArticleResource {
@@ -24,7 +27,6 @@ public class ArticleResource {
     ArticleService articleService;
 
     @GET
-    @Authenticated
     public Response getAllArticles(
             @QueryParam("folder") Integer folderId,
             @QueryParam("feed") Integer feedId,
@@ -34,21 +36,20 @@ public class ArticleResource {
 
         logger.debug("getAllArticles");
 
-        // Set default values if parameters are null
-        int folder = folderId != null ? folderId : -1;
-        int feed = feedId != null ? feedId : -1;
-        long pagId = paginationId != null ? paginationId : -1L;
-        String pagDate = paginationDate != null ? paginationDate : "";
+        if (folderId != null && feedId != null) {
+            throw new BadRequestException("Specify at most one of folder or feed");
+        }
+
+        PaginationCursor cursor = PaginationCursor.from(paginationId, paginationDate);
         String search = normalizeSearch(q);
 
         List<Article> result;
-
-        if (folder > -1) {
-            result = articleService.findByFolder(pagId, pagDate, folder, search);
-        } else if (feed > -1) {
-            result = articleService.findByFeed(pagId, pagDate, feed, search);
+        if (folderId != null) {
+            result = articleService.findByFolder(folderId, cursor, search);
+        } else if (feedId != null) {
+            result = articleService.findByFeed(feedId, cursor, search);
         } else {
-            result = articleService.getAll(pagId, pagDate, search);
+            result = articleService.getAll(cursor, search);
         }
 
         return Response.ok(result).build();
@@ -56,19 +57,17 @@ public class ArticleResource {
 
     @GET
     @Path("/{id}")
-    @Authenticated
     public Response getArticle(@PathParam("id") long id) {
         logger.debug("getArticle {}", id);
         var article = articleService.findById(id);
         if (article == null) {
-            return Response.status(Response.Status.NOT_FOUND).build();
+            throw new NotFoundException("Article not found: " + id);
         }
         return Response.ok(article).build();
     }
 
     @POST
     @Path("/read")
-    @Authenticated
     public Response markAllRead() {
         logger.debug("markAllRead");
         articleService.markAllRead();
@@ -77,12 +76,9 @@ public class ArticleResource {
 
     @POST
     @Path("/{id}/read")
-    @Authenticated
     public Response markRead(@PathParam("id") long id) {
         logger.debug("markRead {}", id);
-        if (!articleService.markRead(id)) {
-            return Response.status(Response.Status.NOT_FOUND).build();
-        }
+        articleService.markRead(id);
         return Response.noContent().build();
     }
 
