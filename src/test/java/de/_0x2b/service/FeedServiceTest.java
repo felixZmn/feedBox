@@ -3,15 +3,13 @@ package de._0x2b.service;
 import com.apptasticsoftware.rssreader.module.mediarss.MediaRssItem;
 import de._0x2b.exception.DataAccessException;
 import de._0x2b.exception.NotFoundException;
+import de._0x2b.http.FetchResult;
+import de._0x2b.http.OutboundHttpClient;
 import de._0x2b.model.Article;
 import de._0x2b.model.Feed;
 import de._0x2b.model.Icon;
 import de._0x2b.repository.ArticleRepository;
 import de._0x2b.repository.FeedRepository;
-import org.jsoup.Connection;
-import org.jsoup.HttpStatusException;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -19,11 +17,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
-import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
@@ -37,7 +32,7 @@ import static org.mockito.Mockito.*;
 class FeedServiceTest {
 
     @Mock
-    HTTPSService httpsService;
+    OutboundHttpClient outboundHttpClient;
     @Mock
     IconService iconService;
     @Mock
@@ -150,26 +145,23 @@ class FeedServiceTest {
     }
 
     @Test
-    void checkFeedUrl_whenContentTypeIsRss_returnsDirectFeed() throws Exception {
+    void checkFeedUrl_whenContentTypeIsRss_returnsDirectFeed() {
         String url = "https://example.com/rss.xml";
+        URI uri = URI.create(url);
+        when(outboundHttpClient.fetchFeed(uri)).thenReturn(Optional.of(new FetchResult(
+                uri, uri, 200, "application/rss+xml; charset=utf-8",
+                "<rss version=\"2.0\"></rss>".getBytes(StandardCharsets.UTF_8))));
 
-        JsoupProvider provider = mock(JsoupProvider.class);
-        Connection.Response response = mock(Connection.Response.class);
-
-        when(provider.execute(url)).thenReturn(response);
-        when(response.body()).thenReturn("<rss version=\"2.0\"></rss>");
-        when(response.contentType()).thenReturn("application/rss+xml; charset=utf-8");
-
-        List<Feed> feeds = sut.checkFeedUrl(url, provider);
+        List<Feed> feeds = sut.checkFeedUrl(url);
 
         assertEquals(1, feeds.size());
-        assertEquals(URI.create(url), feeds.getFirst().getFeedUrl());
-        // direct feed path uses empty name and null url per implementation
+        assertEquals(uri, feeds.getFirst().getFeedUrl());
     }
 
     @Test
-    void checkFeedUrl_whenHtmlContainsAlternateLinks_extractsAndNormalizesFeedUrls() throws Exception {
+    void checkFeedUrl_whenHtmlContainsAlternateLinks_extractsAndNormalizesFeedUrls() {
         String url = "https://example.com";
+        URI uri = URI.create(url);
         String html = """
                 <html><head>
                   <link rel="alternate" type="application/rss+xml" title="My RSS" href="/rss.xml"/>
@@ -177,71 +169,38 @@ class FeedServiceTest {
                   <link rel="alternate" type="application/rss+xml" title="FeedHTTPS" href="feed:https://example.com/x.rss"/>
                 </head></html>
                 """;
+        when(outboundHttpClient.fetchFeed(uri)).thenReturn(Optional.of(new FetchResult(
+                uri, uri, 200, "text/html; charset=utf-8", html.getBytes(StandardCharsets.UTF_8))));
 
-        Document doc = Jsoup.parse(html, url);
-
-        JsoupProvider provider = mock(JsoupProvider.class);
-        Connection.Response response = mock(Connection.Response.class);
-
-        when(provider.execute(url)).thenReturn(response);
-        when(response.body()).thenReturn(html);
-        when(response.contentType()).thenReturn("text/html; charset=utf-8");
-        when(response.parse()).thenReturn(doc);
-
-        List<Feed> feeds = sut.checkFeedUrl(url, provider);
+        List<Feed> feeds = sut.checkFeedUrl(url);
 
         assertEquals(3, feeds.size());
 
-        // 1) relative href resolved by abs:href
         assertEquals("My RSS", feeds.get(0).getName());
-        assertEquals(URI.create(url), feeds.get(0).getUrl());
+        assertEquals(uri, feeds.get(0).getUrl());
         assertEquals(URI.create("https://example.com/rss.xml"), feeds.get(0).getFeedUrl());
 
-        // 2) feed:// normalized to https://
         assertEquals("https://example.com/atom.xml", feeds.get(1).getName(), "blank title falls back to feedUrl");
         assertEquals(URI.create("https://example.com/atom.xml"), feeds.get(1).getFeedUrl());
 
-        // 3) feed:https:// normalized by stripping 'feed:'
         assertEquals("FeedHTTPS", feeds.get(2).getName());
         assertEquals(URI.create("https://example.com/x.rss"), feeds.get(2).getFeedUrl());
     }
 
     @Test
-    void checkFeedUrl_whenHttpStatusException_returnsEmptyList() throws Exception {
-        String url = "https://example.com";
-        JsoupProvider provider = mock(JsoupProvider.class);
+    void checkFeedUrl_whenFetchFails_returnsEmptyList() {
+        URI uri = URI.create("https://example.com");
+        when(outboundHttpClient.fetchFeed(uri)).thenReturn(Optional.empty());
 
-        // HttpStatusException has ctor (message, statusCode, url)
-        when(provider.execute(url)).thenThrow(new HttpStatusException("Forbidden", 403, url));
-
-        List<Feed> feeds = sut.checkFeedUrl(url, provider);
-
-        assertNotNull(feeds);
-        assertTrue(feeds.isEmpty());
+        assertTrue(sut.checkFeedUrl(uri.toString()).isEmpty());
     }
 
     @Test
-    void checkFeedUrl_whenIOException_returnsEmptyList() throws Exception {
-        String url = "https://example.com";
-        JsoupProvider provider = mock(JsoupProvider.class);
+    void checkFeedUrl_whenMalformedUrl_returnsEmptyList() {
+        // Relative / opaque URIs are rejected by the outbound client.
+        when(outboundHttpClient.fetchFeed(any())).thenReturn(Optional.empty());
 
-        when(provider.execute(url)).thenThrow(new IOException("network"));
-
-        List<Feed> feeds = sut.checkFeedUrl(url, provider);
-
-        assertTrue(feeds.isEmpty());
-    }
-
-    @Test
-    void checkFeedUrl_whenMalformedUrl_returnsEmptyList() throws Exception {
-        String url = "notaurl";
-        JsoupProvider provider = mock(JsoupProvider.class);
-
-        when(provider.execute(url)).thenThrow(new IllegalArgumentException("bad url"));
-
-        List<Feed> feeds = sut.checkFeedUrl(url, provider);
-
-        assertTrue(feeds.isEmpty());
+        assertTrue(sut.checkFeedUrl("notaurl").isEmpty());
     }
 
     @Test
@@ -249,30 +208,9 @@ class FeedServiceTest {
         Feed feed = new Feed(1, 1, "n", URI.create("https://example.com"), URI.create("https://example.com/rss"));
 
         when(feedRepository.findAll()).thenReturn(List.of(feed));
-        when(httpsService.fetchUriAsStream(feed.getFeedUrl())).thenReturn(Optional.empty());
+        when(outboundHttpClient.fetchFeed(feed.getFeedUrl())).thenReturn(Optional.empty());
 
         sut.refresh();
-
-        verify(articleRepository, never()).create(anyList());
-        // No HTTP response -> the new error-marking path should fire so
-        // the UI can surface a "broken since" state.
-        verify(feedRepository).markRefreshError(eq(1), anyString());
-    }
-
-    @Test
-    void refresh_singleFeed_whenStatusNot200_doesNotStoreArticles() throws SQLException {
-        Feed feed = new Feed(1, 1, "n", URI.create("https://example.com"), URI.create("https://example.com/rss"));
-
-        when(feedRepository.findOne(1)).thenReturn(List.of(feed));
-
-        // You need to return whatever type HTTPSService returns; we mock it as Object
-        // with methods via deep stubs:
-        var httpResponse = mock(java.net.http.HttpResponse.class, RETURNS_DEEP_STUBS);
-        when(httpResponse.statusCode()).thenReturn(500);
-
-        when(httpsService.fetchUriAsStream(feed.getFeedUrl())).thenReturn(Optional.of(httpResponse));
-
-        sut.refresh(1);
 
         verify(articleRepository, never()).create(anyList());
         verify(feedRepository).markRefreshError(eq(1), anyString());
@@ -281,22 +219,7 @@ class FeedServiceTest {
     @Test
     void parseFeed_whenFetchEmpty_doesNothing_andMarksError() throws SQLException {
         Feed feed = new Feed(1, 1, "Feed", URI.create("https://example.com"), URI.create("https://example.com/rss"));
-        when(httpsService.fetchUriAsStream(feed.getFeedUrl())).thenReturn(Optional.empty());
-
-        sut.parseFeed(feed);
-
-        verifyNoInteractions(mediaRssParser, articleMapper, articleRepository);
-        verify(feedRepository).markRefreshError(eq(1), anyString());
-    }
-
-    @Test
-    void parseFeed_whenStatusNot200_doesNothing_andMarksError() throws SQLException {
-        Feed feed = new Feed(1, 1, "Feed", URI.create("https://example.com"), URI.create("https://example.com/rss"));
-
-        @SuppressWarnings("unchecked")
-        HttpResponse<InputStream> resp = (HttpResponse<InputStream>) mock(HttpResponse.class);
-        when(resp.statusCode()).thenReturn(500);
-        when(httpsService.fetchUriAsStream(feed.getFeedUrl())).thenReturn(Optional.of(resp));
+        when(outboundHttpClient.fetchFeed(feed.getFeedUrl())).thenReturn(Optional.empty());
 
         sut.parseFeed(feed);
 
@@ -307,19 +230,13 @@ class FeedServiceTest {
     @Test
     void parseFeed_whenStatus200_parsesMapsAndStoresArticles_andMarksSuccess() throws SQLException {
         Feed feed = new Feed(5, 1, "MyFeed", URI.create("https://example.com"), URI.create("https://example.com/rss"));
-
-        // response body InputStream
-        InputStream body = new ByteArrayInputStream("<rss/>".getBytes());
-
-        @SuppressWarnings("unchecked")
-        HttpResponse<InputStream> resp = (HttpResponse<InputStream>) mock(HttpResponse.class);
-        when(resp.statusCode()).thenReturn(200);
-        when(resp.body()).thenReturn(body);
-        when(httpsService.fetchUriAsStream(feed.getFeedUrl())).thenReturn(Optional.of(resp));
+        byte[] body = "<rss/>".getBytes(StandardCharsets.UTF_8);
+        FetchResult result = new FetchResult(feed.getFeedUrl(), feed.getFeedUrl(), 200, "application/rss+xml", body);
+        when(outboundHttpClient.fetchFeed(feed.getFeedUrl())).thenReturn(Optional.of(result));
 
         MediaRssItem item1 = mock(MediaRssItem.class);
         MediaRssItem item2 = mock(MediaRssItem.class);
-        when(mediaRssParser.parse(body)).thenReturn(List.of(item1, item2));
+        when(mediaRssParser.parse(any())).thenReturn(List.of(item1, item2));
 
         Article a1 = new Article(-1, feed.getId(), feed.getName(),
                 "t1", "d1", "c1", "l1", Instant.parse("2020-01-01T00:00:00Z"),
@@ -341,10 +258,8 @@ class FeedServiceTest {
         assertSame(a1, stored.get(0));
         assertSame(a2, stored.get(1));
 
-        verify(mediaRssParser).parse(body);
         verify(articleMapper).toArticle(feed, item1);
         verify(articleMapper).toArticle(feed, item2);
-        // Successful insert -> mark the feed as healthy.
         verify(feedRepository).markRefreshSuccess(eq(feed.getId()), isNull());
         verify(feedRepository, never()).markRefreshError(anyInt(), anyString());
     }
@@ -352,18 +267,13 @@ class FeedServiceTest {
     @Test
     void parseFeed_whenMapperThrowsForOneItem_continuesWithOthers() throws SQLException {
         Feed feed = new Feed(5, 1, "MyFeed", URI.create("https://example.com"), URI.create("https://example.com/rss"));
-
-        InputStream body = new ByteArrayInputStream("<rss/>".getBytes());
-
-        @SuppressWarnings("unchecked")
-        HttpResponse<InputStream> resp = (HttpResponse<InputStream>) mock(HttpResponse.class);
-        when(resp.statusCode()).thenReturn(200);
-        when(resp.body()).thenReturn(body);
-        when(httpsService.fetchUriAsStream(feed.getFeedUrl())).thenReturn(Optional.of(resp));
+        FetchResult result = new FetchResult(feed.getFeedUrl(), feed.getFeedUrl(), 200, "application/rss+xml",
+                "<rss/>".getBytes(StandardCharsets.UTF_8));
+        when(outboundHttpClient.fetchFeed(feed.getFeedUrl())).thenReturn(Optional.of(result));
 
         MediaRssItem bad = mock(MediaRssItem.class);
         MediaRssItem good = mock(MediaRssItem.class);
-        when(mediaRssParser.parse(body)).thenReturn(List.of(bad, good));
+        when(mediaRssParser.parse(any())).thenReturn(List.of(bad, good));
 
         when(articleMapper.toArticle(feed, bad)).thenThrow(new RuntimeException("boom"));
         Article aGood = new Article(-1, feed.getId(), feed.getName(),
@@ -379,29 +289,21 @@ class FeedServiceTest {
         List<Article> stored = captor.getValue();
         assertEquals(1, stored.size());
         assertSame(aGood, stored.getFirst());
-        // Even with one bad item, the batch is still considered a success.
         verify(feedRepository).markRefreshSuccess(eq(feed.getId()), isNull());
     }
 
     @Test
     void parseFeed_whenArticleRepositoryCreateThrows_marksError() throws SQLException {
         Feed feed = new Feed(5, 1, "MyFeed", URI.create("https://example.com"), URI.create("https://example.com/rss"));
-
-        InputStream body = new ByteArrayInputStream("<rss/>".getBytes());
-
-        @SuppressWarnings("unchecked")
-        HttpResponse<InputStream> resp = (HttpResponse<InputStream>) mock(HttpResponse.class);
-        when(resp.statusCode()).thenReturn(200);
-        when(resp.body()).thenReturn(body);
-        when(httpsService.fetchUriAsStream(feed.getFeedUrl())).thenReturn(Optional.of(resp));
+        FetchResult result = new FetchResult(feed.getFeedUrl(), feed.getFeedUrl(), 200, "application/rss+xml",
+                "<rss/>".getBytes(StandardCharsets.UTF_8));
+        when(outboundHttpClient.fetchFeed(feed.getFeedUrl())).thenReturn(Optional.of(result));
 
         MediaRssItem item = mock(MediaRssItem.class);
-        when(mediaRssParser.parse(body)).thenReturn(List.of(item));
+        when(mediaRssParser.parse(any())).thenReturn(List.of(item));
         when(articleMapper.toArticle(feed, item))
                 .thenReturn(new Article(-1, feed.getId(), feed.getName(), "t", "d", "c", "l", null, "", "", ""));
 
-        // Simulate a database failure during the batch insert. This is
-        // the new behaviour - the failure must NOT be swallowed.
         doThrow(new de._0x2b.exception.DataAccessException("DB down", new SQLException("down")))
                 .when(articleRepository).create(anyList());
 

@@ -1,5 +1,6 @@
 package de._0x2b.service;
 
+import de._0x2b.http.OutboundHttpClient;
 import de._0x2b.model.Feed;
 import de._0x2b.model.Icon;
 import de._0x2b.repository.IconRepository;
@@ -28,7 +29,7 @@ public class IconService {
     IconRepository iconRepository;
 
     @Inject
-    HTTPSService httpsService;
+    OutboundHttpClient outboundHttpClient;
 
     /**
      * Extracts the charset from the Content-Type header.
@@ -89,22 +90,15 @@ public class IconService {
         var urls = constructHtmlUris(feed);
 
         for (URI uri : urls) {
-            var optional = httpsService.fetchAsBytes(uri);
+            var optional = outboundHttpClient.fetchIcon(uri);
             if (optional.isEmpty()) {
                 continue; // try next url
             }
             var response = optional.get();
-            var charset = getCharsetFromContentType(response.headers().firstValue("Content-Type").orElse(""));
+            var charset = getCharsetFromContentType(response.contentType() != null ? response.contentType() : "");
             var iconUrl = parseHtml(new String(response.body(), charset));
-
-            var url = "";
-            if (iconUrl.getHost() != null) {
-                url = iconUrl.toString();
-            } else {
-                url = response.uri().getScheme() + "://" + response.uri().getHost()
-                        + (iconUrl.getPath().startsWith("/") ? "" : "/") + iconUrl.getPath();
-            }
-            var icon = fetchFavicon(new Icon(-1, feed.getId(), null, "", "", url));
+            URI absoluteIcon = response.finalUri().resolve(iconUrl);
+            var icon = fetchFavicon(new Icon(-1, feed.getId(), null, "", "", absoluteIcon.toString()));
 
             if (icon.getImage() != null) {
                 return icon;
@@ -178,21 +172,30 @@ public class IconService {
      *         fall back to the default icon.
      */
     public Icon fetchFavicon(Icon icon) {
-        var optional = httpsService.fetchAsBytes(URI.create(icon.getUrl()));
+        URI iconUri;
+        try {
+            iconUri = URI.create(icon.getUrl());
+        } catch (IllegalArgumentException e) {
+            logger.warn("Malformed favicon URL: {}", icon.getUrl());
+            return icon;
+        }
+
+        var optional = outboundHttpClient.fetchIcon(iconUri);
         if (optional.isEmpty()) {
-            logger.error("Failed to fetch favicon");
+            logger.warn("Failed to fetch favicon from {}", icon.getUrl());
             return icon;
         }
 
         var response = optional.get();
-        String mime = response.headers().firstValue("content-type").orElse("application/octet-stream");
+        String mime = response.contentType() != null ? response.contentType() : "application/octet-stream";
         // Security: a feed author could try to make us serve HTML or
         // JavaScript as the "icon". Reject anything that doesn't look
         // like an image MIME type. SVG is intentionally excluded here:
         // an SVG can contain <script> and is a script-capable format
         // when served as the document body. If you trust your feeds,
         // add "image/svg+xml" to the allow list.
-        if (mime == null || !mime.toLowerCase().startsWith("image/") || mime.toLowerCase().startsWith("image/svg")) {
+        String mimeLower = mime.toLowerCase();
+        if (!mimeLower.startsWith("image/") || mimeLower.startsWith("image/svg")) {
             logger.warn("Refusing non-image favicon (content-type={}) from {}", mime, icon.getUrl());
             icon.setImage(null);
             return icon;

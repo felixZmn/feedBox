@@ -109,8 +109,11 @@ The following environment variables / properties can be configured:
 | `SSO_ENDSESSIONENDPOINT`           | -               | SSO logout endpoint                  |
 | `QUARKUS_HTTP_PORT`                | `8080`          | HTTP port for the application        |
 | `APP_HTTP_USER_AGENT`              | `FeedBox/<ver>` | User agent string for HTTP requests  |
-| `REFRESH_JOB_INTERVAL`             | `1h`            | Background feed refresh interval     |
 | `APP_HTTP_TIMEOUT`                 | `30`            | HTTP request timeout in seconds      |
+| `APP_HTTP_MAX_REDIRECTS`           | `5`             | Max redirects when fetching feeds/icons |
+| `APP_HTTP_MAX_BYTES_FEED`          | `10485760`      | Max feed response size (10 MiB)      |
+| `APP_HTTP_MAX_BYTES_ICON`          | `2097152`       | Max favicon response size (2 MiB)    |
+| `REFRESH_JOB_INTERVAL`             | `1h`            | Background feed refresh interval     |
 
 ### Authentication notes
 
