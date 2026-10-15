@@ -1,6 +1,8 @@
 package de._0x2b.service;
 
+import de._0x2b.exception.DataAccessException;
 import de._0x2b.model.Folder;
+import de._0x2b.repository.ArticleRepository;
 import de._0x2b.repository.FolderRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -19,6 +21,9 @@ public class FolderService {
     @Inject
     FolderRepository folderRepository;
 
+    @Inject
+    ArticleRepository articleRepository;
+
     /**
      * Get all folders
      *
@@ -27,6 +32,25 @@ public class FolderService {
     public List<Folder> findAll() {
         logger.debug("findAll");
         return folderRepository.findAll();
+    }
+
+    /**
+     * Mark every article in feeds belonging to a folder as read.
+     *
+     * @param folderId folder primary key
+     * @return false when the folder does not exist
+     */
+    public boolean markRead(int folderId) {
+        logger.debug("markRead folder {}", folderId);
+        if (folderRepository.findById(folderId) == null) {
+            return false;
+        }
+        try {
+            articleRepository.markReadByFolder(folderId);
+            return true;
+        } catch (SQLException e) {
+            throw new DataAccessException("Failed to mark folder read: " + folderId, e);
+        }
     }
 
     /**

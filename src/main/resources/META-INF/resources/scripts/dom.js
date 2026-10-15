@@ -1,7 +1,10 @@
 "use strict";
 
 import { FOLDER_STATE_KEY } from "./data.js";
+import { unreadBadgeHtml, totalUnreadCount } from "./unread.js";
 import { escapeHtml, getRelativeTime, parseDate, sanitizeHTML, isSafeHttpUrl } from "./util.js";
+
+export { unreadBadgeHtml, totalUnreadCount } from "./unread.js";
 
 const articlesContainer = document.querySelector(
   "#articles-list #articles-container",
@@ -24,6 +27,19 @@ export function setSelectedArticleHighlight(articleId) {
     `.article[data-article-id="${selectedArticleId}"]`,
   );
   if (el) el.classList.add("selected");
+}
+
+/**
+ * Toggle the unread style on a loaded article row.
+ * @param {number} articleId
+ * @param {boolean} read
+ */
+export function setArticleReadState(articleId, read) {
+  const el = articlesContainer.querySelector(
+    `.article[data-article-id="${articleId}"]`,
+  );
+  if (!el) return;
+  el.classList.toggle("unread", !read);
 }
 
 /**
@@ -81,6 +97,24 @@ export function setFolderOpenState(folderId, isOpen) {
 }
 
 /**
+ * @param {number} count
+ */
+export function updateAllFeedsUnreadBadge(count) {
+  const el = document.getElementById("all-feeds-unread");
+  if (!el) return;
+  const n = Number(count) || 0;
+  if (n <= 0) {
+    el.textContent = "";
+    el.hidden = true;
+    el.removeAttribute("aria-label");
+    return;
+  }
+  el.textContent = String(n);
+  el.hidden = false;
+  el.setAttribute("aria-label", `${n} unread`);
+}
+
+/**
  * Build feed list item HTML (no event listeners — delegation handles clicks).
  * @param {Feed} feed
  */
@@ -92,6 +126,7 @@ function feedHtml(feed) {
     <img class="tree-entry-icon" src="./api/icon/${feed.id}" alt="" data-fallback-icon="icons/rss.svg" />
     <span class="tree-name">${escapeHtml(feed.name || "")}</span>
     ${error}
+    ${unreadBadgeHtml(feed.unreadCount)}
     <span class="tree-options" role="button" tabindex="0" aria-label="Feed options">⋮</span>
   </li>`;
 }
@@ -108,11 +143,16 @@ function folderHtml(folder, openStates) {
       ? " open"
       : "";
   const color = escapeHtml(folder.color || "f-base");
+  const folderUnread = (folder.feeds ?? []).reduce(
+    (sum, feed) => sum + (Number(feed.unreadCount) || 0),
+    0,
+  );
   const feeds = (folder.feeds ?? []).map(feedHtml).join("");
   return `<details data-folder-id="${folder.id}"${open}>
     <summary>
       <img src="icons/folder.svg" alt="" class="icon ${color}" />
       <span class="tree-name">${escapeHtml(folder.name || "")}</span>
+      ${unreadBadgeHtml(folderUnread)}
       <span class="tree-options" role="button" tabindex="0" aria-label="Folder options">⋮</span>
     </summary>
     <div class="folder-container">
@@ -167,6 +207,7 @@ export function renderFoldersList(folders, unfiledFeeds) {
   container.innerHTML = html;
   delete container.dataset.cachePainted;
   syncFolderOpenStatesFromStorage();
+  updateAllFeedsUnreadBadge(totalUnreadCount(folders, unfiledFeeds));
   return html;
 }
 
@@ -187,6 +228,9 @@ function createArticleElement(article) {
   articleDiv.dataset.articleId = String(article.id);
   articleDiv.tabIndex = 0;
   articleDiv.setAttribute("role", "button");
+  if (!article.read) {
+    articleDiv.classList.add("unread");
+  }
   if (selectedArticleId != null && article.id === selectedArticleId) {
     articleDiv.classList.add("selected");
   }

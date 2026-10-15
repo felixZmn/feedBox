@@ -10,7 +10,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,6 +33,39 @@ class ArticleServiceTest {
 
         assertSame(expected, result);
         verify(articleRepository).findById(42L);
+        verifyNoMoreInteractions(articleRepository);
+    }
+
+    @Test
+    void markRead_whenMissing_returnsFalseWithoutUpdate() throws Exception {
+        when(articleRepository.findById(99L)).thenReturn(null);
+
+        assertEquals(false, service.markRead(99L));
+
+        verify(articleRepository).findById(99L);
+        verify(articleRepository, never()).markRead(anyLong());
+        verifyNoMoreInteractions(articleRepository);
+    }
+
+    @Test
+    void markRead_whenPresent_updatesAndReturnsTrue() throws Exception {
+        when(articleRepository.findById(42L)).thenReturn(mock(Article.class));
+        when(articleRepository.markRead(42L)).thenReturn(1);
+
+        assertEquals(true, service.markRead(42L));
+
+        verify(articleRepository).findById(42L);
+        verify(articleRepository).markRead(42L);
+        verifyNoMoreInteractions(articleRepository);
+    }
+
+    @Test
+    void markAllRead_delegatesToRepository() throws Exception {
+        when(articleRepository.markAllRead()).thenReturn(12);
+
+        service.markAllRead();
+
+        verify(articleRepository).markAllRead();
         verifyNoMoreInteractions(articleRepository);
     }
 

@@ -120,15 +120,22 @@ class FeedServiceTest {
     }
 
     @Test
-    void findAll_delegatesToRepository() {
-        List<Feed> expected = List.of(
-                new Feed(1, 1, "n", URI.create("https://site.example"), URI.create("https://site.example/rss")));
-        when(feedRepository.findAll()).thenReturn(expected);
+    void findAll_attachesUnreadCountsFromArticleRepository() {
+        Feed withUnread = new Feed(1, 1, "n", URI.create("https://site.example"),
+                URI.create("https://site.example/rss"));
+        Feed withoutUnread = new Feed(2, 1, "m", URI.create("https://other.example"),
+                URI.create("https://other.example/rss"));
+        when(feedRepository.findAll()).thenReturn(List.of(withUnread, withoutUnread));
+        when(articleRepository.countUnreadByFeed()).thenReturn(java.util.Map.of(1, 5));
 
         List<Feed> result = sut.findAll();
 
-        assertSame(expected, result);
+        assertSame(withUnread, result.get(0));
+        assertSame(withoutUnread, result.get(1));
+        assertEquals(5, withUnread.getUnreadCount());
+        assertEquals(0, withoutUnread.getUnreadCount());
         verify(feedRepository).findAll();
+        verify(articleRepository).countUnreadByFeed();
     }
 
     @Test
