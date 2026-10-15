@@ -100,13 +100,10 @@ The following environment variables / properties can be configured:
 | ---------------------------------- | --------------- | ------------------------------------ |
 | `QUARKUS_DATASOURCE_JDBC_URL`      | -               | ! Database connection URL (required) |
 | `QUARKUS_DATASOURCE_JDBC_MAX_SIZE` | `16`            | Maximum connection pool size         |
-| `MP_JWT_VERIFY_PUBLICKEY_LOCATION` | -               | ! JWT public key / JWKS URL (required) |
-| `MP_JWT_VERIFY_ISSUER`             | -               | ! JWT issuer (required; never `NONE`) |
-| `MP_JWT_VERIFY_AUDIENCES`          | -               | ! JWT audience, usually the client id (required) |
-| `SSO_CLIENTID`                     | -               | ! SSO client ID (required)           |
-| `SSO_REDIRECTURI`                  | -               | SSO redirect URI after login         |
-| `SSO_AUTHSERVERURL`                | -               | SSO authorization server URL         |
-| `SSO_ENDSESSIONENDPOINT`           | -               | SSO logout endpoint                  |
+| `QUARKUS_OIDC_AUTH_SERVER_URL`     | -               | ! IdP issuer / OIDC discovery URL (required) |
+| `QUARKUS_OIDC_CLIENT_ID`           | -               | ! OIDC client id (required)          |
+| `QUARKUS_OIDC_CREDENTIALS_SECRET`  | -               | Client secret (confidential clients) |
+| `QUARKUS_OIDC_TOKEN_STATE_MANAGER_ENCRYPTION_SECRET` | - | ! 32+ char secret encrypting the session cookie (required) |
 | `QUARKUS_HTTP_PORT`                | `8080`          | HTTP port for the application        |
 | `APP_HTTP_USER_AGENT`              | `FeedBox/<ver>` | User agent string for HTTP requests  |
 | `APP_HTTP_TIMEOUT`                 | `30`            | HTTP request timeout in seconds      |
@@ -117,10 +114,22 @@ The following environment variables / properties can be configured:
 
 ### Authentication notes
 
-FeedBox is **single-tenant**: any valid JWT for the configured issuer and audience
-gets full read/write access. Restrict who can obtain tokens at the IdP (group /
-application assignment). Do **not** set `mp.jwt.verify.issuer=NONE` — that
-disables issuer validation.
+FeedBox uses **Quarkus OIDC web-app** (authorization code + PKCE). Tokens live in
+encrypted **httpOnly** session cookies (ID + refresh only; access token is not
+stored) — the SPA never sees them.
+
+Register this **exact** Redirect URI at the IdP (Authentik → Application →
+Provider → Redirect URIs):
+
+- Local: `http://localhost:8080/oidc`
+- Prod: `https://<your-host>/oidc`
+
+(The old SPA used `http://localhost:8080` without `/oidc` — that no longer
+matches.) Logout is `GET /logout`.
+
+FeedBox is **single-tenant**: any user who can complete login at the configured
+IdP gets full read/write access. Restrict access at the IdP (group / application
+assignment).
 
 # Local Development
 
@@ -143,7 +152,7 @@ disables issuer validation.
 
 `src/main/resources/application.properties` holds **safe defaults only** (user agent, timeouts, Flyway, etc.). It is packaged into the JAR and Docker image.
 
-Secrets and environment-specific values (database URL, SSO, JWT) belong in:
+Secrets and environment-specific values (database URL, OIDC) belong in:
 
 | Environment | Where to put secrets |
 | ----------- | -------------------- |
@@ -155,7 +164,8 @@ First-time local setup:
 ```bash
 cp application-local.properties.example application-local.properties
 # edit application-local.properties with your values
-# required: real mp.jwt.verify.issuer + mp.jwt.verify.audiences (not NONE)
+# required: quarkus.oidc.auth-server-url, client-id, encryption-secret
+# register http://localhost:8080/oidc as the IdP redirect URI
 ```
 
 ## Tests

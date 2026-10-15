@@ -127,8 +127,8 @@ function feedHtml(feed) {
   const error = feed.lastError
     ? `<span class="feed-error" title="${escapeHtml(feed.lastError)}" aria-label="Feed error: ${escapeHtml(feed.lastError)}">!</span>`
     : "";
-  // Icons require auth — hydrate via loadFeedIcons() after paint (Bearer cannot
-  // be sent on a plain <img src>). Placeholder until then.
+  // Icons require auth — hydrate via loadFeedIcons() after paint (cookie
+  // credentials on fetch; placeholder until then).
   return `<li data-feed-id="${feed.id}">
     <img class="tree-entry-icon" src="icons/rss.svg" alt="" data-feed-icon="${feed.id}" />
     <span class="tree-name">${escapeHtml(feed.name || "")}</span>
@@ -144,11 +144,11 @@ const feedIconObjectUrls = new Map();
 /**
  * Fetch feed icons with an authenticated client and set blob: URLs on
  * {@code [data-feed-icon]} images. Safe to call repeatedly after re-renders.
- * @param {(url: string, options?: RequestInit) => Promise<Response>} fetchWithAuth
+ * @param {(url: string, options?: RequestInit) => Promise<Response>} apiFetch
  */
-export function loadFeedIcons(fetchWithAuth) {
+export function loadFeedIcons(apiFetch) {
   const container = document.getElementById("folder-container");
-  if (!container || typeof fetchWithAuth !== "function") return;
+  if (!container || typeof apiFetch !== "function") return;
 
   container.querySelectorAll("img[data-feed-icon]").forEach((img) => {
     const feedId = img.dataset.feedIcon;
@@ -157,7 +157,7 @@ export function loadFeedIcons(fetchWithAuth) {
 
     void (async () => {
       try {
-        const response = await fetchWithAuth(`./api/icon/${feedId}`);
+        const response = await apiFetch(`./api/icon/${feedId}`);
         if (!response.ok) return;
         const blob = await response.blob();
         const previous = feedIconObjectUrls.get(feedId);

@@ -1,24 +1,9 @@
 "use strict";
 
 // Inject renderer-generated cache HTML before deferred modules load.
-// Keep session key names in sync with pkce.js / data.js.
+// Session is an httpOnly cookie — if Quarkus served this page, paint the cache.
 (function () {
   try {
-    var params = new URLSearchParams(window.location.search);
-    if (
-      params.has("code") ||
-      params.has("state") ||
-      params.has("session_state")
-    ) {
-      return;
-    }
-    var access = sessionStorage.getItem("access_token");
-    var expiresAt = Number(sessionStorage.getItem("expires_at")) || 0;
-    var hasSession =
-      (access && expiresAt > Date.now()) ||
-      !!localStorage.getItem("refresh_token");
-    if (!hasSession) return;
-
     var raw = localStorage.getItem("folder-tree-cache");
     if (!raw) return;
     var data = JSON.parse(raw);

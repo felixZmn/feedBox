@@ -1,6 +1,6 @@
 "use strict";
 
-import { fetchWithAuth } from "./pkce.js";
+import { apiFetch } from "./auth.js";
 
 export const FOLDER_TREE_CACHE_KEY = "folder-tree-cache";
 export const FOLDER_STATE_KEY = "folder-state";
@@ -78,7 +78,7 @@ class DataService {
 
   /**
    * Unified request handler.
-   * Delegates network execution to pkce.js for automatic token refresh.
+   * Uses same-origin session cookie via auth.js.
    */
   async _request(url, options = {}) {
     const {
@@ -89,7 +89,7 @@ class DataService {
       ...restOptions
     } = options;
 
-    // Only set Content-Type if sending a body. Auth headers are injected by fetchWithAuth.
+    // Only set Content-Type if sending a body. Session cookie is sent automatically.
     const headers = { ...extraHeaders };
     if (body) headers["Content-Type"] = "application/json";
 
@@ -102,7 +102,7 @@ class DataService {
     };
 
     try {
-      const response = await fetchWithAuth(url, fetchOptions);
+      const response = await apiFetch(url, fetchOptions);
 
       if (response.status === 204) return null;
 
@@ -256,21 +256,6 @@ export function clearFolderTreeCache() {
     localStorage.removeItem(FOLDER_STATE_KEY);
   } catch (err) {
     console.warn("Could not clear folder tree cache", err);
-  }
-}
-
-/**
- * Returning session with a usable access or refresh token.
- * Used by the inline boot injector (keep key names in sync with pkce.js).
- */
-export function hasReturningSession() {
-  try {
-    const access = sessionStorage.getItem("access_token");
-    const expiresAt = Number(sessionStorage.getItem("expires_at")) || 0;
-    if (access && expiresAt > Date.now()) return true;
-    return !!localStorage.getItem("refresh_token");
-  } catch {
-    return false;
   }
 }
 
