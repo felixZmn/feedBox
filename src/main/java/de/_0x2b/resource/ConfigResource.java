@@ -1,12 +1,17 @@
 package de._0x2b.resource;
 
+import jakarta.annotation.security.PermitAll;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+/**
+ * Public SSO bootstrap config for the SPA (needed before the user has a token).
+ */
 @Path("/api/config")
+@PermitAll
 public class ConfigResource {
 
     @ConfigProperty(name = "sso.clientid")

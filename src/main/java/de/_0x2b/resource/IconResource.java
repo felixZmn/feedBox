@@ -12,6 +12,7 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.core.Response;
 
 @Path("/api/icon")
+@Authenticated
 public class IconResource {
     private static final Logger logger = LoggerFactory.getLogger(IconResource.class);
 
@@ -46,7 +47,7 @@ public class IconResource {
         var firstIcon = icon.getFirst();
         return Response.ok(firstIcon.getImage())
                 .header("Content-Type", firstIcon.getMimeType())
-                .header("Cache-Control", "public, max-age=86400")
+                .header("Cache-Control", "private, max-age=86400")
                 .header("X-Content-Type-Options", "nosniff")
                 .header("Content-Disposition", "inline; filename=\"" + safeFileName(firstIcon) + "\"")
                 .header("Content-Security-Policy", "default-src 'none'")

@@ -1,7 +1,18 @@
 package de._0x2b.resource;
 
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import de._0x2b.model.Folder;
+import de._0x2b.model.FolderColor;
+import de._0x2b.resource.dto.CreateFolderRequest;
+import de._0x2b.resource.dto.UpdateFolderRequest;
+import de._0x2b.service.FolderService;
+import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -13,16 +24,10 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.List;
-
-import de._0x2b.model.Folder;
-import de._0x2b.service.FolderService;
-import io.quarkus.security.Authenticated;
-
 @Path("/api/folder")
+@Authenticated
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class FolderResource {
     private static final Logger logger = LoggerFactory.getLogger(FolderResource.class);
 
@@ -30,53 +35,44 @@ public class FolderResource {
     FolderService folderService;
 
     @GET
-    @Authenticated
-    @Produces(MediaType.APPLICATION_JSON)
     public List<Folder> getFolders() {
         logger.debug("getFolders");
         return folderService.findAll();
     }
 
     @POST
-    @Authenticated
-    @Transactional
-    @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_JSON)
-    public Response createFolder(Folder folder) {
+    public Response createFolder(@Valid CreateFolderRequest request) {
         logger.debug("createFolder");
-        return Response.ok(folderService.create(folder)).build();
+        FolderColor color = request.color != null ? request.color : FolderColor.F_BASE;
+        Folder folder = new Folder(-1, request.name.trim(), null, color.cssClass());
+        int id = folderService.create(folder);
+        return Response.status(Response.Status.CREATED)
+                .entity(id)
+                .build();
     }
 
-    @PUT()
+    @PUT
     @Path("/{id}")
-    @Authenticated
-    @Transactional
-    @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_JSON)
-    public Response updateFolder(@PathParam("id") int id, Folder folder) {
+    public Response updateFolder(@PathParam("id") int id, @Valid UpdateFolderRequest request) {
         logger.debug("updateFolder");
-        folder.setId(id);
-        return Response.ok(folderService.update(folder)).build();
+        Folder folder = new Folder(id, request.name.trim(), null, request.color.cssClass());
+        folderService.update(folder);
+        return Response.ok(id).build();
     }
 
-    @DELETE()
+    @DELETE
     @Path("/{id}")
-    @Authenticated
-    @Transactional
     public Response deleteFolder(@PathParam("id") int id) {
         logger.debug("deleteFolder");
         folderService.delete(id);
-        return Response.ok().build();
+        return Response.noContent().build();
     }
 
     @POST
     @Path("/{id}/read")
-    @Authenticated
     public Response markRead(@PathParam("id") int id) {
         logger.debug("markRead folder {}", id);
-        if (!folderService.markRead(id)) {
-            return Response.status(Response.Status.NOT_FOUND).build();
-        }
+        folderService.markRead(id);
         return Response.noContent().build();
     }
 }

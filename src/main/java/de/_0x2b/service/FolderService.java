@@ -1,6 +1,7 @@
 package de._0x2b.service;
 
 import de._0x2b.exception.DataAccessException;
+import de._0x2b.exception.NotFoundException;
 import de._0x2b.model.Folder;
 import de._0x2b.repository.ArticleRepository;
 import de._0x2b.repository.FolderRepository;
@@ -38,16 +39,15 @@ public class FolderService {
      * Mark every article in feeds belonging to a folder as read.
      *
      * @param folderId folder primary key
-     * @return false when the folder does not exist
+     * @throws NotFoundException when the folder does not exist
      */
-    public boolean markRead(int folderId) {
+    public void markRead(int folderId) {
         logger.debug("markRead folder {}", folderId);
         if (folderRepository.findById(folderId) == null) {
-            return false;
+            throw new NotFoundException("Folder not found: " + folderId);
         }
         try {
             articleRepository.markReadByFolder(folderId);
-            return true;
         } catch (SQLException e) {
             throw new DataAccessException("Failed to mark folder read: " + folderId, e);
         }
@@ -55,7 +55,7 @@ public class FolderService {
 
     /**
      * Search folders by name
-     * 
+     *
      * @param name
      * @return
      */
@@ -66,9 +66,9 @@ public class FolderService {
 
     /**
      * Create a new folder
-     * 
+     *
      * @param folder
-     * @return
+     * @return generated folder id
      */
     @Transactional
     public int create(Folder folder) {
@@ -78,29 +78,33 @@ public class FolderService {
 
     /**
      * Update an existing folder
-     * 
+     *
      * @param folder
-     * @return
+     * @return the folder id
+     * @throws NotFoundException when the folder does not exist
      */
     @Transactional
     public int update(Folder folder) {
         logger.debug("update");
-        return folderRepository.update(folder);
+        int rows = folderRepository.update(folder);
+        if (rows == 0) {
+            throw new NotFoundException("Folder not found: " + folder.getId());
+        }
+        return folder.getId();
     }
 
     /**
      * Delete a folder and its feeds by folder ID
-     * 
+     *
      * @param folderId
-     * @return
+     * @throws NotFoundException when the folder does not exist
      */
     @Transactional
-    public int delete(int folderId) {
+    public void delete(int folderId) {
         logger.debug("delete");
-        try {
-            return folderRepository.delete(folderId);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+        int rows = folderRepository.delete(folderId);
+        if (rows == 0) {
+            throw new NotFoundException("Folder not found: " + folderId);
         }
     }
 }

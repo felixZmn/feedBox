@@ -14,6 +14,7 @@ import javax.xml.stream.XMLStreamException;
 import java.io.InputStream;
 
 @Path("/api/opml")
+@Authenticated
 public class OpmlResource {
     private static final Logger logger = LoggerFactory.getLogger(OpmlResource.class);
 
@@ -21,12 +22,11 @@ public class OpmlResource {
     OPMLService opmlService;
 
     @POST
-    @Authenticated
     public Response importOpml(InputStream bodyStream) {
         logger.debug("importOPML");
         try {
             opmlService.importOPML(bodyStream);
-            return Response.ok().build();
+            return Response.noContent().build();
         } catch (XMLStreamException e) {
             logger.error("Error while importing opml file", e);
             return Response.serverError().build();
@@ -38,7 +38,6 @@ public class OpmlResource {
     }
 
     @GET
-    @Authenticated
     public Response exportOpml() {
         logger.debug("exportOPML");
         String opmlContent = opmlService.exportOpml();

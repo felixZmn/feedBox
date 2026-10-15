@@ -35,6 +35,8 @@ import {
   setFolderOpenState,
   updateAllFeedsUnreadBadge,
   totalUnreadCount,
+  loadFeedIcons,
+  prepareCachedIconsForHydration,
 } from "./dom.js";
 import { NavigationService, columns } from "./nav.js";
 import { buildPath, parseRoute } from "./router.js";
@@ -154,6 +156,7 @@ function restoreFolderCache() {
     updateAllFeedsUnreadBadge(
       totalUnreadCount(cached.folders, cached.unfiledFeeds),
     );
+    prepareCachedIconsForHydration();
     hideFeedsSpinner();
   } else {
     renderFoldersList(cached.folders, cached.unfiledFeeds);
@@ -161,6 +164,10 @@ function restoreFolderCache() {
   }
   updateNavSelection(state.lastClickedItem.type, state.lastClickedItem.obj);
   return true;
+}
+
+function hydrateFeedIcons() {
+  loadFeedIcons(fetchWithAuth);
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
@@ -184,6 +191,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     // Resolve the folder tree before applying a deep link.
     await refreshFolders({ background: true });
+    hydrateFeedIcons();
     await applyRouteFromLocation({ replaceHistory: true });
   } catch (error) {
     console.error("[app] Error during initialization:", error);
@@ -510,6 +518,7 @@ function applyFolderTree(folders, unfiledFeeds) {
   const selectionInvalidated = resolveLastClickedItem();
   const html = renderFoldersList(folders, unfiledFeeds);
   updateNavSelection(state.lastClickedItem.type, state.lastClickedItem.obj);
+  hydrateFeedIcons();
   return { html, selectionInvalidated };
 }
 
@@ -586,6 +595,7 @@ function rerenderFolderTree() {
   const html = renderFoldersList(state.folders, state.unfiledFeeds);
   saveFolderTreeCache(state.folders, state.unfiledFeeds, html);
   updateNavSelection(state.lastClickedItem.type, state.lastClickedItem.obj);
+  hydrateFeedIcons();
 }
 
 /**

@@ -24,7 +24,7 @@
     var data = JSON.parse(raw);
     if (
       !data ||
-      data.version !== 2 ||
+      data.version !== 3 ||
       typeof data.html !== "string" ||
       !Array.isArray(data.folders) ||
       !Array.isArray(data.unfiledFeeds)

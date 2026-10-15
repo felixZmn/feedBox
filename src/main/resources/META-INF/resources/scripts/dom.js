@@ -122,13 +122,53 @@ function feedHtml(feed) {
   const error = feed.lastError
     ? `<span class="feed-error" title="${escapeHtml(feed.lastError)}" aria-label="Feed error: ${escapeHtml(feed.lastError)}">!</span>`
     : "";
+  // Icons require auth — hydrate via loadFeedIcons() after paint (Bearer cannot
+  // be sent on a plain <img src>). Placeholder until then.
   return `<li data-feed-id="${feed.id}">
-    <img class="tree-entry-icon" src="./api/icon/${feed.id}" alt="" data-fallback-icon="icons/rss.svg" />
+    <img class="tree-entry-icon" src="icons/rss.svg" alt="" data-feed-icon="${feed.id}" />
     <span class="tree-name">${escapeHtml(feed.name || "")}</span>
     ${error}
     ${unreadBadgeHtml(feed.unreadCount)}
     <span class="tree-options" role="button" tabindex="0" aria-label="Feed options">⋮</span>
   </li>`;
+}
+
+/** @type {Map<string, string>} blob object URLs keyed by feed id */
+const feedIconObjectUrls = new Map();
+
+/**
+ * Fetch feed icons with an authenticated client and set blob: URLs on
+ * {@code [data-feed-icon]} images. Safe to call repeatedly after re-renders.
+ * @param {(url: string, options?: RequestInit) => Promise<Response>} fetchWithAuth
+ */
+export function loadFeedIcons(fetchWithAuth) {
+  const container = document.getElementById("folder-container");
+  if (!container || typeof fetchWithAuth !== "function") return;
+
+  container.querySelectorAll("img[data-feed-icon]").forEach((img) => {
+    const feedId = img.dataset.feedIcon;
+    if (!feedId || img.dataset.iconLoaded === "1") return;
+    img.dataset.iconLoaded = "1";
+
+    void (async () => {
+      try {
+        const response = await fetchWithAuth(`./api/icon/${feedId}`);
+        if (!response.ok) return;
+        const blob = await response.blob();
+        const previous = feedIconObjectUrls.get(feedId);
+        if (previous) URL.revokeObjectURL(previous);
+        const objectUrl = URL.createObjectURL(blob);
+        feedIconObjectUrls.set(feedId, objectUrl);
+        // Element may have been replaced by a re-render; re-query.
+        const live = container.querySelector(
+          `img[data-feed-icon="${feedId}"]`,
+        );
+        if (live) live.src = objectUrl;
+      } catch (err) {
+        console.warn("Failed to load feed icon", feedId, err);
+      }
+    })();
+  });
 }
 
 /**
@@ -209,6 +249,25 @@ export function renderFoldersList(folders, unfiledFeeds) {
   syncFolderOpenStatesFromStorage();
   updateAllFeedsUnreadBadge(totalUnreadCount(folders, unfiledFeeds));
   return html;
+}
+
+/**
+ * Mark cache-painted icons as needing auth hydration (boot HTML may still
+ * use the old {@code src="./api/icon/…"} form).
+ */
+export function prepareCachedIconsForHydration() {
+  const container = document.getElementById("folder-container");
+  if (!container) return;
+  container.querySelectorAll("img.tree-entry-icon").forEach((img) => {
+    const feedLi = img.closest("li[data-feed-id]");
+    if (!feedLi) return;
+    const feedId = feedLi.dataset.feedId;
+    img.dataset.feedIcon = feedId;
+    delete img.dataset.iconLoaded;
+    if (!img.src.includes("icons/rss.svg")) {
+      img.src = "icons/rss.svg";
+    }
+  });
 }
 
 /**

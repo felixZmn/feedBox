@@ -1,5 +1,7 @@
 package de._0x2b.service;
 
+import de._0x2b.exception.DataAccessException;
+import de._0x2b.exception.NotFoundException;
 import de._0x2b.model.Folder;
 import de._0x2b.repository.FolderRepository;
 import org.junit.jupiter.api.Test;
@@ -63,39 +65,51 @@ class FolderServiceTest {
     }
 
     @Test
-    void update_delegatesToRepository() {
+    void update_whenFound_returnsId() {
         Folder folder = new Folder(10, "Renamed", List.of(), "");
         when(folderRepository.update(folder)).thenReturn(1);
 
         int updated = sut.update(folder);
 
-        assertEquals(1, updated);
+        assertEquals(10, updated);
         verify(folderRepository).update(folder);
         verifyNoMoreInteractions(folderRepository);
     }
 
     @Test
-    void delete_whenRepositorySucceeds_returnsResult() throws Exception {
+    void update_whenMissing_throwsNotFound() {
+        Folder folder = new Folder(10, "Renamed", List.of(), "");
+        when(folderRepository.update(folder)).thenReturn(0);
+
+        assertThrows(NotFoundException.class, () -> sut.update(folder));
+        verify(folderRepository).update(folder);
+    }
+
+    @Test
+    void delete_whenFound_succeeds() {
         int folderId = 5;
         when(folderRepository.delete(folderId)).thenReturn(1);
 
-        int result = sut.delete(folderId);
+        sut.delete(folderId);
 
-        assertEquals(1, result);
         verify(folderRepository).delete(folderId);
         verifyNoMoreInteractions(folderRepository);
     }
 
     @Test
-    void delete_whenRepositoryThrowsSQLException_wrapsInRuntimeException() throws Exception {
-        int folderId = 5;
-        SQLException sqlEx = new SQLException("DB error");
-        when(folderRepository.delete(folderId)).thenThrow(sqlEx);
+    void delete_whenMissing_throwsNotFound() {
+        when(folderRepository.delete(5)).thenReturn(0);
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> sut.delete(folderId));
-        assertSame(sqlEx, ex.getCause());
+        assertThrows(NotFoundException.class, () -> sut.delete(5));
+        verify(folderRepository).delete(5);
+    }
 
-        verify(folderRepository).delete(folderId);
-        verifyNoMoreInteractions(folderRepository);
+    @Test
+    void delete_whenRepositoryThrowsDataAccess_propagates() {
+        when(folderRepository.delete(5))
+                .thenThrow(new DataAccessException("DB error", new SQLException("DB error")));
+
+        assertThrows(DataAccessException.class, () -> sut.delete(5));
+        verify(folderRepository).delete(5);
     }
 }
