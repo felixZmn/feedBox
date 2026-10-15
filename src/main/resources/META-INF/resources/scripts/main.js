@@ -6,7 +6,6 @@ import {
   loadFolderTreeCache,
   saveFolderTreeCache,
   folderTreesEqual,
-  hasReturningSession,
 } from "./data.js";
 import { modal } from "./modal.js";
 import {
@@ -45,15 +44,7 @@ import { NavigationService, columns } from "./nav.js";
 import { buildPath, parseRoute } from "./router.js";
 import { createArticleContextReloader } from "./article-context.js";
 import { escapeHtml, isSafeHttpUrl } from "./util.js";
-import {
-  initializeAuth,
-  initSSOConfig,
-  redirectToAuthProvider,
-  isAuthenticated,
-  hasSession,
-  logout,
-  fetchWithAuth,
-} from "./pkce.js";
+import { apiFetch, logout } from "./auth.js";
 
 const APP_TITLE = "feedBox";
 
@@ -145,7 +136,6 @@ if ("serviceWorker" in navigator) {
  * @returns {boolean}
  */
 function restoreFolderCache() {
-  if (!hasReturningSession()) return false;
   const cached = loadFolderTreeCache();
   if (!cached) return false;
 
@@ -170,25 +160,18 @@ function restoreFolderCache() {
 }
 
 function hydrateFeedIcons() {
-  loadFeedIcons(fetchWithAuth);
+  loadFeedIcons(apiFetch);
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
   restoreFolderCache();
-  // Wire UI handlers before auth network calls so cache-painted folders
+  // Wire UI handlers before network calls so cache-painted folders
   // are clickable immediately (otherwise <details> only toggles).
   initEventListeners();
   registerDelegatedEvents();
 
   try {
-    await initSSOConfig();
-    await initializeAuth();
-
-    if (!isAuthenticated()) {
-      await redirectToAuthProvider();
-      return;
-    }
-
+    // Quarkus OIDC serves this page only with a valid session cookie.
     lazyLoadObserver = setupScrollObserver();
     window.addEventListener("popstate", onPopState);
 
@@ -899,7 +882,6 @@ function setupScrollObserver() {
       if (!entry) return;
       if (
         entry.isIntersecting &&
-        hasSession() &&
         !state.status.isLoadingArticles &&
         state.status.hasMoreArticles
       ) {
@@ -1425,7 +1407,7 @@ async function importFeeds() {
         }
         const file = fileInput.files[0];
 
-        const response = await fetchWithAuth("./api/opml", {
+        const response = await apiFetch("./api/opml", {
           method: "POST",
           body: file,
           headers: {
@@ -1456,7 +1438,7 @@ async function importFeeds() {
 
 async function exportFeeds() {
   try {
-    const response = await fetchWithAuth("./api/opml");
+    const response = await apiFetch("./api/opml");
 
     if (!response.ok) {
       throw new Error(
@@ -1512,8 +1494,6 @@ async function refreshFeeds() {
 }
 
 async function loadArticles() {
-  if (!hasSession()) return;
-
   articlesAbortController?.abort();
   const controller = new AbortController();
   articlesAbortController = controller;
@@ -1602,7 +1582,6 @@ function scheduleVisiblePageLoad() {
     if (
       !sentinel ||
       !root ||
-      !hasSession() ||
       state.status.isLoadingArticles ||
       !state.status.hasMoreArticles
     ) {

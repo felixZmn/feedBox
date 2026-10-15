@@ -1,13 +1,15 @@
 # Database (required)
 quarkus.datasource.jdbc.url=jdbc:postgresql://localhost:5432/postgres?user=user&password=password
 
-# JWT / SSO (required)
-# Issuer and audience MUST match your IdP. Do not use NONE — that disables issuer checks.
-mp.jwt.verify.publickey.location=https://your-idp.example/application/o/your-app/jwks/
-mp.jwt.verify.issuer=https://your-idp.example/application/o/your-app/
-mp.jwt.verify.audiences=your-client-id
+# OIDC web-app session (required)
+# auth-server-url is the IdP realm / application issuer (OIDC discovery base).
+quarkus.oidc.auth-server-url=https://your-idp.example/application/o/your-app/
+quarkus.oidc.client-id=your-client-id
+# IdP Redirect URI must be exactly: http://localhost:8080/oidc
 
-sso.clientid=your-client-id
-sso.redirectUri=http://localhost:8080
-sso.authServerUrl=https://your-idp.example/application/o/
-sso.endSessionEndpoint=https://your-idp.example/application/o/your-app/end-session/
+# Confidential clients: set the client secret.
+# Public + PKCE clients: leave secret empty and set a stable 32+ char encryption
+# secret so sessions survive restarts (and work across replicas).
+# Confidential clients: set the client secret instead (or as well).
+# quarkus.oidc.credentials.secret=your-client-secret
+quarkus.oidc.token-state-manager.encryption-secret=change-me-to-at-least-32-chars!!
