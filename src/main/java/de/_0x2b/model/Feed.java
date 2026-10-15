@@ -16,6 +16,7 @@ public class Feed {
     Icon icon;
     Instant lastRefreshedAt;
     String lastError;
+    int unreadCount;
 
     public Feed() {
     }
@@ -116,5 +117,13 @@ public class Feed {
 
     public void setLastError(String lastError) {
         this.lastError = lastError;
+    }
+
+    public int getUnreadCount() {
+        return unreadCount;
+    }
+
+    public void setUnreadCount(int unreadCount) {
+        this.unreadCount = unreadCount;
     }
 }

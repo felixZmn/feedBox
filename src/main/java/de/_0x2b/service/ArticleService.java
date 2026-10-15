@@ -1,5 +1,6 @@
 package de._0x2b.service;
 
+import de._0x2b.exception.DataAccessException;
 import de._0x2b.model.Article;
 import de._0x2b.repository.ArticleRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -8,6 +9,7 @@ import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.SQLException;
 import java.util.List;
 
 @ApplicationScoped
@@ -24,6 +26,37 @@ public class ArticleService {
     public Article findById(long id) {
         logger.debug("findById {}", id);
         return articleRepository.findById(id);
+    }
+
+    /**
+     * Mark an article as read. Already-read articles are a no-op.
+     *
+     * @param id article primary key
+     * @return false when the article does not exist
+     */
+    public boolean markRead(long id) {
+        logger.debug("markRead {}", id);
+        if (articleRepository.findById(id) == null) {
+            return false;
+        }
+        try {
+            articleRepository.markRead(id);
+            return true;
+        } catch (SQLException e) {
+            throw new DataAccessException("Failed to mark article read: " + id, e);
+        }
+    }
+
+    /**
+     * Mark every article as read.
+     */
+    public void markAllRead() {
+        logger.debug("markAllRead");
+        try {
+            articleRepository.markAllRead();
+        } catch (SQLException e) {
+            throw new DataAccessException("Failed to mark all articles read", e);
+        }
     }
 
     /**

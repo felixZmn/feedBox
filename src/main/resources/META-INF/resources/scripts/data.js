@@ -4,7 +4,7 @@ import { fetchWithAuth } from "./pkce.js";
 
 export const FOLDER_TREE_CACHE_KEY = "folder-tree-cache";
 export const FOLDER_STATE_KEY = "folder-state";
-export const FOLDER_TREE_CACHE_VERSION = 1;
+export const FOLDER_TREE_CACHE_VERSION = 2;
 
 class DataService {
   constructor() {
@@ -68,6 +68,22 @@ class DataService {
    */
   async getArticle(articleId, { signal } = {}) {
     return this._request(`./api/article/${articleId}`, { signal });
+  }
+
+  async markArticleRead(articleId) {
+    return this._request(`./api/article/${articleId}/read`, { method: "POST" });
+  }
+
+  async markAllArticlesRead() {
+    return this._request("./api/article/read", { method: "POST" });
+  }
+
+  async markFeedRead(feedId) {
+    return this._request(`./api/feed/${feedId}/read`, { method: "POST" });
+  }
+
+  async markFolderRead(folderId) {
+    return this._request(`./api/folder/${folderId}/read`, { method: "POST" });
   }
 
   /**
@@ -148,6 +164,7 @@ export function normalizeFeed(feed) {
     url: feed.url ?? null,
     feedUrl: feed.feedUrl ?? "",
     lastError: feed.lastError ?? null,
+    unreadCount: Number(feed.unreadCount) || 0,
   };
 }
 

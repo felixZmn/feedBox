@@ -17,6 +17,9 @@ public class FolderRepository extends AbstractRepository<Folder> {
     private static final String SELECT_ALL = """
             SELECT id, name, color FROM folder ORDER BY name
             """;
+    private static final String SELECT_BY_ID = """
+            SELECT id, name, color FROM folder WHERE id = ?
+            """;
     private static final String SELECT_BY_NAME = """
             SELECT id, name, color FROM folder WHERE name = ? ORDER BY name
             """;
@@ -42,6 +45,12 @@ public class FolderRepository extends AbstractRepository<Folder> {
     public List<Folder> findAll() {
         logger.debug("findAll");
         return super.query(SELECT_ALL, folderMapper, List.of());
+    }
+
+    public Folder findById(int id) {
+        logger.debug("findById {}", id);
+        List<Folder> results = super.query(SELECT_BY_ID, folderMapper, List.of(id));
+        return results.isEmpty() ? null : results.getFirst();
     }
 
     public List<Folder> findByName(String name) {

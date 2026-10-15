@@ -66,6 +66,26 @@ public class ArticleResource {
         return Response.ok(article).build();
     }
 
+    @POST
+    @Path("/read")
+    @Authenticated
+    public Response markAllRead() {
+        logger.debug("markAllRead");
+        articleService.markAllRead();
+        return Response.noContent().build();
+    }
+
+    @POST
+    @Path("/{id}/read")
+    @Authenticated
+    public Response markRead(@PathParam("id") long id) {
+        logger.debug("markRead {}", id);
+        if (!articleService.markRead(id)) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        return Response.noContent().build();
+    }
+
     /** Null → empty; trim; cap length so a runaway client cannot send huge patterns. */
     static String normalizeSearch(String q) {
         if (q == null) {

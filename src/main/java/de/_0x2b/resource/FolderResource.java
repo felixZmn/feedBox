@@ -68,4 +68,15 @@ public class FolderResource {
         folderService.delete(id);
         return Response.ok().build();
     }
+
+    @POST
+    @Path("/{id}/read")
+    @Authenticated
+    public Response markRead(@PathParam("id") int id) {
+        logger.debug("markRead folder {}", id);
+        if (!folderService.markRead(id)) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        return Response.noContent().build();
+    }
 }

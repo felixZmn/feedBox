@@ -18,12 +18,18 @@ public class Article {
     String authors;
     String imageUrl;
     String categories;
+    boolean read;
 
     public Article() {
     }
 
     public Article(long id, int feedId, String feedName, String title, String description, String content, String link,
             Instant published, String authors, String imageUrl, String categories) {
+        this(id, feedId, feedName, title, description, content, link, published, authors, imageUrl, categories, false);
+    }
+
+    public Article(long id, int feedId, String feedName, String title, String description, String content, String link,
+            Instant published, String authors, String imageUrl, String categories, boolean read) {
         this.id = id;
         this.feedId = feedId;
         this.feedName = feedName;
@@ -35,6 +41,7 @@ public class Article {
         this.authors = authors;
         this.imageUrl = imageUrl;
         this.categories = categories;
+        this.read = read;
     }
 
     @Override
@@ -42,7 +49,8 @@ public class Article {
         if (o == null || getClass() != o.getClass())
             return false;
         Article article = (Article) o;
-        return id == article.id && feedId == article.feedId && Objects.equals(feedName, article.feedName)
+        return id == article.id && feedId == article.feedId && read == article.read
+                && Objects.equals(feedName, article.feedName)
                 && Objects.equals(title, article.title) && Objects.equals(description, article.description)
                 && Objects.equals(content, article.content) && Objects.equals(link, article.link)
                 && Objects.equals(published, article.published) && Objects.equals(authors, article.authors)
@@ -52,7 +60,7 @@ public class Article {
     @Override
     public int hashCode() {
         return Objects.hash(id, feedId, feedName, title, description, content, link, published, authors, imageUrl,
-                categories);
+                categories, read);
     }
 
     public long getId() {
@@ -97,5 +105,13 @@ public class Article {
 
     public String getCategories() {
         return categories;
+    }
+
+    public boolean isRead() {
+        return read;
+    }
+
+    public void setRead(boolean read) {
+        this.read = read;
     }
 }

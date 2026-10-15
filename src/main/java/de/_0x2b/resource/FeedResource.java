@@ -56,6 +56,17 @@ public class FeedResource {
     }
 
     @POST
+    @Path("/{id}/read")
+    @Authenticated
+    public Response markRead(@PathParam("id") int id) {
+        logger.debug("markRead feed {}", id);
+        if (!feedService.markRead(id)) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        return Response.noContent().build();
+    }
+
+    @POST
     @Path("/refresh")
     @Authenticated
     public Response refreshFeeds() {

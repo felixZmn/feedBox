@@ -13,6 +13,7 @@
  * @property {string} authors - The author(s) of the article.
  * @property {string} imageUrl - The URL of the article's image (empty string if none).
  * @property {string} categories - A stringified array of categories the article belongs to.
+ * @property {boolean} [read] - Whether the article has been marked read.
  */
 
 /**
@@ -26,6 +27,7 @@
  * @property {string|null} icon - URL of the feed icon, or null if not available
  * @property {string|null} lastRefreshedAt - ISO timestamp of last successful refresh
  * @property {string|null} lastError - Last refresh error message, or null if healthy
+ * @property {number} [unreadCount] - Number of unread dated articles in this feed
  */
 
 /**

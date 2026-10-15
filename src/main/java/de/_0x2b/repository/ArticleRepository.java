@@ -9,13 +9,16 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.TimeZone;
 
 @ApplicationScoped
@@ -24,7 +27,7 @@ public class ArticleRepository extends AbstractRepository<Article> {
     private static final Logger logger = LoggerFactory.getLogger(ArticleRepository.class);
     private static final String SELECT_COLS = """
             SELECT a.id, a.feed_id, f.name AS publisher, a.title, a.description,
-                   a.content, a.link, a.published, a.authors, a.image_url, a.categories
+                   a.content, a.link, a.published, a.authors, a.image_url, a.categories, a.read
             """;
     private static final String FROM_JOIN = """
             FROM article a
@@ -44,6 +47,21 @@ public class ArticleRepository extends AbstractRepository<Article> {
             ON CONFLICT (link) DO NOTHING
             """;
     private static final String DELETE_BY_FEED_SQL = "DELETE FROM article WHERE feed_id = ?";
+    private static final String MARK_READ_SQL = "UPDATE article SET read = true WHERE id = ? AND read = false";
+    private static final String MARK_READ_ALL_SQL = "UPDATE article SET read = true WHERE read = false";
+    private static final String MARK_READ_BY_FEED_SQL =
+            "UPDATE article SET read = true WHERE feed_id = ? AND read = false";
+    private static final String MARK_READ_BY_FOLDER_SQL = """
+            UPDATE article SET read = true
+            WHERE feed_id IN (SELECT id FROM feed WHERE folder_id = ?)
+              AND read = false
+            """;
+    private static final String COUNT_UNREAD_BY_FEED_SQL = """
+            SELECT feed_id, COUNT(*)::int AS unread_count
+            FROM article
+            WHERE read = false AND published IS NOT NULL
+            GROUP BY feed_id
+            """;
     // The PostgreSQL JDBC driver does NOT support
     // ResultSet.getObject(int, Class) for java.time.Instant on a
     // timestamptz column - it raises
@@ -56,7 +74,7 @@ public class ArticleRepository extends AbstractRepository<Article> {
     private final RowMapper<Article> articleMapper = rs -> new Article(rs.getLong("id"), rs.getInt("feed_id"),
             rs.getString("publisher"), rs.getString("title"), rs.getString("description"), rs.getString("content"),
             rs.getString("link"), readPublished(rs), rs.getString("authors"),
-            rs.getString("image_url"), rs.getString("categories"));
+            rs.getString("image_url"), rs.getString("categories"), rs.getBoolean("read"));
 
     private static Instant readPublished(java.sql.ResultSet rs) throws SQLException {
         Timestamp ts = rs.getTimestamp("published", UTC);
@@ -104,6 +122,61 @@ public class ArticleRepository extends AbstractRepository<Article> {
 
     public void deleteByFeed(int feedId) throws SQLException {
         super.update(DELETE_BY_FEED_SQL, List.of(feedId));
+    }
+
+    /**
+     * Mark a single article as read.
+     *
+     * @return number of rows updated (0 if already read or missing)
+     */
+    public int markRead(long id) throws SQLException {
+        return super.update(MARK_READ_SQL, List.of(id));
+    }
+
+    /**
+     * Mark every article as read.
+     *
+     * @return number of rows updated
+     */
+    public int markAllRead() throws SQLException {
+        return super.update(MARK_READ_ALL_SQL, List.of());
+    }
+
+    /**
+     * Mark all articles in a feed as read.
+     *
+     * @return number of rows updated
+     */
+    public int markReadByFeed(int feedId) throws SQLException {
+        return super.update(MARK_READ_BY_FEED_SQL, List.of(feedId));
+    }
+
+    /**
+     * Mark all articles in feeds belonging to a folder as read.
+     *
+     * @return number of rows updated
+     */
+    public int markReadByFolder(int folderId) throws SQLException {
+        return super.update(MARK_READ_BY_FOLDER_SQL, List.of(folderId));
+    }
+
+    /**
+     * Unread dated-article counts keyed by feed id.
+     * Feeds with zero unread are omitted.
+     */
+    public Map<Integer, Integer> countUnreadByFeed() {
+        logger.debug("countUnreadByFeed");
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(COUNT_UNREAD_BY_FEED_SQL);
+                ResultSet rs = stmt.executeQuery()) {
+            Map<Integer, Integer> counts = new HashMap<>();
+            while (rs.next()) {
+                counts.put(rs.getInt("feed_id"), rs.getInt("unread_count"));
+            }
+            return counts;
+        } catch (SQLException e) {
+            throw new DataAccessException("Query failed: " + COUNT_UNREAD_BY_FEED_SQL, e);
+        }
     }
 
     public void create(List<Article> articles) {

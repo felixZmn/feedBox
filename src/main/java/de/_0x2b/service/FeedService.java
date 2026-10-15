@@ -1,6 +1,7 @@
 package de._0x2b.service;
 
 import com.apptasticsoftware.rssreader.RssReader;
+import de._0x2b.exception.DataAccessException;
 import de._0x2b.exception.NotFoundException;
 import de._0x2b.model.Feed;
 import de._0x2b.model.Icon;
@@ -90,12 +91,36 @@ public class FeedService {
     }
 
     /**
-     * Get all feeds in the database
+     * Get all feeds in the database, with per-feed unread article counts.
      *
      * @return all feeds
      */
     public List<Feed> findAll() {
-        return feedRepository.findAll();
+        List<Feed> feeds = feedRepository.findAll();
+        var unreadCounts = articleRepository.countUnreadByFeed();
+        for (Feed feed : feeds) {
+            feed.setUnreadCount(unreadCounts.getOrDefault(feed.getId(), 0));
+        }
+        return feeds;
+    }
+
+    /**
+     * Mark every article in a feed as read.
+     *
+     * @param feedId feed primary key
+     * @return false when the feed does not exist
+     */
+    public boolean markRead(int feedId) {
+        logger.debug("markRead feed {}", feedId);
+        if (feedRepository.findOne(feedId).isEmpty()) {
+            return false;
+        }
+        try {
+            articleRepository.markReadByFeed(feedId);
+            return true;
+        } catch (SQLException e) {
+            throw new DataAccessException("Failed to mark feed read: " + feedId, e);
+        }
     }
 
     /**
