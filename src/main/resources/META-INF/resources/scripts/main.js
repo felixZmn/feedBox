@@ -34,6 +34,7 @@ import {
   setFolderOpenState,
 } from "./dom.js";
 import { NavigationService, columns } from "./nav.js";
+import { buildPath, parseRoute } from "./router.js";
 import { createArticleContextReloader } from "./article-context.js";
 import { escapeHtml, isSafeHttpUrl } from "./util.js";
 import {
@@ -45,6 +46,8 @@ import {
   logout,
   fetchWithAuth,
 } from "./pkce.js";
+
+const APP_TITLE = "feedBox";
 
 /** Must match backend ArticleRepository LIMIT */
 const ARTICLES_PAGE_SIZE = 25;
@@ -99,6 +102,8 @@ const dom = {
 
 let lazyLoadObserver = null;
 const navigationService = new NavigationService();
+/** True when the current article URL was pushed (close uses history.back). */
+let articleHistoryPushed = false;
 /** @type {AbortController|null} */
 let articlesAbortController = null;
 let articlesRequestToken = 0;
@@ -166,12 +171,11 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
 
     lazyLoadObserver = setupScrollObserver();
+    window.addEventListener("popstate", onPopState);
 
-    // Folder network refresh must not block article startup.
-    await Promise.all([
-      refreshFolders({ background: true }),
-      loadArticles(),
-    ]);
+    // Resolve the folder tree before applying a deep link.
+    await refreshFolders({ background: true });
+    await applyRouteFromLocation({ replaceHistory: true });
   } catch (error) {
     console.error("[app] Error during initialization:", error);
     hideFeedsSpinner();
@@ -292,9 +296,7 @@ function initEventListeners() {
   });
   dom.button.close.addEventListener("click", (e) => {
     e.preventDefault();
-    state.selectedArticle = null;
-    clearReaderView();
-    navigationService.navigateTo(columns.ARTICLES);
+    closeReader();
   });
   if (dom.button.logout) {
     dom.button.logout.addEventListener("click", () => {
@@ -514,7 +516,10 @@ async function refreshFolders({ background = true } = {}) {
     }
     state.restoredFromCache = true;
     if (selectionInvalidated) {
-      await selectAndLoadArticles(itemType.ALL, null);
+      await selectAndLoadArticles(itemType.ALL, null, {
+        syncUrl: "replace",
+        column: columns.FEEDS,
+      });
     }
   } catch (error) {
     if (hadCache) {
@@ -593,6 +598,8 @@ function navigateArticle(direction) {
   const nextIdx = idx + direction;
   if (nextIdx >= 0 && nextIdx < state.articles.length) {
     loadArticle(state.articles[nextIdx]);
+    replaceAppUrl(pathForSelection(state.selectedArticle.id), columns.READER);
+    updateDocumentTitle();
   }
 }
 
@@ -628,12 +635,29 @@ function getVisibleContextMenuItems() {
   );
 }
 
-async function selectAndLoadArticles(type, obj) {
-  navigationService.navigateTo(columns.ARTICLES);
+/**
+ * @param {string} type
+ * @param {object | null} obj
+ * @param {{ syncUrl?: 'push' | 'replace' | 'none', column?: string }} [options]
+ */
+async function selectAndLoadArticles(type, obj, options = {}) {
+  const { syncUrl = "push", column = columns.ARTICLES } = options;
   clearSearchFilter();
   state.lastClickedItem = { type, obj };
   updateNavSelection(type, obj);
+  articleHistoryPushed = false;
+
+  const path = pathForSelection(null);
+  if (syncUrl === "push") {
+    pushAppUrl(path, column);
+  } else if (syncUrl === "replace") {
+    replaceAppUrl(path, column);
+  } else {
+    navigationService.navigateTo(column);
+  }
+
   await reloadArticlesForCurrentContext();
+  updateDocumentTitle();
 }
 
 async function showArticleLoadError(error) {
@@ -647,7 +671,281 @@ async function showArticleLoadError(error) {
 
 function articleClickListener(article) {
   loadArticle(article);
-  navigationService.navigateTo(columns.READER);
+  pushAppUrl(pathForSelection(article.id), columns.READER);
+  articleHistoryPushed = true;
+  updateDocumentTitle();
+}
+
+function closeReader() {
+  if (articleHistoryPushed) {
+    articleHistoryPushed = false;
+    history.back();
+    return;
+  }
+  state.selectedArticle = null;
+  clearReaderView();
+  replaceAppUrl(pathForSelection(null), columns.ARTICLES);
+  updateDocumentTitle();
+}
+
+function isAuthCallback() {
+  const params = new URLSearchParams(window.location.search);
+  return (
+    params.has("code") || params.has("state") || params.has("session_state")
+  );
+}
+
+/**
+ * @param {number | null} [articleId]
+ * @returns {string}
+ */
+function pathForSelection(articleId = null) {
+  const { type, obj } = state.lastClickedItem;
+  if (type === itemType.FEED && obj) {
+    return buildPath({
+      context: "feed",
+      contextId: obj.id,
+      articleId,
+    });
+  }
+  if (type === itemType.FOLDER && obj) {
+    return buildPath({
+      context: "folder",
+      contextId: obj.id,
+      articleId,
+    });
+  }
+  return buildPath({ articleId });
+}
+
+/**
+ * @param {string} path
+ * @param {string} column
+ */
+function pushAppUrl(path, column) {
+  if (isAuthCallback()) return;
+  navigationService.navigateTo(column);
+  if (
+    window.location.pathname === path &&
+    history.state?.column === column
+  ) {
+    return;
+  }
+  history.pushState({ column }, "", path);
+}
+
+/**
+ * @param {string} path
+ * @param {string} column
+ */
+function replaceAppUrl(path, column) {
+  if (isAuthCallback()) return;
+  navigationService.navigateTo(column);
+  history.replaceState({ column }, "", path);
+}
+
+/**
+ * @param {import('./router.js').AppRoute} route
+ * @returns {string}
+ */
+function columnForRoute(route) {
+  if (route.articleId != null) return columns.READER;
+  if (route.context === "all") return columns.FEEDS;
+  return columns.ARTICLES;
+}
+
+function updateDocumentTitle() {
+  if (state.selectedArticle?.title) {
+    document.title = `${state.selectedArticle.title} · ${APP_TITLE}`;
+    return;
+  }
+  const { type, obj } = state.lastClickedItem;
+  if ((type === itemType.FEED || type === itemType.FOLDER) && obj?.name) {
+    document.title = `${obj.name} · ${APP_TITLE}`;
+    return;
+  }
+  document.title = APP_TITLE;
+}
+
+/**
+ * @param {object} article
+ * @param {string} type
+ * @param {object | null} obj
+ */
+function articleBelongsToContext(article, type, obj) {
+  if (!article) return false;
+  if (type === itemType.ALL) return true;
+  if (type === itemType.FEED && obj) return article.feedId === obj.id;
+  if (type === itemType.FOLDER && obj) {
+    return (obj.feeds ?? []).some((feed) => feed.id === article.feedId);
+  }
+  return false;
+}
+
+/**
+ * @param {number} articleId
+ * @returns {Promise<boolean>}
+ */
+async function openArticleById(articleId) {
+  let article = state.articles.find((a) => a.id === articleId) ?? null;
+  if (!article) {
+    try {
+      article = await dataService.getArticle(articleId);
+    } catch (error) {
+      if (error.status === 404 || error.cause?.status === 404) {
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  if (
+    !articleBelongsToContext(
+      article,
+      state.lastClickedItem.type,
+      state.lastClickedItem.obj,
+    )
+  ) {
+    return false;
+  }
+
+  state.selectedArticle = article;
+  setSelectedArticleHighlight(article.id);
+  renderReaderView(article);
+  document.querySelector("#reader .column").scrollTop = 0;
+  return true;
+}
+
+/**
+ * Apply the current pathname to app state (selection, articles, reader).
+ * @param {{ replaceHistory?: boolean }} [options]
+ */
+async function applyRouteFromLocation({ replaceHistory = false } = {}) {
+  if (isAuthCallback()) return;
+
+  let route = parseRoute(window.location.pathname);
+  if (!route.valid) {
+    route = { valid: true, context: "all", contextId: null, articleId: null };
+    replaceAppUrl("/", columns.FEEDS);
+  }
+
+  let type = itemType.ALL;
+  let obj = null;
+  if (route.context === "feed") {
+    obj = findFeedById(route.contextId);
+    if (!obj) {
+      await selectAndLoadArticles(itemType.ALL, null, {
+        syncUrl: "replace",
+        column: columns.FEEDS,
+      });
+      return;
+    }
+    type = itemType.FEED;
+  } else if (route.context === "folder") {
+    obj = findFolderById(route.contextId);
+    if (!obj) {
+      await selectAndLoadArticles(itemType.ALL, null, {
+        syncUrl: "replace",
+        column: columns.FEEDS,
+      });
+      return;
+    }
+    type = itemType.FOLDER;
+  }
+
+  clearSearchFilter();
+  state.lastClickedItem = { type, obj };
+  updateNavSelection(type, obj);
+  articleHistoryPushed = false;
+
+  await reloadArticlesForCurrentContext();
+
+  let column = columnForRoute(route);
+  if (route.articleId != null) {
+    const opened = await openArticleById(route.articleId);
+    if (!opened) {
+      state.selectedArticle = null;
+      clearReaderView();
+      column = type === itemType.ALL ? columns.FEEDS : columns.ARTICLES;
+      replaceAppUrl(pathForSelection(null), column);
+      updateDocumentTitle();
+      return;
+    }
+    column = columns.READER;
+  } else {
+    state.selectedArticle = null;
+    clearReaderView();
+  }
+
+  if (replaceHistory) {
+    replaceAppUrl(pathForSelection(state.selectedArticle?.id ?? null), column);
+  } else {
+    navigationService.navigateTo(column);
+  }
+  updateDocumentTitle();
+}
+
+/**
+ * @param {PopStateEvent} event
+ */
+async function onPopState(event) {
+  if (isAuthCallback()) return;
+  articleHistoryPushed = false;
+
+  const route = parseRoute(window.location.pathname);
+  if (!route.valid) {
+    await applyRouteFromLocation({ replaceHistory: true });
+    return;
+  }
+
+  const sameContext =
+    (route.context === "all" &&
+      state.lastClickedItem.type === itemType.ALL) ||
+    (route.context === "feed" &&
+      state.lastClickedItem.type === itemType.FEED &&
+      state.lastClickedItem.obj?.id === route.contextId) ||
+    (route.context === "folder" &&
+      state.lastClickedItem.type === itemType.FOLDER &&
+      state.lastClickedItem.obj?.id === route.contextId);
+
+  const currentArticleId = state.selectedArticle?.id ?? null;
+  const routeArticleId = route.articleId ?? null;
+
+  if (sameContext && currentArticleId === routeArticleId) {
+    const column =
+      event.state?.column && Object.values(columns).includes(event.state.column)
+        ? event.state.column
+        : columnForRoute(route);
+    navigationService.navigateTo(column);
+    updateDocumentTitle();
+    return;
+  }
+
+  if (sameContext) {
+    if (routeArticleId != null) {
+      const opened = await openArticleById(routeArticleId);
+      if (!opened) {
+        replaceAppUrl(pathForSelection(null), columns.ARTICLES);
+        state.selectedArticle = null;
+        clearReaderView();
+        updateDocumentTitle();
+        return;
+      }
+      navigationService.navigateTo(columns.READER);
+    } else {
+      state.selectedArticle = null;
+      clearReaderView();
+      const column =
+        event.state?.column && Object.values(columns).includes(event.state.column)
+          ? event.state.column
+          : columnForRoute(route);
+      navigationService.navigateTo(column);
+    }
+    updateDocumentTitle();
+    return;
+  }
+
+  await applyRouteFromLocation({ replaceHistory: false });
 }
 
 function clearArticles() {
@@ -702,7 +1000,10 @@ async function deleteFolder(folder) {
     await dataService.deleteFolder(folder.id);
     await refreshFolders({ background: false });
     if (wasSelected || !state.lastClickedItem.obj) {
-      await selectAndLoadArticles(itemType.ALL, null);
+      await selectAndLoadArticles(itemType.ALL, null, {
+        syncUrl: "replace",
+        column: columns.FEEDS,
+      });
     }
   }, "Error deleting folder: " + folder.name);
 }
@@ -732,7 +1033,10 @@ async function deleteFeed(feed) {
     await dataService.deleteFeed(feed.id);
     await refreshFolders({ background: false });
     if (wasSelected || !state.lastClickedItem.obj) {
-      await selectAndLoadArticles(itemType.ALL, null);
+      await selectAndLoadArticles(itemType.ALL, null, {
+        syncUrl: "replace",
+        column: columns.FEEDS,
+      });
     } else {
       state.articles = state.articles.filter(
         (article) => article.feedId !== feed.id,
@@ -842,7 +1146,10 @@ async function refreshFeeds() {
   dom.refreshSpinner.classList.add("spinner");
   try {
     await dataService.refreshFeeds();
-    await selectAndLoadArticles(itemType.ALL, null);
+    await selectAndLoadArticles(itemType.ALL, null, {
+      syncUrl: "replace",
+      column: columns.ARTICLES,
+    });
   } finally {
     dom.refreshSpinner.classList.remove("spinner");
     state.status.isRefreshing = false;

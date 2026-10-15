@@ -63,6 +63,14 @@ class DataService {
   }
 
   /**
+   * @param {number|string} articleId
+   * @param {{ signal?: AbortSignal }} [options]
+   */
+  async getArticle(articleId, { signal } = {}) {
+    return this._request(`./api/article/${articleId}`, { signal });
+  }
+
+  /**
    * Append a page of articles to the local cache. Call only after the
    * caller has confirmed the response is still the latest request.
    * @param {Article[]} articles

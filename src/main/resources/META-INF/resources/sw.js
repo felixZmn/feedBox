@@ -1,7 +1,7 @@
 "use strict";
 
 // Bump for every frontend release so HTML + modules stay in lockstep.
-const VERSION = "2026-10-05-001";
+const VERSION = "2026-10-15-001";
 const CACHE = `feedbox-${VERSION}`;
 const SHELL = [
   "/",
@@ -15,6 +15,7 @@ const SHELL = [
   "/scripts/dialog.js",
   "/scripts/modal.js",
   "/scripts/nav.js",
+  "/scripts/router.js",
   "/scripts/pkce.js",
   "/scripts/session.js",
   "/scripts/util.js",
@@ -72,12 +73,15 @@ async function precache(cache) {
 }
 
 function classify(request, url) {
-  if (url.pathname.startsWith("/api/")) {
+  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/q/")) {
     return "network-only";
+  }
+  // Deep-link navigations always resolve to the app shell — never cache per path.
+  if (request.mode === "navigate") {
+    return "shell-navigate";
   }
   // Versioned static shell: serve cache immediately, refresh in background.
   if (
-    request.mode === "navigate" ||
     url.pathname.endsWith(".html") ||
     url.pathname.endsWith(".css") ||
     url.pathname.endsWith(".js") ||
@@ -89,6 +93,25 @@ function classify(request, url) {
     return "cache-first";
   }
   return "bypass";
+}
+
+/**
+ * Network-fetch the shell, refresh `/` and `/index.html`, never store the
+ * navigated feed/folder/article path as its own cache key.
+ */
+async function shellNavigate(request) {
+  const cache = await caches.open(CACHE);
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      await putOk(cache, "/", response);
+      await putOk(cache, "/index.html", response);
+      return response;
+    }
+  } catch {
+    // fall through to cached shell
+  }
+  return (await matchShell(cache, request)) || offline();
 }
 
 async function cacheFirst(request, event) {
@@ -159,7 +182,9 @@ function onFetch(event) {
   const strategy = classify(request, url);
   if (strategy === "bypass") return;
 
-  if (strategy === "cache-first") {
+  if (strategy === "shell-navigate") {
+    event.respondWith(shellNavigate(request));
+  } else if (strategy === "cache-first") {
     event.respondWith(cacheFirst(request, event));
   } else if (strategy === "network-only") {
     event.respondWith(networkOnly(request));

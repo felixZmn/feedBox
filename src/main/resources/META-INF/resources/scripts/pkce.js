@@ -1,6 +1,7 @@
 "use strict";
 
 import { hasUsableSession } from "./session.js";
+import { isAppPath } from "./router.js";
 
 let config;
 const scope = "openid profile offline_access";
@@ -9,6 +10,40 @@ let refreshPromise = null; // Promise lock to prevent parallel refresh requests
 // Keep in sync with data.js FOLDER_TREE_CACHE_KEY / FOLDER_STATE_KEY
 const FOLDER_TREE_CACHE_KEY = "folder-tree-cache";
 const FOLDER_STATE_KEY = "folder-state";
+const OAUTH_RETURN_PATH_KEY = "oauth_return_path";
+
+/**
+ * Remember the current app path so a login redirect can return here.
+ * Skips when OAuth callback params are already present.
+ */
+function rememberAppPath() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (
+      params.has("code") ||
+      params.has("state") ||
+      params.has("session_state")
+    ) {
+      return;
+    }
+    const path = window.location.pathname;
+    if (isAppPath(path)) {
+      sessionStorage.setItem(OAUTH_RETURN_PATH_KEY, path);
+    }
+  } catch (_) {}
+}
+
+/**
+ * @returns {string | null}
+ */
+function takeReturnPath() {
+  try {
+    const path = sessionStorage.getItem(OAUTH_RETURN_PATH_KEY);
+    sessionStorage.removeItem(OAUTH_RETURN_PATH_KEY);
+    if (path && isAppPath(path)) return path;
+  } catch (_) {}
+  return null;
+}
 
 function clearPrivateUiCache() {
   try {
@@ -142,6 +177,7 @@ async function handleTokenRefresh(force = false) {
         "Token refresh failed, redirecting to login: No refresh token available",
       );
       memoryStore.clear();
+      rememberAppPath();
       window.location.href = config?.redirectUri || "/";
     }
     throw new Error("No refresh token available - re-authentication required");
@@ -159,6 +195,7 @@ async function handleTokenRefresh(force = false) {
       console.error("Token refresh failed, redirecting to login:", error);
       memoryStore.clear();
       if (!isOauthCallback) {
+        rememberAppPath();
         window.location.href = config?.redirectUri || "/";
       }
       throw error;
@@ -174,6 +211,8 @@ async function handleTokenRefresh(force = false) {
  * Core OAuth functions
  */
 async function redirectToAuthProvider() {
+  rememberAppPath();
+
   const codeVerifier = generateRandomString(64);
   sessionStorage.setItem("code_verifier", codeVerifier);
 
@@ -239,11 +278,16 @@ async function exchangeCodeForToken(code) {
   } finally {
     sessionStorage.removeItem("code_verifier");
     sessionStorage.removeItem("oauth_state");
+    const returnPath = takeReturnPath();
     const cleanUrl = new URL(window.location.href);
     ["code", "state", "session_state"].forEach((p) =>
       cleanUrl.searchParams.delete(p),
     );
-    window.history.replaceState({}, document.title, cleanUrl.href);
+    if (returnPath) {
+      window.history.replaceState({}, document.title, returnPath);
+    } else {
+      window.history.replaceState({}, document.title, cleanUrl.href);
+    }
   }
 }
 
@@ -335,6 +379,7 @@ function logout() {
   memoryStore.clear();
   sessionStorage.removeItem("code_verifier");
   sessionStorage.removeItem("oauth_state");
+  sessionStorage.removeItem(OAUTH_RETURN_PATH_KEY);
 
   if (config?.endSessionEndpoint) {
     const url = new URL(config.endSessionEndpoint);
