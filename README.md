@@ -104,6 +104,7 @@ The following environment variables / properties can be configured:
 | `QUARKUS_OIDC_CLIENT_ID`           | -               | ! OIDC client id (required)          |
 | `QUARKUS_OIDC_CREDENTIALS_SECRET`  | -               | Client secret (confidential clients) |
 | `QUARKUS_OIDC_TOKEN_STATE_MANAGER_ENCRYPTION_SECRET` | - | ! 32+ char secret encrypting the session cookie (required) |
+| `QUARKUS_OIDC_AUTHENTICATION_SESSION_AGE_EXTENSION` | `30d` | How long past the ID-token lifespan the session cookie (and thus the refresh token) is kept; match the IdP refresh-token validity |
 | `APP_SSO_BUTTON_LABEL`             | `Sign in with SSO` | Login-panel button text (multi-IdP-ready) |
 | `QUARKUS_HTTP_PORT`                | `8080`          | HTTP port for the application        |
 | `APP_HTTP_USER_AGENT`              | `FeedBox/<ver>` | User agent string for HTTP requests  |
@@ -122,7 +123,15 @@ The following environment variables / properties can be configured:
 
 FeedBox uses **Quarkus OIDC web-app** (authorization code + PKCE). Tokens live in
 encrypted **httpOnly** session cookies (ID + refresh only; access token is not
-stored) — the SPA never sees them.
+stored) — the SPA never sees them. When the ID token expires, Quarkus uses the
+refresh token on the next request. The session cookie’s `Max-Age` is the ID-token
+lifespan plus `quarkus.oidc.authentication.session-age-extension` (default
+`30d`, Authentik’s stock refresh-token validity). Override with
+`QUARKUS_OIDC_AUTHENTICATION_SESSION_AGE_EXTENSION` if the provider’s
+refresh-token validity differs; Quarkus cannot read that lifetime from an opaque
+refresh token. A shorter value drops a still-valid refresh token early; a longer
+value only means the cookie outlives the token and the next call shows the login
+panel.
 
 Register this **exact** Redirect URI at the IdP (Authentik → Application →
 Provider → Redirect URIs):
@@ -136,6 +145,12 @@ panel). Sign in navigates to `/start`, which triggers the OIDC challenge.
 Customize the button label with `APP_SSO_BUTTON_LABEL` / `app.sso.button-label`
 (e.g. `Sign in with Authentik`); the shell loads providers from
 `GET /api/public/auth-providers`.
+
+If TLS terminates at a reverse proxy/Gateway and OIDC builds
+`redirect_uri` as `http://…` instead of `https://…`, put the Quarkus proxy
+settings in the chart `config` map (e.g. `quarkus.http.proxy.proxy-address-forwarding=true`
+and the related `allow-x-forwarded` / `enable-forwarded-*` keys). Do **not**
+set these for plain-HTTP deployments.
 
 FeedBox is **single-tenant**: any user who can complete login at the configured
 IdP gets full read/write access. Restrict access at the IdP (group / application
