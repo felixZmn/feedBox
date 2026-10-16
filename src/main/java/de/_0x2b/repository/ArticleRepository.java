@@ -108,16 +108,6 @@ public class ArticleRepository extends AbstractRepository {
     // Timestamp.toInstant().
     private static final Calendar UTC = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
     private static final String EXISTS_BY_ID_SQL = "SELECT 1 FROM article WHERE id = ?";
-    private static final String DELETE_OLD_READ_SQL = """
-            DELETE FROM article a
-            USING feed f, reader_state rs
-            WHERE a.feed_id = f.id
-              AND a.published IS NOT NULL
-              AND a.published < ?
-              AND (a.read
-                   OR a.id <= rs.mark_read_through_id
-                   OR a.id <= f.mark_read_through_id)
-            """;
 
     private final RowMapper<Article> articleMapper = rs -> new Article(rs.getLong("id"), rs.getInt("feed_id"),
             rs.getString("publisher"), rs.getString("title"), rs.getString("description"), rs.getString("content"),
@@ -311,16 +301,5 @@ public class ArticleRepository extends AbstractRepository {
     /** Escape {@code \}, {@code %} and {@code _} for use with {@code ILIKE ... ESCAPE '\'}. */
     static String escapeIlike(String token) {
         return token.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
-    }
-
-    /**
-     * Delete effectively-read articles whose {@code published} timestamp is
-     * strictly before {@code olderThan}. Effectively unread articles are never
-     * deleted.
-     *
-     * @return number of rows deleted
-     */
-    public int deleteReadOlderThan(Instant olderThan) throws SQLException {
-        return super.update(DELETE_OLD_READ_SQL, List.of(olderThan));
     }
 }

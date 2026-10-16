@@ -51,8 +51,6 @@ public class FeedService {
     MediaRssParser mediaRssParser;
     @Inject
     ArticleMapper articleMapper;
-    @Inject
-    ArticleService articleService;
 
     @ConfigProperty(name = "refresh.concurrency", defaultValue = "10")
     int refreshConcurrency = 10;
@@ -204,11 +202,6 @@ public class FeedService {
                     logger.warn("Feed refresh failed: {}", e.toString());
                 }
             }
-        }
-        try {
-            articleService.purgeExpiredReadArticles();
-        } catch (Exception e) {
-            logger.warn("Article retention purge failed: {}", e.toString());
         }
         logger.info("Feeds refreshed!");
     }

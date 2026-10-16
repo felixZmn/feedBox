@@ -9,24 +9,14 @@ import de._0x2b.resource.dto.PaginationCursor;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.sql.SQLException;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @ApplicationScoped
 public class ArticleService {
-    private static final Logger logger = LoggerFactory.getLogger(ArticleService.class);
 
     @Inject
     ArticleRepository articleRepository;
-
-    @ConfigProperty(name = "articles.retention.days", defaultValue = "90")
-    int retentionDays;
 
     /**
      * @param id article primary key
@@ -93,27 +83,5 @@ public class ArticleService {
             return articleRepository.findByFeed(feedId, q);
         }
         return articleRepository.findByFeed(feedId, cursor.id(), cursor.published(), q);
-    }
-
-    /**
-     * Delete effectively-read articles older than {@code articles.retention.days}
-     * (column or read horizon). Effectively unread articles are never removed.
-     *
-     * @return number of articles deleted
-     */
-    public int purgeExpiredReadArticles() {
-        if (retentionDays <= 0) {
-            return 0;
-        }
-        Instant cutoff = Instant.now().minus(retentionDays, ChronoUnit.DAYS);
-        try {
-            int deleted = articleRepository.deleteReadOlderThan(cutoff);
-            if (deleted > 0) {
-                logger.info("Purged {} read articles older than {} days", deleted, retentionDays);
-            }
-            return deleted;
-        } catch (SQLException e) {
-            throw new DataAccessException("Failed to purge expired read articles", e);
-        }
     }
 }

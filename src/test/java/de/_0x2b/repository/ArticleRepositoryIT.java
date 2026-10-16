@@ -188,32 +188,6 @@ class ArticleRepositoryIT {
         assertFalse(articleRepository.findByFeed(feedKeep, "").getFirst().read());
     }
 
-    @Test
-    void deleteReadOlderThan_includesHorizonCaughtArticles() throws Exception {
-        String suffix = UUID.randomUUID().toString().substring(0, 8);
-        int folderId = folderRepository.create(new Folder(-1, "it-horizon-ret-" + suffix, null, "f-base"));
-        int feedId = feedRepository.create(new Feed(-1, folderId, "ret-" + suffix,
-                URI.create("https://horizon-ret.example/" + suffix),
-                URI.create("https://horizon-ret.example/" + suffix + "/rss")));
-
-        Instant oldPub = Instant.parse("2020-01-01T00:00:00Z");
-        Instant recentPub = Instant.parse("2026-06-01T00:00:00Z");
-        articleRepository.create(List.of(
-                new Article(-1, feedId, "f", "OldUnread", "", "", "https://horizon-ret.example/old",
-                        "https://horizon-ret.example/old", oldPub, "", "", "[]"),
-                new Article(-1, feedId, "f", "Recent", "", "", "https://horizon-ret.example/new",
-                        "https://horizon-ret.example/new", recentPub, "", "", "[]")));
-
-        articleRepository.markAllRead();
-        Instant cutoff = Instant.parse("2025-01-01T00:00:00Z");
-        int deleted = articleRepository.deleteReadOlderThan(cutoff);
-        assertTrue(deleted >= 1, "horizon-caught old article must be eligible for retention");
-
-        List<ArticleSummary> remaining = articleRepository.findByFeed(feedId, "");
-        assertEquals(1, remaining.size());
-        assertEquals("Recent", remaining.getFirst().title());
-    }
-
     private long latestArticleId(int feedId) throws Exception {
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(
