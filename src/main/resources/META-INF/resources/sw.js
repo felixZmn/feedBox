@@ -50,6 +50,14 @@ function offline(message = "Offline") {
   return new Response(message, { status: 503 });
 }
 
+function isAuthFailure(response) {
+  if (!response) return false;
+  if (response.type === "opaqueredirect") return true;
+  const status = response.status;
+  return status === 401 || status === 403 || status === 499
+    || (status >= 300 && status < 400);
+}
+
 async function putOk(cache, request, response) {
   if (response.ok) {
     await cache.put(request, response.clone());
@@ -67,8 +75,10 @@ async function matchShell(cache, request) {
 async function precache(cache) {
   await Promise.allSettled(
     SHELL.map(async (path) => {
-      const response = await fetch(path);
-      await putOk(cache, path, response);
+      const response = await fetch(path, { redirect: "manual" });
+      if (response.ok) {
+        await putOk(cache, path, response);
+      }
     }),
   );
 
@@ -81,6 +91,10 @@ async function precache(cache) {
 function classify(request, url) {
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/q/")) {
     return "network-only";
+  }
+  // OIDC bounce / logout must hit the network (never cached shell).
+  if (url.pathname === "/start" || url.pathname === "/logout" || url.pathname === "/oidc") {
+    return "bypass";
   }
   // Deep-link navigations always resolve to the app shell — never cache per path.
   if (request.mode === "navigate") {
@@ -102,20 +116,29 @@ function classify(request, url) {
 }
 
 /**
- * Network-fetch the shell, refresh `/` and `/index.html`, never store the
- * navigated feed/folder/article path as its own cache key.
+ * Network-fetch the shell. Auth failures must NOT fall back to a cached SPA
+ * (that boots without a session and storms /api → IdP CORS). Cache only when
+ * the network is unreachable.
  */
 async function shellNavigate(request) {
   const cache = await caches.open(CACHE);
   try {
-    const response = await fetch(request);
+    const response = await fetch(request, { redirect: "manual" });
+    if (isAuthFailure(response)) {
+      // Public shell serves the in-app login panel; prefer network index.
+      const loginShell = await fetch("/index.html", { redirect: "manual" });
+      if (loginShell.ok) {
+        return loginShell;
+      }
+      return response;
+    }
     if (response.ok) {
       await putOk(cache, "/", response);
       await putOk(cache, "/index.html", response);
       return response;
     }
   } catch {
-    // fall through to cached shell
+    // fall through to cached shell only for offline
   }
   return (await matchShell(cache, request)) || offline();
 }
@@ -126,7 +149,10 @@ async function cacheFirst(request, event) {
 
   const update = (async () => {
     try {
-      const response = await fetch(request);
+      const response = await fetch(request, { redirect: "manual" });
+      if (isAuthFailure(response)) {
+        return response;
+      }
       await putOk(cache, request, response);
       const url = new URL(request.url);
       if (
@@ -154,9 +180,10 @@ async function cacheFirst(request, event) {
   return update;
 }
 
+/** Never follow IdP redirects — pass 401/3xx through to the page. */
 async function networkOnly(request) {
   try {
-    return await fetch(request);
+    return await fetch(request, { redirect: "manual" });
   } catch {
     return offline("Network error");
   }

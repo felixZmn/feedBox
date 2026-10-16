@@ -22,7 +22,32 @@
     />
     <link rel="manifest" href="/manifest.json" />
   </head>
-  <body>
+  <body class="logged-out">
+    <section id="login-panel" class="login-panel" aria-labelledby="login-heading">
+      <div class="login-stack">
+        <img
+          class="login-mark"
+          src="icons/package.svg"
+          width="72"
+          height="72"
+          alt=""
+        />
+        <h1 id="login-heading" class="login-brand">feedBox</h1>
+        <p class="login-copy">Put all your feeds into a box.</p>
+        <ul class="login-providers">
+          <li>
+            <a
+              class="login-provider"
+              id="trigger-login"
+              href="/start"
+              >Sign in with SSO</a
+            >
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <div id="app-shell" class="app-shell" hidden>
     <ul class="context-menu" id="context-menu" role="menu">
       <li
         class="context-menu-item context-add d-none"
@@ -298,6 +323,8 @@
         <button id="btn-confirm" class="btn btn-primary">Confirm</button>
       </div>
     </dialog>
+    </div>
+
     <script type="module" src="./scripts/main.js"></script>
   </body>
 </html>

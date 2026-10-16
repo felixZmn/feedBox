@@ -13,3 +13,6 @@ quarkus.oidc.client-id=your-client-id
 # Confidential clients: set the client secret instead (or as well).
 # quarkus.oidc.credentials.secret=your-client-secret
 quarkus.oidc.token-state-manager.encryption-secret=change-me-to-at-least-32-chars!!
+
+# Optional: login-panel SSO button text (default: Sign in with SSO)
+# app.sso.button-label=Sign in with Authentik
