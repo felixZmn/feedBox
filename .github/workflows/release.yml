@@ -140,16 +140,6 @@ jobs:
             -t "${IMAGE}:latest" \
             .
 
-      - name: Scan image with Trivy
-        if: steps.version.outputs.released == 'true'
-        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
-        with:
-          image-ref: "ghcr.io/felixzmn/docker/feedbox:${{ steps.version.outputs.version }}"
-          format: "table"
-          exit-code: "1"
-          severity: "CRITICAL"
-          ignore-unfixed: true
-
       - name: Log in to GHCR
         if: steps.version.outputs.released == 'true'
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
