@@ -123,15 +123,19 @@ The following environment variables / properties can be configured:
 
 FeedBox uses **Quarkus OIDC web-app** (authorization code + PKCE). Tokens live in
 encrypted **httpOnly** session cookies (ID + refresh only; access token is not
-stored) — the SPA never sees them. When the ID token expires, Quarkus uses the
-refresh token on the next request. The session cookie’s `Max-Age` is the ID-token
-lifespan plus `quarkus.oidc.authentication.session-age-extension` (default
-`30d`, Authentik’s stock refresh-token validity). Override with
-`QUARKUS_OIDC_AUTHENTICATION_SESSION_AGE_EXTENSION` if the provider’s
-refresh-token validity differs; Quarkus cannot read that lifetime from an opaque
-refresh token. A shorter value drops a still-valid refresh token early; a longer
-value only means the cookie outlives the token and the next call shows the login
-panel.
+stored) — the SPA never sees them. Scopes include `offline_access` so Authentik
+issues a refresh token; without it the session cookie lasts only as long as the
+ID token (~minutes) and silent refresh never runs. With
+`token-state-manager.split-tokens=true`, expect both `q_session` (ID) and
+`q_session_rt` (refresh). When the ID token expires, Quarkus uses the refresh
+token on the next request. Cookie `Max-Age` is the ID-token lifespan plus
+`quarkus.oidc.authentication.session-age-extension` (default `30d`, Authentik’s
+stock refresh-token validity) — but only when a refresh token is present.
+Override with `QUARKUS_OIDC_AUTHENTICATION_SESSION_AGE_EXTENSION` if the
+provider’s refresh-token validity differs; Quarkus cannot read that lifetime
+from an opaque refresh token. A shorter value drops a still-valid refresh token
+early; a longer value only means the cookie outlives the token and the next
+call shows the login panel.
 
 Register this **exact** Redirect URI at the IdP (Authentik → Application →
 Provider → Redirect URIs):
