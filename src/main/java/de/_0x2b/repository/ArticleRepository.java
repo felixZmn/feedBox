@@ -21,19 +21,28 @@ import java.util.TimeZone;
 
 @ApplicationScoped
 public class ArticleRepository extends AbstractRepository {
+    /** Effective read: column, global horizon, or per-feed horizon. */
+    private static final String EFFECTIVE_READ = """
+            (a.read OR a.id <= rs.mark_read_through_id OR a.id <= f.mark_read_through_id)
+            """;
     /** Full row for the reader ({@code GET /api/article/{id}}). */
     private static final String SELECT_DETAIL_COLS = """
             SELECT a.id, a.feed_id, f.name AS publisher, a.title, a.description,
-                   a.content, a.link, a.guid, a.published, a.authors, a.image_url, a.categories, a.read
+                   a.content, a.link, a.guid, a.published, a.authors, a.image_url, a.categories,
+                   """ + EFFECTIVE_READ + """
+                   AS read
             """;
     /** List/pagination projection — no HTML bodies. */
     private static final String SELECT_LIST_COLS = """
             SELECT a.id, a.feed_id, f.name AS publisher, a.title,
-                   a.link, a.published, a.authors, a.image_url, a.read
+                   a.link, a.published, a.authors, a.image_url,
+                   """ + EFFECTIVE_READ + """
+                   AS read
             """;
     private static final String FROM_JOIN = """
             FROM article a
             JOIN feed f ON f.id = a.feed_id
+            CROSS JOIN reader_state rs
             """;
     private static final String JOIN_FOLDER = " JOIN folder fo on fo.id = f.folder_id ";
     // The pagination cursor is now a real TIMESTAMPTZ. Articles with NULL
@@ -57,19 +66,37 @@ public class ArticleRepository extends AbstractRepository {
                 categories = EXCLUDED.categories
             """;
     private static final String MARK_READ_SQL = "UPDATE article SET read = true WHERE id = ? AND read = false";
-    private static final String MARK_READ_ALL_SQL = "UPDATE article SET read = true WHERE read = false";
-    private static final String MARK_READ_BY_FEED_SQL =
-            "UPDATE article SET read = true WHERE feed_id = ? AND read = false";
+    private static final String MARK_READ_ALL_SQL = """
+            UPDATE reader_state
+            SET mark_read_through_id = GREATEST(
+                mark_read_through_id,
+                COALESCE((SELECT MAX(id) FROM article), 0))
+            WHERE id = 1
+            """;
+    private static final String MARK_READ_BY_FEED_SQL = """
+            UPDATE feed
+            SET mark_read_through_id = GREATEST(
+                mark_read_through_id,
+                COALESCE((SELECT MAX(id) FROM article WHERE feed_id = feed.id), 0))
+            WHERE id = ?
+            """;
     private static final String MARK_READ_BY_FOLDER_SQL = """
-            UPDATE article SET read = true
-            WHERE feed_id IN (SELECT id FROM feed WHERE folder_id = ?)
-              AND read = false
+            UPDATE feed
+            SET mark_read_through_id = GREATEST(
+                mark_read_through_id,
+                COALESCE((SELECT MAX(id) FROM article WHERE feed_id = feed.id), 0))
+            WHERE folder_id = ?
             """;
     private static final String COUNT_UNREAD_BY_FEED_SQL = """
-            SELECT feed_id, COUNT(*)::int AS unread_count
-            FROM article
-            WHERE read = false AND published IS NOT NULL
-            GROUP BY feed_id
+            SELECT a.feed_id, COUNT(*)::int AS unread_count
+            FROM article a
+            JOIN feed f ON f.id = a.feed_id
+            CROSS JOIN reader_state rs
+            WHERE a.read = false
+              AND a.published IS NOT NULL
+              AND a.id > rs.mark_read_through_id
+              AND a.id > f.mark_read_through_id
+            GROUP BY a.feed_id
             """;
     // The PostgreSQL JDBC driver does NOT support
     // ResultSet.getObject(int, Class) for java.time.Instant on a
@@ -82,10 +109,14 @@ public class ArticleRepository extends AbstractRepository {
     private static final Calendar UTC = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
     private static final String EXISTS_BY_ID_SQL = "SELECT 1 FROM article WHERE id = ?";
     private static final String DELETE_OLD_READ_SQL = """
-            DELETE FROM article
-            WHERE read = true
-              AND published IS NOT NULL
-              AND published < ?
+            DELETE FROM article a
+            USING feed f, reader_state rs
+            WHERE a.feed_id = f.id
+              AND a.published IS NOT NULL
+              AND a.published < ?
+              AND (a.read
+                   OR a.id <= rs.mark_read_through_id
+                   OR a.id <= f.mark_read_through_id)
             """;
 
     private final RowMapper<Article> articleMapper = rs -> new Article(rs.getLong("id"), rs.getInt("feed_id"),
@@ -150,27 +181,27 @@ public class ArticleRepository extends AbstractRepository {
     }
 
     /**
-     * Mark every article as read.
+     * Advance the global read horizon to the current max article id.
      *
-     * @return number of rows updated
+     * @return number of reader_state rows updated (0 or 1)
      */
     public int markAllRead() throws SQLException {
         return super.update(MARK_READ_ALL_SQL, List.of());
     }
 
     /**
-     * Mark all articles in a feed as read.
+     * Advance the feed read horizon to the max article id in that feed.
      *
-     * @return number of rows updated
+     * @return number of feed rows updated (0 if the feed id does not exist)
      */
     public int markReadByFeed(int feedId) throws SQLException {
         return super.update(MARK_READ_BY_FEED_SQL, List.of(feedId));
     }
 
     /**
-     * Mark all articles in feeds belonging to a folder as read.
+     * Advance each feed's read horizon for feeds in the folder.
      *
-     * @return number of rows updated
+     * @return number of feed rows updated
      */
     public int markReadByFolder(int folderId) throws SQLException {
         return super.update(MARK_READ_BY_FOLDER_SQL, List.of(folderId));
@@ -283,8 +314,9 @@ public class ArticleRepository extends AbstractRepository {
     }
 
     /**
-     * Delete read articles whose {@code published} timestamp is strictly before
-     * {@code olderThan}. Unread articles are never deleted.
+     * Delete effectively-read articles whose {@code published} timestamp is
+     * strictly before {@code olderThan}. Effectively unread articles are never
+     * deleted.
      *
      * @return number of rows deleted
      */

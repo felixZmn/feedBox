@@ -31,7 +31,7 @@ public class FolderService {
     }
 
     /**
-     * Mark every article in feeds belonging to a folder as read.
+     * Advance the read horizon on every feed in this folder.
      *
      * @param folderId folder primary key
      * @throws NotFoundException when the folder does not exist
