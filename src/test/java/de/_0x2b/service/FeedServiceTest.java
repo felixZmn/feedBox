@@ -43,8 +43,6 @@ class FeedServiceTest {
     MediaRssParser mediaRssParser;
     @Mock
     ArticleMapper articleMapper;
-    @Mock
-    ArticleService articleService;
 
     @InjectMocks
     FeedService sut;
