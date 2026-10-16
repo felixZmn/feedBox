@@ -104,6 +104,7 @@ The following environment variables / properties can be configured:
 | `QUARKUS_OIDC_CLIENT_ID`           | -               | ! OIDC client id (required)          |
 | `QUARKUS_OIDC_CREDENTIALS_SECRET`  | -               | Client secret (confidential clients) |
 | `QUARKUS_OIDC_TOKEN_STATE_MANAGER_ENCRYPTION_SECRET` | - | ! 32+ char secret encrypting the session cookie (required) |
+| `APP_SSO_BUTTON_LABEL`             | `Sign in with SSO` | Login-panel button text (multi-IdP-ready) |
 | `QUARKUS_HTTP_PORT`                | `8080`          | HTTP port for the application        |
 | `APP_HTTP_USER_AGENT`              | `FeedBox/<ver>` | User agent string for HTTP requests  |
 | `APP_HTTP_TIMEOUT`                 | `30`            | HTTP request timeout in seconds      |
@@ -130,7 +131,11 @@ Provider → Redirect URIs):
 - Prod: `https://<your-host>/oidc`
 
 (The old SPA used `http://localhost:8080` without `/oidc` — that no longer
-matches.) Logout is `GET /logout`.
+matches.) Logout is `GET /logout` (returns to `/` and shows an in-app Sign in
+panel). Sign in navigates to `/start`, which triggers the OIDC challenge.
+Customize the button label with `APP_SSO_BUTTON_LABEL` / `app.sso.button-label`
+(e.g. `Sign in with Authentik`); the shell loads providers from
+`GET /api/public/auth-providers`.
 
 FeedBox is **single-tenant**: any user who can complete login at the configured
 IdP gets full read/write access. Restrict access at the IdP (group / application

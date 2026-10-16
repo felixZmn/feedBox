@@ -110,6 +110,149 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Unauthenticated landing — HIG-style B&W sign-in (app shell stays hidden). */
+body.logged-out {
+  overflow: auto;
+}
+
+body.logged-out .app-shell {
+  display: none !important;
+}
+
+body:not(.logged-out) .login-panel {
+  display: none !important;
+}
+
+.login-panel {
+  --login-fg: #000000;
+  --login-fg-muted: rgba(0, 0, 0, 0.55);
+  --login-bg: #ffffff;
+  --login-btn-fg: #ffffff;
+  --login-btn-bg: #000000;
+  --login-focus: #000000;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.5rem;
+  background: var(--login-bg);
+  color: var(--login-fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-color-scheme: dark) {
+  .login-panel {
+    --login-fg: #ffffff;
+    --login-fg-muted: rgba(255, 255, 255, 0.55);
+    --login-bg: #000000;
+    --login-btn-fg: #000000;
+    --login-btn-bg: #ffffff;
+    --login-focus: #ffffff;
+  }
+
+  .login-mark {
+    filter: invert(1);
+  }
+}
+
+.login-stack {
+  width: min(22rem, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0;
+  animation: login-enter 0.45s ease-out both;
+}
+
+.login-mark {
+  width: 72px;
+  height: 72px;
+  margin: 0 0 1.25rem;
+  display: block;
+}
+
+.login-brand {
+  margin: 0 0 0.5rem;
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--login-fg);
+}
+
+.login-copy {
+  margin: 0 0 2rem;
+  max-width: 18rem;
+  color: var(--login-fg-muted);
+  font-size: 1.0625rem;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.login-providers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.login-provider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+  box-sizing: border-box;
+  border-radius: 980px;
+  background: var(--login-btn-bg);
+  color: var(--login-btn-fg);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+
+.login-provider:hover {
+  opacity: 0.85;
+}
+
+.login-provider:focus-visible {
+  outline: 2px solid var(--login-focus);
+  outline-offset: 3px;
+}
+
+.login-provider:active {
+  opacity: 0.7;
+}
+
+@keyframes login-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-stack {
+    animation: none;
+  }
+
+  .login-provider {
+    transition: none;
+  }
+}
+
 html {
   overflow: hidden;
   height: 100%;

@@ -11,7 +11,14 @@ import {
 import { removeSkeletons, hideFeedsSpinner, clearReaderView } from "./dom.js";
 import { createArticleContextReloader } from "./article-context.js";
 import { isSafeHttpUrl } from "./util.js";
-import { logout } from "./auth.js";
+import {
+  logout,
+  probeSession,
+  enterLoggedIn,
+  enterLoggedOut,
+  onSessionLoss,
+  isLoggedOut,
+} from "./auth.js";
 import {
   state,
   itemType,
@@ -89,6 +96,25 @@ if ("serviceWorker" in navigator) {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
+  onSessionLoss(() => {
+    hideFeedsSpinner();
+    removeSkeletons();
+  });
+
+  let signedIn = false;
+  try {
+    signedIn = await probeSession();
+  } catch (error) {
+    console.warn("[app] Session probe failed:", error);
+    signedIn = false;
+  }
+
+  if (!signedIn) {
+    enterLoggedOut();
+    return;
+  }
+
+  enterLoggedIn();
   restoreFolderCache();
   initContextMenuListeners();
   initEventListeners();
@@ -108,9 +134,13 @@ window.addEventListener("DOMContentLoaded", async () => {
     window.addEventListener("popstate", onPopState);
 
     await refreshFolders({ background: true });
+    if (isLoggedOut()) return;
     hydrateFeedIcons();
     await applyRouteFromLocation({ replaceHistory: true });
   } catch (error) {
+    if (isLoggedOut() || error?.message === "Session expired") {
+      return;
+    }
     console.error("[app] Error during initialization:", error);
     hideFeedsSpinner();
     removeSkeletons();
