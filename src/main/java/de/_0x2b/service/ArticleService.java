@@ -54,7 +54,8 @@ public class ArticleService {
     }
 
     /**
-     * Mark every article as read.
+     * Advance the global read horizon so every existing article counts as read.
+     * New inserts (higher ids) stay unread.
      */
     public void markAllRead() {
         try {
@@ -95,8 +96,8 @@ public class ArticleService {
     }
 
     /**
-     * Delete read articles older than {@code articles.retention.days}. Unread
-     * articles are never removed.
+     * Delete effectively-read articles older than {@code articles.retention.days}
+     * (column or read horizon). Effectively unread articles are never removed.
      *
      * @return number of articles deleted
      */

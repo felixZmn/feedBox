@@ -107,6 +107,113 @@ class ArticleRepositoryIT {
         assertFalse(articleRepository.exists(Long.MAX_VALUE - 7));
     }
 
+    @Test
+    void markAllRead_horizonHidesExisting_andKeepsLaterInsertUnread() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        int folderId = folderRepository.create(new Folder(-1, "it-horizon-all-" + suffix, null, "f-base"));
+        int feedId = feedRepository.create(new Feed(-1, folderId, "it-horizon-all-feed-" + suffix,
+                URI.create("https://horizon-all.example/" + suffix),
+                URI.create("https://horizon-all.example/" + suffix + "/rss")));
+
+        Instant published = Instant.parse("2026-03-01T00:00:00Z");
+        articleRepository.create(List.of(
+                new Article(-1, feedId, "f", "Old", "", "", "https://horizon-all.example/old",
+                        "https://horizon-all.example/old", published, "", "", "[]")));
+        long oldId = articleRepository.findByFeed(feedId, "").getFirst().id();
+        assertFalse(articleRepository.findById(oldId).isRead());
+        assertEquals(1, articleRepository.countUnreadByFeed().getOrDefault(feedId, 0));
+
+        assertEquals(1, articleRepository.markAllRead());
+        assertTrue(articleRepository.findById(oldId).isRead(), "existing id must be effectively read");
+        assertEquals(0, articleRepository.countUnreadByFeed().getOrDefault(feedId, 0));
+
+        Instant newerPub = Instant.parse("2020-01-01T00:00:00Z");
+        articleRepository.create(List.of(
+                new Article(-1, feedId, "f", "Backfill", "", "", "https://horizon-all.example/new",
+                        "https://horizon-all.example/new", newerPub, "", "", "[]")));
+        ArticleSummary backfill = articleRepository.findByFeed(feedId, "").stream()
+                .filter(a -> "Backfill".equals(a.title()))
+                .findFirst()
+                .orElseThrow();
+        assertFalse(backfill.read(), "new id with old published must stay unread");
+        assertEquals(1, articleRepository.countUnreadByFeed().getOrDefault(feedId, 0));
+    }
+
+    @Test
+    void markReadByFeed_doesNotHideOtherFeed() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        int folderId = folderRepository.create(new Folder(-1, "it-horizon-feed-" + suffix, null, "f-base"));
+        int feedA = feedRepository.create(new Feed(-1, folderId, "feed-a-" + suffix,
+                URI.create("https://horizon-feed.example/a/" + suffix),
+                URI.create("https://horizon-feed.example/a/" + suffix + "/rss")));
+        int feedB = feedRepository.create(new Feed(-1, folderId, "feed-b-" + suffix,
+                URI.create("https://horizon-feed.example/b/" + suffix),
+                URI.create("https://horizon-feed.example/b/" + suffix + "/rss")));
+
+        Instant published = Instant.parse("2026-03-02T00:00:00Z");
+        articleRepository.create(List.of(
+                new Article(-1, feedA, "a", "A1", "", "", "https://horizon-feed.example/a1",
+                        "https://horizon-feed.example/a1", published, "", "", "[]"),
+                new Article(-1, feedB, "b", "B1", "", "", "https://horizon-feed.example/b1",
+                        "https://horizon-feed.example/b1", published, "", "", "[]")));
+
+        assertEquals(1, articleRepository.markReadByFeed(feedA));
+        assertTrue(articleRepository.findByFeed(feedA, "").getFirst().read());
+        assertFalse(articleRepository.findByFeed(feedB, "").getFirst().read());
+        assertEquals(0, articleRepository.countUnreadByFeed().getOrDefault(feedA, 0));
+        assertEquals(1, articleRepository.countUnreadByFeed().getOrDefault(feedB, 0));
+    }
+
+    @Test
+    void markReadByFolder_coversOnlyThatFolder() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        int folderKeep = folderRepository.create(new Folder(-1, "it-horizon-keep-" + suffix, null, "f-base"));
+        int folderMark = folderRepository.create(new Folder(-1, "it-horizon-mark-" + suffix, null, "f-base"));
+        int feedKeep = feedRepository.create(new Feed(-1, folderKeep, "keep-" + suffix,
+                URI.create("https://horizon-folder.example/keep/" + suffix),
+                URI.create("https://horizon-folder.example/keep/" + suffix + "/rss")));
+        int feedMark = feedRepository.create(new Feed(-1, folderMark, "mark-" + suffix,
+                URI.create("https://horizon-folder.example/mark/" + suffix),
+                URI.create("https://horizon-folder.example/mark/" + suffix + "/rss")));
+
+        Instant published = Instant.parse("2026-03-03T00:00:00Z");
+        articleRepository.create(List.of(
+                new Article(-1, feedKeep, "k", "Keep", "", "", "https://horizon-folder.example/k",
+                        "https://horizon-folder.example/k", published, "", "", "[]"),
+                new Article(-1, feedMark, "m", "Mark", "", "", "https://horizon-folder.example/m",
+                        "https://horizon-folder.example/m", published, "", "", "[]")));
+
+        assertEquals(1, articleRepository.markReadByFolder(folderMark));
+        assertTrue(articleRepository.findByFeed(feedMark, "").getFirst().read());
+        assertFalse(articleRepository.findByFeed(feedKeep, "").getFirst().read());
+    }
+
+    @Test
+    void deleteReadOlderThan_includesHorizonCaughtArticles() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        int folderId = folderRepository.create(new Folder(-1, "it-horizon-ret-" + suffix, null, "f-base"));
+        int feedId = feedRepository.create(new Feed(-1, folderId, "ret-" + suffix,
+                URI.create("https://horizon-ret.example/" + suffix),
+                URI.create("https://horizon-ret.example/" + suffix + "/rss")));
+
+        Instant oldPub = Instant.parse("2020-01-01T00:00:00Z");
+        Instant recentPub = Instant.parse("2026-06-01T00:00:00Z");
+        articleRepository.create(List.of(
+                new Article(-1, feedId, "f", "OldUnread", "", "", "https://horizon-ret.example/old",
+                        "https://horizon-ret.example/old", oldPub, "", "", "[]"),
+                new Article(-1, feedId, "f", "Recent", "", "", "https://horizon-ret.example/new",
+                        "https://horizon-ret.example/new", recentPub, "", "", "[]")));
+
+        articleRepository.markAllRead();
+        Instant cutoff = Instant.parse("2025-01-01T00:00:00Z");
+        int deleted = articleRepository.deleteReadOlderThan(cutoff);
+        assertTrue(deleted >= 1, "horizon-caught old article must be eligible for retention");
+
+        List<ArticleSummary> remaining = articleRepository.findByFeed(feedId, "");
+        assertEquals(1, remaining.size());
+        assertEquals("Recent", remaining.getFirst().title());
+    }
+
     private long latestArticleId(int feedId) throws Exception {
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(

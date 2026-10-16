@@ -126,7 +126,7 @@ public class FeedService {
     }
 
     /**
-     * Mark every article in a feed as read.
+     * Advance this feed's read horizon to its current max article id.
      *
      * @param feedId feed primary key
      * @throws NotFoundException when the feed does not exist
@@ -134,7 +134,7 @@ public class FeedService {
     public void markRead(int feedId) {
         try {
             int updated = articleRepository.markReadByFeed(feedId);
-            if (updated == 0 && !feedRepository.exists(feedId)) {
+            if (updated == 0) {
                 throw new NotFoundException("Feed not found: " + feedId);
             }
         } catch (SQLException e) {
