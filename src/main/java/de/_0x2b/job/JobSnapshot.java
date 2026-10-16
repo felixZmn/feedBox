@@ -1,6 +1,7 @@
 package de._0x2b.job;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -15,5 +16,10 @@ public record JobSnapshot(
         int failed,
         String error,
         Instant startedAt,
-        Instant finishedAt) {
+        Instant finishedAt,
+        List<ImportRowOutcome> results) {
+
+    public JobSnapshot {
+        results = results == null ? List.of() : List.copyOf(results);
+    }
 }

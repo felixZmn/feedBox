@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -73,6 +75,30 @@ class UrlSafetyTest {
     void isBlockedAddress_detectsZeroNetwork() throws UnknownHostException {
         assertTrue(UrlSafety.isBlockedAddress(InetAddress.getByName("0.0.0.0")));
         assertTrue(UrlSafety.isBlockedAddress(InetAddress.getByName("0.1.2.3")));
+    }
+
+    @Test
+    void isBlockedAddress_detectsCarrierGradeNat() throws UnknownHostException {
+        assertTrue(UrlSafety.isBlockedAddress(InetAddress.getByName("100.64.0.1")));
+        assertTrue(UrlSafety.isBlockedAddress(InetAddress.getByName("100.127.255.254")));
+        assertFalse(UrlSafety.isBlockedAddress(InetAddress.getByName("100.63.255.255")));
+        assertFalse(UrlSafety.isBlockedAddress(InetAddress.getByName("100.128.0.1")));
+    }
+
+    @Test
+    void resolveValidated_returnsAddressesForPublicHost() {
+        List<InetAddress> addresses = UrlSafety.resolveValidated(URI.create("https://example.com/feed.xml"));
+        assertFalse(addresses.isEmpty());
+        addresses.forEach(a -> assertFalse(UrlSafety.isBlockedAddress(a)));
+    }
+
+    @Test
+    void requireSafeOutbound_honoursCustomPortAllowList() {
+        assertDoesNotThrow(() -> UrlSafety.requireSafeOutbound(
+                URI.create("https://example.com:8443/x"), Set.of(443, 8443)));
+        assertThrows(UnsafeUrlException.class,
+                () -> UrlSafety.requireSafeOutbound(
+                        URI.create("https://example.com:8443/x"), Set.of(80, 443)));
     }
 
     @Test

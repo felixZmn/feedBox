@@ -93,12 +93,32 @@ public class BackgroundJobService {
         try {
             work.accept(job);
             job.complete();
-        } catch (Exception e) {
-            logger.error("{} job {} failed", job.type(), job.id(), e);
-            job.fail(e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+        } catch (Throwable t) {
+            // Catch Error too so the job cannot stick in RUNNING forever.
+            logger.error("{} job {} failed", job.type(), job.id(), t);
+            job.fail(sanitizeJobError(t));
         } finally {
             activeSlot.compareAndSet(job.id(), null);
         }
+    }
+
+    /**
+     * Client-visible job errors must not include SQL, stack frames, or other
+     * internals — those stay in the log.
+     */
+    static String sanitizeJobError(Throwable t) {
+        if (t == null) {
+            return "Job failed";
+        }
+        Throwable root = t;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        String name = root.getClass().getSimpleName();
+        if (name == null || name.isBlank()) {
+            return "Job failed";
+        }
+        return "Job failed (" + name + ")";
     }
 
     private void prune() {

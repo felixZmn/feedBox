@@ -2,9 +2,6 @@ package de._0x2b.resource;
 
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import de._0x2b.job.BackgroundJobService;
 import de._0x2b.job.JobSnapshot;
 import de._0x2b.model.Feed;
@@ -23,7 +20,6 @@ import jakarta.ws.rs.core.Response;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class FeedResource {
-    private static final Logger logger = LoggerFactory.getLogger(FeedResource.class);
 
     @Inject
     FeedService feedService;
@@ -62,7 +58,6 @@ public class FeedResource {
     @POST
     @Path("/{id}/read")
     public Response markRead(@PathParam("id") int id) {
-        logger.debug("markRead feed {}", id);
         feedService.markRead(id);
         return Response.noContent().build();
     }
@@ -82,7 +77,6 @@ public class FeedResource {
     @GET
     @Path("/check")
     public Response checkFeedUrl(@QueryParam("url") String url) {
-        logger.debug("checkFeedUrl: {}", url);
         if (url == null || url.isBlank()) {
             throw new BadRequestException("url query parameter is required");
         }

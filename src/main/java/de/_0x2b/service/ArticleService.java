@@ -33,7 +33,6 @@ public class ArticleService {
      * @return the full article, or null when missing
      */
     public Article findById(long id) {
-        logger.debug("findById {}", id);
         return articleRepository.findById(id);
     }
 
@@ -44,7 +43,6 @@ public class ArticleService {
      * @throws NotFoundException when the article does not exist
      */
     public void markRead(long id) {
-        logger.debug("markRead {}", id);
         try {
             int updated = articleRepository.markRead(id);
             if (updated == 0 && !articleRepository.exists(id)) {

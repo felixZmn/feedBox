@@ -329,6 +329,16 @@ details[open] summary img {
 .articles-list .article-image {
   margin-bottom: var(--default-space);
   margin-top: var(--default-space);
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--skeleton-base);
+}
+
+.articles-list .article-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .articles-list .source {

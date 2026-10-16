@@ -5,16 +5,11 @@ import de._0x2b.exception.DuplicateEntityException;
 import de._0x2b.model.Folder;
 import jakarta.enterprise.context.ApplicationScoped;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.sql.SQLException;
 import java.util.List;
 
 @ApplicationScoped
 public class FolderRepository extends AbstractRepository {
-
-    private static final Logger logger = LoggerFactory.getLogger(FolderRepository.class);
     private static final String SELECT_ALL = """
             SELECT id, name, color FROM folder ORDER BY name
             """;
@@ -48,7 +43,6 @@ public class FolderRepository extends AbstractRepository {
     }
 
     public Folder findById(int id) {
-        logger.debug("findById {}", id);
         List<Folder> results = super.query(SELECT_BY_ID, folderMapper, List.of(id));
         return results.isEmpty() ? null : results.getFirst();
     }

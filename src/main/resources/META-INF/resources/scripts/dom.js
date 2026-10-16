@@ -2,7 +2,7 @@
 
 import { FOLDER_STATE_KEY } from "./data.js";
 import { unreadBadgeHtml, totalUnreadCount } from "./unread.js";
-import { escapeHtml, getRelativeTime, parseDate, sanitizeHTML, isSafeHttpUrl } from "./util.js";
+import { html, getRelativeTime, parseDate, sanitizeHTML, isSafeHttpUrl } from "./util.js";
 
 export {
   unreadBadgeHtml,
@@ -125,17 +125,20 @@ export function updateAllFeedsUnreadBadge(count) {
  */
 function feedHtml(feed) {
   const error = feed.lastError
-    ? `<span class="feed-error" title="${escapeHtml(feed.lastError)}" aria-label="Feed error: ${escapeHtml(feed.lastError)}">!</span>`
+    ? html`<span class="feed-error" title="${feed.lastError}" aria-label="Feed error: ${feed.lastError}">!</span>`
     : "";
   // Icons require auth — hydrate via loadFeedIcons() after paint (cookie
   // credentials on fetch; placeholder until then).
-  return `<li data-feed-id="${feed.id}">
+  return (
+    html`<li data-feed-id="${feed.id}">
     <img class="tree-entry-icon" src="icons/rss.svg" alt="" data-feed-icon="${feed.id}" />
-    <span class="tree-name">${escapeHtml(feed.name || "")}</span>
-    ${error}
-    ${unreadBadgeHtml(feed.unreadCount)}
-    <span class="tree-options" role="button" tabindex="0" aria-label="Feed options">⋮</span>
-  </li>`;
+    <span class="tree-name">${feed.name || ""}</span>
+    ` +
+    error +
+    unreadBadgeHtml(feed.unreadCount) +
+    html`<span class="tree-options" role="button" tabindex="0" aria-label="Feed options">⋮</span>
+  </li>`
+  );
 }
 
 /** @type {Map<string, string>} blob object URLs keyed by feed id */
@@ -182,33 +185,39 @@ export function loadFeedIcons(apiFetch) {
  * @param {Record<string, boolean>} openStates
  */
 function folderHtml(folder, openStates) {
-  const open =
+  const openAttr =
     Object.prototype.hasOwnProperty.call(openStates, folder.id) &&
     openStates[folder.id]
       ? " open"
       : "";
-  const color = escapeHtml(folder.color || "f-base");
+  const color = folder.color || "f-base";
   const folderUnread = (folder.feeds ?? []).reduce(
     (sum, feed) => sum + (Number(feed.unreadCount) || 0),
     0,
   );
   const feeds = (folder.feeds ?? []).map(feedHtml).join("");
-  return `<details data-folder-id="${folder.id}"${open}>
+  return (
+    html`<details data-folder-id="${folder.id}"` +
+    openAttr +
+    html`>
     <summary>
       <img src="icons/folder.svg" alt="" class="icon ${color}" />
-      <span class="tree-name">${escapeHtml(folder.name || "")}</span>
-      ${unreadBadgeHtml(folderUnread)}
-      <span class="tree-options" role="button" tabindex="0" aria-label="Folder options">⋮</span>
+      <span class="tree-name">${folder.name || ""}</span>
+      ` +
+    unreadBadgeHtml(folderUnread) +
+    html`<span class="tree-options" role="button" tabindex="0" aria-label="Folder options">⋮</span>
     </summary>
     <div class="folder-container">
-      <ul class="feeds-ul">${feeds}</ul>
+      <ul class="feeds-ul">` +
+    feeds +
+    html`</ul>
     </div>
-  </details>`;
+  </details>`
+  );
 }
 
 /**
- * Apply persisted open/closed state onto an already-painted tree
- * (e.g. HTML injected from localStorage cache).
+ * Apply persisted open/closed state onto an already-painted folder tree.
  */
 export function syncFolderOpenStatesFromStorage() {
   const container = document.getElementById("folder-container");
@@ -223,9 +232,7 @@ export function syncFolderOpenStatesFromStorage() {
 }
 
 /**
- * Canonical folder-tree HTML used both for live render and localStorage cache.
- * Cached HTML is stored without open attributes; open state is applied from
- * folder-state after inject / render.
+ * Canonical folder-tree HTML for live render (open state from folder-state).
  * @param {Folder[]} folders
  * @param {Feed[]} unfiledFeeds
  * @param {Record<string, boolean>} [openStates]
@@ -235,7 +242,7 @@ export function buildFoldersHtml(folders, unfiledFeeds, openStates = {}) {
   const folderPart = (folders ?? []).map((f) => folderHtml(f, openStates)).join("");
   const unfiled =
     unfiledFeeds && unfiledFeeds.length > 0
-      ? `<ul class="feeds-ul">${unfiledFeeds.map(feedHtml).join("")}</ul>`
+      ? "<ul class=\"feeds-ul\">" + unfiledFeeds.map(feedHtml).join("") + "</ul>"
       : "";
   return folderPart + unfiled;
 }
@@ -248,12 +255,12 @@ export function buildFoldersHtml(folders, unfiledFeeds, openStates = {}) {
  */
 export function renderFoldersList(folders, unfiledFeeds) {
   const container = document.getElementById("folder-container");
-  const html = buildFoldersHtml(folders, unfiledFeeds);
-  container.innerHTML = html;
+  const markup = buildFoldersHtml(folders, unfiledFeeds);
+  container.innerHTML = markup;
   delete container.dataset.cachePainted;
   syncFolderOpenStatesFromStorage();
   updateAllFeedsUnreadBadge(totalUnreadCount(folders, unfiledFeeds));
-  return html;
+  return markup;
 }
 
 /**
