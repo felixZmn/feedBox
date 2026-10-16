@@ -9,15 +9,11 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.sql.SQLException;
 import java.util.List;
 
 @ApplicationScoped
 public class FolderService {
-    private static final Logger logger = LoggerFactory.getLogger(FolderService.class);
 
     @Inject
     FolderRepository folderRepository;
@@ -41,7 +37,6 @@ public class FolderService {
      * @throws NotFoundException when the folder does not exist
      */
     public void markRead(int folderId) {
-        logger.debug("markRead folder {}", folderId);
         try {
             int updated = articleRepository.markReadByFolder(folderId);
             if (updated == 0 && !folderRepository.exists(folderId)) {

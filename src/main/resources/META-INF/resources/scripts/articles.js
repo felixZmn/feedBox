@@ -16,6 +16,7 @@ import {
   itemType,
   dom,
   ARTICLES_PAGE_SIZE,
+  ARTICLES_LIST_MAX,
   articleDetailCache,
   articlesAbortController,
   setArticlesAbortController,
@@ -345,14 +346,18 @@ export async function loadArticles() {
     }
 
     state.articles.push(...newArticles);
-    state.status.hasMoreArticles = newArticles.length >= ARTICLES_PAGE_SIZE;
+    state.status.hasMoreArticles =
+      newArticles.length >= ARTICLES_PAGE_SIZE &&
+      state.articles.length < ARTICLES_LIST_MAX;
 
     const lastArticle = newArticles[newArticles.length - 1];
     state.pagination.id = lastArticle.id;
     state.pagination.published = lastArticle.published;
 
     appendArticlesList(newArticles, state.selectedArticle?.id ?? null);
-    scheduleVisiblePageLoad();
+    if (state.status.hasMoreArticles) {
+      scheduleVisiblePageLoad();
+    }
   } catch (error) {
     if (error.name === "AbortError" || error.cause?.name === "AbortError") {
       return;

@@ -8,6 +8,9 @@ export const APP_TITLE = "feedBox";
 /** Must match backend ArticleRepository LIMIT */
 export const ARTICLES_PAGE_SIZE = 25;
 
+/** Soft cap for in-memory article list (infinite scroll stops beyond this). */
+export const ARTICLES_LIST_MAX = 500;
+
 export const itemType = Object.freeze({
   ALL: "",
   FEED: "feed",

@@ -132,7 +132,6 @@ public class FeedService {
      * @throws NotFoundException when the feed does not exist
      */
     public void markRead(int feedId) {
-        logger.debug("markRead feed {}", feedId);
         try {
             int updated = articleRepository.markReadByFeed(feedId);
             if (updated == 0 && !feedRepository.exists(feedId)) {
@@ -202,7 +201,7 @@ public class FeedService {
                 try {
                     future.join();
                 } catch (Exception e) {
-                    logger.error("Feed refresh failed", e);
+                    logger.warn("Feed refresh failed: {}", e.toString());
                 }
             }
         }
@@ -277,7 +276,6 @@ public class FeedService {
      * @return List of valid feeds found
      */
     public List<Feed> checkFeedUrl(String url) {
-        logger.debug("checkFeedUrl: {}", url);
         List<Feed> validFeeds = new ArrayList<>();
 
         URI requestUri;
@@ -298,7 +296,6 @@ public class FeedService {
         String baseUri = result.finalUri().toString();
 
         if (isFeed(contentType, body)) {
-            logger.debug("URL is a direct feed: {}", url);
             validFeeds.add(new Feed(-1, null, "", null, result.finalUri()));
         } else {
             Document doc = Jsoup.parse(body, baseUri);

@@ -4,8 +4,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import javax.xml.stream.XMLStreamException;
 
 import de._0x2b.job.BackgroundJobService;
 import de._0x2b.job.JobSnapshot;
@@ -21,7 +20,6 @@ import jakarta.ws.rs.core.Response;
 @Path("/api/opml")
 @Authenticated
 public class OpmlResource {
-    private static final Logger logger = LoggerFactory.getLogger(OpmlResource.class);
     /** 5 MiB — enough for large OPML exports without unbounded buffering. */
     private static final int MAX_OPML_BYTES = 5 * 1024 * 1024;
 
@@ -50,8 +48,8 @@ public class OpmlResource {
         JobSnapshot job = backgroundJobService.startImport(progress -> {
             try {
                 opmlService.importOPML(new ByteArrayInputStream(payload), progress);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
+            } catch (XMLStreamException e) {
+                throw new IllegalStateException("OPML parse failed", e);
             }
         });
         return Response.accepted(job).type("application/json").build();

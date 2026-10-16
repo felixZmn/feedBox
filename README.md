@@ -108,11 +108,13 @@ The following environment variables / properties can be configured:
 | `APP_HTTP_USER_AGENT`              | `FeedBox/<ver>` | User agent string for HTTP requests  |
 | `APP_HTTP_TIMEOUT`                 | `30`            | HTTP request timeout in seconds      |
 | `APP_HTTP_MAX_REDIRECTS`           | `5`             | Max redirects when fetching feeds/icons |
+| `APP_HTTP_ALLOWED_PORTS`           | `80,443`        | Allowed outbound ports (SSRF guard)  |
 | `APP_HTTP_MAX_BYTES_FEED`          | `10485760`      | Max feed response size (10 MiB)      |
 | `APP_HTTP_MAX_BYTES_ICON`          | `2097152`       | Max favicon response size (2 MiB)    |
 | `REFRESH_JOB_INTERVAL`             | `1h`            | Background feed refresh interval     |
 | `REFRESH_CONCURRENCY`              | `10`            | Max parallel feed refreshes          |
 | `IMPORT_CONCURRENCY`               | `5`             | Max parallel feed creates on OPML import |
+| `IMPORT_MAX_OUTLINES`              | `5000`          | Max feed outlines accepted in one OPML import |
 | `ARTICLES_RETENTION_DAYS`          | `90`            | Delete read articles older than N days after refresh (`0` disables); unread never deleted |
 
 ### Authentication notes

@@ -5,6 +5,8 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
@@ -15,7 +17,8 @@ import java.util.Set;
 public final class UrlSafety {
 
     private static final Set<String> ALLOWED_SCHEMES = Set.of("http", "https");
-    private static final Set<Integer> ALLOWED_PORTS = Set.of(80, 443);
+    /** Default when callers do not pass an explicit allow-list. */
+    public static final Set<Integer> DEFAULT_ALLOWED_PORTS = Set.of(80, 443);
 
     private UrlSafety() {
     }
@@ -24,6 +27,33 @@ public final class UrlSafety {
      * @throws UnsafeUrlException when the URI must not be fetched by the server
      */
     public static void requireSafeOutbound(URI uri) {
+        requireSafeOutbound(uri, DEFAULT_ALLOWED_PORTS);
+    }
+
+    /**
+     * @param allowedPorts explicit ports; empty/null falls back to
+     *                     {@link #DEFAULT_ALLOWED_PORTS}
+     * @throws UnsafeUrlException when the URI must not be fetched by the server
+     */
+    public static void requireSafeOutbound(URI uri, Set<Integer> allowedPorts) {
+        resolveValidated(uri, allowedPorts);
+    }
+
+    /**
+     * Resolve and validate {@code uri}. Returns the addresses that must be used
+     * for the subsequent connect (pin via {@link PinnedDns}).
+     *
+     * @throws UnsafeUrlException when the URI must not be fetched by the server
+     */
+    public static List<InetAddress> resolveValidated(URI uri) {
+        return resolveValidated(uri, DEFAULT_ALLOWED_PORTS);
+    }
+
+    /**
+     * @param allowedPorts explicit ports; empty/null falls back to
+     *                     {@link #DEFAULT_ALLOWED_PORTS}
+     */
+    public static List<InetAddress> resolveValidated(URI uri, Set<Integer> allowedPorts) {
         if (uri == null) {
             throw new UnsafeUrlException("URL is required");
         }
@@ -41,9 +71,12 @@ public final class UrlSafety {
             throw new UnsafeUrlException("URL host is required: " + uri);
         }
 
+        Set<Integer> ports = (allowedPorts == null || allowedPorts.isEmpty())
+                ? DEFAULT_ALLOWED_PORTS
+                : allowedPorts;
         int port = uri.getPort();
-        if (port != -1 && !ALLOWED_PORTS.contains(port)) {
-            throw new UnsafeUrlException("Port not allowed (use 80 or 443): " + uri);
+        if (port != -1 && !ports.contains(port)) {
+            throw new UnsafeUrlException("Port not allowed: " + uri);
         }
 
         InetAddress[] addresses;
@@ -56,12 +89,16 @@ public final class UrlSafety {
             throw new UnsafeUrlException("Cannot resolve host: " + host);
         }
 
+        List<InetAddress> safe = new ArrayList<>(addresses.length);
         for (InetAddress address : addresses) {
             if (isBlockedAddress(address)) {
                 throw new UnsafeUrlException(
-                        "Refusing to fetch private or local address for host " + host + ": " + address.getHostAddress());
+                        "Refusing to fetch private or local address for host " + host + ": "
+                                + address.getHostAddress());
             }
+            safe.add(address);
         }
+        return List.copyOf(safe);
     }
 
     /**
@@ -90,6 +127,9 @@ public final class UrlSafety {
         if (isIpv4ZeroNetwork(address)) {
             return true;
         }
+        if (isCarrierGradeNat(address)) {
+            return true;
+        }
         return false;
     }
 
@@ -108,5 +148,16 @@ public final class UrlSafety {
             return false;
         }
         return address.getAddress()[0] == 0;
+    }
+
+    /** IPv4 CGNAT {@code 100.64.0.0/10}. */
+    private static boolean isCarrierGradeNat(InetAddress address) {
+        if (!(address instanceof Inet4Address)) {
+            return false;
+        }
+        byte[] bytes = address.getAddress();
+        int first = bytes[0] & 0xff;
+        int second = bytes[1] & 0xff;
+        return first == 100 && second >= 64 && second <= 127;
     }
 }

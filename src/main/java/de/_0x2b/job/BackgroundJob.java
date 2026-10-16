@@ -1,10 +1,15 @@
 package de._0x2b.job;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 final class BackgroundJob implements ProgressCallback {
+
+    /** Cap client-visible per-row results to bound JSON size. */
+    static final int MAX_RESULTS = 100;
 
     private final UUID id = UUID.randomUUID();
     private final JobType type;
@@ -16,6 +21,7 @@ final class BackgroundJob implements ProgressCallback {
     private final AtomicInteger failed = new AtomicInteger();
     private volatile String error;
     private volatile Instant finishedAt;
+    private final List<ImportRowOutcome> results = new ArrayList<>();
 
     BackgroundJob(JobType type) {
         this.type = type;
@@ -48,6 +54,18 @@ final class BackgroundJob implements ProgressCallback {
         failed.incrementAndGet();
     }
 
+    @Override
+    public void recordOutcome(ImportRowOutcome outcome) {
+        if (outcome == null) {
+            return;
+        }
+        synchronized (results) {
+            if (results.size() < MAX_RESULTS) {
+                results.add(outcome);
+            }
+        }
+    }
+
     void complete() {
         status = JobStatus.COMPLETED;
         finishedAt = Instant.now();
@@ -60,6 +78,10 @@ final class BackgroundJob implements ProgressCallback {
     }
 
     JobSnapshot snapshot() {
+        List<ImportRowOutcome> copy;
+        synchronized (results) {
+            copy = List.copyOf(results);
+        }
         return new JobSnapshot(
                 id,
                 type,
@@ -69,6 +91,7 @@ final class BackgroundJob implements ProgressCallback {
                 failed.get(),
                 error,
                 startedAt,
-                finishedAt);
+                finishedAt,
+                copy);
     }
 }

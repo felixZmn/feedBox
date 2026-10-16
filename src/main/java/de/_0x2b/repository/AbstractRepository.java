@@ -1,8 +1,6 @@
 package de._0x2b.repository;
 
 import de._0x2b.exception.DataAccessException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import jakarta.inject.Inject;
@@ -13,7 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public abstract class AbstractRepository {
-    private static final Logger logger = LoggerFactory.getLogger(AbstractRepository.class);
 
     @Inject
     DataSource dataSource;
@@ -23,8 +20,6 @@ public abstract class AbstractRepository {
 
     // Generic select method
     protected <R> List<R> query(String sql, RowMapper<R> mapper, List<Object> params) {
-        logger.debug("Executing Query: {}", sql);
-
         try (Connection conn = dataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             setParameters(stmt, params);
@@ -46,7 +41,6 @@ public abstract class AbstractRepository {
 
     /** @return true when at least one row matches */
     protected boolean exists(String sql, List<Object> params) {
-        logger.debug("Executing exists: {}", sql);
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(sql)) {
             setParameters(stmt, params);
@@ -68,8 +62,6 @@ public abstract class AbstractRepository {
      *                      (like duplicates).
      */
     protected int insert(String sql, List<Object> params) throws SQLException {
-        logger.debug("Executing SQL: {}", sql);
-
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
@@ -103,8 +95,6 @@ public abstract class AbstractRepository {
      *                      exceptions.
      */
     protected int update(String sql, List<Object> params) throws SQLException {
-        logger.debug("Executing SQL: {}", sql);
-
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -146,18 +136,44 @@ public abstract class AbstractRepository {
      */
     protected <R> List<R> queryWhere(String selectFrom, String whereClause, List<Object> initialParams,
             String orderBy, RowMapper<R> mapper) {
-        StringBuilder sql = new StringBuilder(selectFrom).append(" WHERE 1=1 ");
+        return queryWhere(selectFrom, null, null, whereClause, initialParams, null, orderBy, mapper);
+    }
+
+    /**
+     * Shared dynamic-WHERE builder. Optional {@code joins} and
+     * {@code fixedAndClause} support Article list queries; {@code enricher}
+     * appends search/pagination fragments before {@code orderBy}.
+     */
+    protected <R> List<R> queryWhere(String selectFrom, String joins, String fixedAndClause,
+            String whereClause, List<Object> initialParams, QueryEnricher enricher,
+            String orderBy, RowMapper<R> mapper) {
+        StringBuilder sql = new StringBuilder(selectFrom);
+        if (joins != null && !joins.isBlank()) {
+            sql.append(joins);
+        }
+        sql.append(" WHERE 1=1 ");
         List<Object> params = new ArrayList<>();
         if (initialParams != null) {
             params.addAll(initialParams);
         }
+        if (fixedAndClause != null && !fixedAndClause.isBlank()) {
+            sql.append(" AND ").append(fixedAndClause);
+        }
         if (whereClause != null && !whereClause.isBlank()) {
             sql.append(" AND ").append(whereClause);
+        }
+        if (enricher != null) {
+            enricher.enrich(sql, params);
         }
         if (orderBy != null && !orderBy.isBlank()) {
             sql.append(' ').append(orderBy);
         }
         return query(sql.toString(), mapper, params);
+    }
+
+    @FunctionalInterface
+    protected interface QueryEnricher {
+        void enrich(StringBuilder sql, List<Object> params);
     }
 
     @FunctionalInterface

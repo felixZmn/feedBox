@@ -2,9 +2,6 @@ package de._0x2b.resource;
 
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import de._0x2b.model.Folder;
 import de._0x2b.model.FolderColor;
 import de._0x2b.resource.dto.CreateFolderRequest;
@@ -29,7 +26,6 @@ import jakarta.ws.rs.core.Response;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class FolderResource {
-    private static final Logger logger = LoggerFactory.getLogger(FolderResource.class);
 
     @Inject
     FolderService folderService;
@@ -67,7 +63,6 @@ public class FolderResource {
     @POST
     @Path("/{id}/read")
     public Response markRead(@PathParam("id") int id) {
-        logger.debug("markRead folder {}", id);
         folderService.markRead(id);
         return Response.noContent().build();
     }

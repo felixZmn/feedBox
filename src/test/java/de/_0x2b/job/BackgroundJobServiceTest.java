@@ -66,7 +66,7 @@ class BackgroundJobServiceTest {
         });
         JobSnapshot done = awaitTerminal(started.id());
         assertEquals(JobStatus.FAILED, done.status());
-        assertEquals("boom", done.error());
+        assertEquals("Job failed (IllegalStateException)", done.error());
     }
 
     private JobSnapshot awaitTerminal(java.util.UUID id) throws InterruptedException {

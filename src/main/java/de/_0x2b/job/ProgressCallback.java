@@ -11,6 +11,13 @@ public interface ProgressCallback {
 
     void itemFailed();
 
+    /**
+     * Record a bounded per-row OPML outcome (implementations may drop excess).
+     * Default is a no-op so refresh jobs need not implement it.
+     */
+    default void recordOutcome(ImportRowOutcome outcome) {
+    }
+
     /** No-op callback for callers that do not track progress. */
     ProgressCallback NONE = new ProgressCallback() {
         @Override

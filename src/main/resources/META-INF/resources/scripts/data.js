@@ -61,20 +61,36 @@ class DataService {
   /**
    * Poll until the job reaches COMPLETED or FAILED.
    * @param {string} jobId
-   * @param {{ intervalMs?: number, signal?: AbortSignal }} [options]
+   * @param {{ intervalMs?: number, maxIntervalMs?: number, timeoutMs?: number, signal?: AbortSignal }} [options]
    */
-  async waitForJob(jobId, { intervalMs = 500, signal } = {}) {
+  async waitForJob(
+    jobId,
+    {
+      intervalMs = 500,
+      maxIntervalMs = 5000,
+      timeoutMs = 10 * 60 * 1000,
+      signal,
+    } = {},
+  ) {
+    const startedAt = Date.now();
+    let delay = intervalMs;
     for (;;) {
       if (signal?.aborted) {
         const err = new Error("Aborted");
         err.name = "AbortError";
         throw err;
       }
+      if (Date.now() - startedAt > timeoutMs) {
+        const err = new Error(`Job ${jobId} timed out after ${timeoutMs}ms`);
+        err.name = "TimeoutError";
+        throw err;
+      }
       const job = await this.getJob(jobId);
       if (job.status === "COMPLETED" || job.status === "FAILED") {
         return job;
       }
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      delay = Math.min(maxIntervalMs, Math.floor(delay * 1.5));
     }
   }
 

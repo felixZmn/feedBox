@@ -46,18 +46,16 @@ class ModalService {
       this.cancelBtn.textContent = "Close";
     }
 
-    // Remove old event listeners to prevent duplicates if instance is reused
-    const newConfirmBtn = this.confirmBtn.cloneNode(true);
-    this.confirmBtn.parentNode.replaceChild(newConfirmBtn, this.confirmBtn);
-    this.confirmBtn = newConfirmBtn;
-
-    this.confirmBtn.addEventListener("click", async () => {
-      let data = this._collectFormData(); // Collect current state of DOM
+    if (this._confirmHandler) {
+      this.confirmBtn.removeEventListener("click", this._confirmHandler);
+    }
+    this._confirmHandler = async () => {
+      let data = this._collectFormData();
 
       if (onValidate) {
         try {
           const isValid = await onValidate(data, this.bodyEl);
-          if (!isValid) return; // Keep dialog open
+          if (!isValid) return;
         } catch (error) {
           console.error("Modal validation failed:", error);
           let errorEl = this.bodyEl.querySelector(".dialog-error");
@@ -69,13 +67,13 @@ class ModalService {
           }
           errorEl.textContent =
             "Something went wrong. Please check your connection and try again.";
-          return; // Keep dialog open
+          return;
         }
-        // onValidate may have updated inputs (e.g. resolved feed URL), so re-collect
         data = this._collectFormData();
       }
       this.close(data);
-    });
+    };
+    this.confirmBtn.addEventListener("click", this._confirmHandler);
 
     this.dialog.showModal();
 
@@ -94,33 +92,30 @@ class ModalService {
   }
 
   /**
-   * Helper to collect form data from the modal body.
-   * Supports input, select, textarea.
-   * Returns an object with name-value pairs.
+   * Collect form data from the modal body. Always returns an object
+   * (`{ confirmed: true }` when there are no named inputs).
    */
   _collectFormData() {
     const inputs = this.bodyEl.querySelectorAll("input, select, textarea");
-
-    if (inputs.length === 0) return true;
-
     const data = {};
 
     inputs.forEach((input) => {
       if (!input.name) return;
 
       if (input.type === "checkbox") {
-        data[input.name] = input.checked; // Return boolean for checkboxes
+        data[input.name] = input.checked;
       } else if (input.type === "radio") {
-        // Only include the radio button that is actually selected
         if (input.checked) {
           data[input.name] = input.value;
         }
       } else {
-        // Text, url, select-one, textarea, etc.
         data[input.name] = input.value;
       }
     });
 
+    if (Object.keys(data).length === 0) {
+      return { confirmed: true };
+    }
     return data;
   }
 }

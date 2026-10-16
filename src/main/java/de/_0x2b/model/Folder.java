@@ -7,7 +7,11 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 @RegisterForReflection
-public record Folder(int id, String name, List<Feed> feeds, String color) {
+public record Folder(
+        int id,
+        String name,
+        @JsonIgnore List<Feed> feeds,
+        String color) {
 
     public Folder withFeeds(List<Feed> feeds) {
         return new Folder(id, name, feeds, color);

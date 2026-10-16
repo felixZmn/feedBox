@@ -64,8 +64,9 @@ class IconServiceTest {
 
     @Test
     void findIcon_whenHtmlHasFaviconLink_fetchesImage() {
-        Feed feed = new Feed(1, 1, "n", URI.create("https://example.com:8443/blog"),
-                URI.create("https://example.com:8443/rss"));
+        // Explicit :443 — UrlSafety allows only 80/443 by default; port must be preserved.
+        Feed feed = new Feed(1, 1, "n", URI.create("https://example.com:443/blog"),
+                URI.create("https://example.com:443/rss"));
         URI htmlUri = feed.getUrl();
         String html = """
                 <html><head>
@@ -74,7 +75,7 @@ class IconServiceTest {
                 """;
         when(outboundHttpClient.fetchIcon(htmlUri)).thenReturn(Optional.of(htmlResult(htmlUri, html)));
 
-        URI iconUri = URI.create("https://example.com:8443/favicon.png");
+        URI iconUri = URI.create("https://example.com:443/favicon.png");
         byte[] bytes = new byte[]{1, 2, 3};
         when(outboundHttpClient.fetchIcon(iconUri))
                 .thenReturn(Optional.of(bytesResult(iconUri, "image/png", bytes)));

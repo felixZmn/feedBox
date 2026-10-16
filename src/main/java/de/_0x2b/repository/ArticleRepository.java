@@ -5,9 +5,6 @@ import de._0x2b.model.Article;
 import de._0x2b.resource.dto.ArticleSummary;
 import jakarta.enterprise.context.ApplicationScoped;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -24,8 +21,6 @@ import java.util.TimeZone;
 
 @ApplicationScoped
 public class ArticleRepository extends AbstractRepository {
-
-    private static final Logger logger = LoggerFactory.getLogger(ArticleRepository.class);
     /** Full row for the reader ({@code GET /api/article/{id}}). */
     private static final String SELECT_DETAIL_COLS = """
             SELECT a.id, a.feed_id, f.name AS publisher, a.title, a.description,
@@ -207,8 +202,6 @@ public class ArticleRepository extends AbstractRepository {
         if (articles == null || articles.isEmpty())
             return;
 
-        logger.debug("Starting batch create for {} articles", articles.size());
-
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(INSERT_SQL)) {
             int count = 0;
@@ -244,42 +237,24 @@ public class ArticleRepository extends AbstractRepository {
 
     private List<ArticleSummary> findInternal(String whereClause, List<Object> initialParams, Long pagId,
             Instant pagPublished, boolean joinFolder, String q) {
-
-        StringBuilder sql = new StringBuilder(SELECT_LIST_COLS).append(FROM_JOIN);
-        List<Object> params = new ArrayList<>();
-
-        if (initialParams != null) {
-            params.addAll(initialParams);
-        }
-
-        if (joinFolder) {
-            sql.append(JOIN_FOLDER);
-        }
-
-        // We exclude articles with NULL pubDate from the read query
-        // entirely: the pagination cursor relies on chronological
-        // ordering, and "no date" doesn't have a meaningful position
-        // relative to a real timestamp.
-        sql.append(" WHERE 1=1 AND a.published IS NOT NULL ");
-        if (whereClause != null) {
-            sql.append(" AND ").append(whereClause);
-        }
-
-        appendSearch(sql, params, q);
-
-        // Add Pagination. The cursor is (published, id) and id is a
-        // bigint on the database - JDBC's setObject picks up the Long
-        // argument and binds it as BIGINT.
-        if (pagId != null && pagPublished != null) {
-            sql.append(WHERE_PAGINATION);
-            params.add(pagPublished);
-            params.add(pagPublished);
-            params.add(pagId);
-        }
-
-        sql.append(ORDER_LIMIT);
-
-        return super.query(sql.toString(), summaryMapper, params);
+        // NULL pubDate excluded: pagination cursor needs chronological order.
+        return queryWhere(
+                SELECT_LIST_COLS + FROM_JOIN,
+                joinFolder ? JOIN_FOLDER : null,
+                "a.published IS NOT NULL",
+                whereClause,
+                initialParams,
+                (sql, params) -> {
+                    appendSearch(sql, params, q);
+                    if (pagId != null && pagPublished != null) {
+                        sql.append(WHERE_PAGINATION);
+                        params.add(pagPublished);
+                        params.add(pagPublished);
+                        params.add(pagId);
+                    }
+                },
+                ORDER_LIMIT.trim(),
+                summaryMapper);
     }
 
     /**

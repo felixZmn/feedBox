@@ -1,6 +1,7 @@
 package de._0x2b.service;
 
 import de._0x2b.exception.DuplicateEntityException;
+import de._0x2b.job.ImportRowOutcome;
 import de._0x2b.job.ProgressCallback;
 import de._0x2b.model.Feed;
 import de._0x2b.model.Folder;
@@ -61,6 +62,10 @@ public class OPMLService {
     @ConfigProperty(name = "import.concurrency", defaultValue = "5")
     int importConcurrency = 5;
 
+    /** Hard cap on rss/feed outlines in a single OPML import. */
+    @ConfigProperty(name = "import.max-outlines", defaultValue = "5000")
+    int maxOutlines = 5000;
+
     /**
      * Convert a Document to a formatted String
      */
@@ -109,6 +114,10 @@ public class OPMLService {
                         continue;
                     }
                     handleStartOutline(startElement, contextStack, pendingFeeds);
+                    if (pendingFeeds.size() > maxOutlines) {
+                        throw new IllegalArgumentException(
+                                "OPML contains too many feeds (max " + maxOutlines + ")");
+                    }
 
                 } else if (event.isEndElement()) {
                     var endElement = event.asEndElement();
@@ -145,18 +154,26 @@ public class OPMLService {
                                         pending.htmlUrl(),
                                         pending.xmlUrl()));
                                 progress.itemSucceeded();
+                                progress.recordOutcome(ImportRowOutcome.ok(
+                                        pending.name(), pending.xmlUrl().toString()));
                             } catch (DuplicateEntityException e) {
                                 logger.debug("Feed '{}' already exists; ignoring duplicate.", pending.name());
                                 progress.itemSucceeded();
+                                progress.recordOutcome(ImportRowOutcome.skip(
+                                        pending.name(), pending.xmlUrl().toString(), "already exists"));
                             } catch (Exception ex) {
-                                logger.error("Exception creating feed '{}': {}", pending.name(), ex.getMessage(), ex);
+                                logger.warn("Exception creating feed '{}': {}", pending.name(), ex.toString());
                                 progress.itemFailed();
+                                progress.recordOutcome(ImportRowOutcome.fail(
+                                        pending.name(), pending.xmlUrl().toString(), "create failed"));
                             } finally {
                                 semaphore.release();
                             }
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                             progress.itemFailed();
+                            progress.recordOutcome(ImportRowOutcome.fail(
+                                    pending.name(), pending.xmlUrl().toString(), "interrupted"));
                             logger.warn("OPML feed create interrupted for {}", pending.name(), e);
                         }
                     }, executor))
@@ -166,7 +183,7 @@ public class OPMLService {
                 try {
                     future.join();
                 } catch (Exception e) {
-                    logger.error("OPML feed create task failed", e);
+                    logger.warn("OPML feed create task failed: {}", e.toString());
                 }
             }
         }
@@ -195,14 +212,13 @@ public class OPMLService {
         }
 
         String name = textAttr.getValue();
-        int folderId = getOrCreateFolder(name);
-        if (folderId < 0) {
-            logger.error("Could not create or find folder '{}'; children will be placed in parent context.", name);
+        try {
+            int folderId = getOrCreateFolder(name);
+            contextStack.push(new OutlineContext("folder", folderId));
+        } catch (RuntimeException e) {
+            logger.warn("Could not create or find folder '{}'; children will be placed in parent context.", name);
             contextStack.push(new OutlineContext("invalid-folder", null));
-            return;
         }
-
-        contextStack.push(new OutlineContext("folder", folderId));
     }
 
     private void handleFeedOutline(StartElement startElement, Deque<OutlineContext> contextStack,
@@ -242,7 +258,7 @@ public class OPMLService {
     /**
      * Creates a folder if it doesn't exist, or returns the ID of the existing one.
      *
-     * @return folder ID, or -1 on unrecoverable failure
+     * @throws IllegalStateException when the folder cannot be created or looked up
      */
     private int getOrCreateFolder(String name) {
         try {
@@ -252,10 +268,8 @@ public class OPMLService {
             return folderService.findByName(name).stream()
                     .findFirst()
                     .map(Folder::getId)
-                    .orElseGet(() -> {
-                        logger.error("Folder '{}' not found after DuplicateEntityException.", name);
-                        return -1;
-                    });
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Folder not found after duplicate: " + name));
         }
     }
 
@@ -275,8 +289,8 @@ public class OPMLService {
         try {
             Document doc = createOPML(folderTree);
             return documentToString(doc);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        } catch (ParserConfigurationException | TransformerException e) {
+            throw new IllegalStateException("Failed to export OPML", e);
         }
     }
 

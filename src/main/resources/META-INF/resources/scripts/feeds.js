@@ -33,6 +33,39 @@ import {
 } from "./state.js";
 
 /**
+ * Short sanitized summary of an OPML import job for the completion modal.
+ * @param {{ total?: number, completed?: number, failed?: number, results?: Array<{name?: string, status?: string, reason?: string, xmlUrl?: string}> }} job
+ */
+function importJobSummaryHtml(job) {
+  const total = job.total ?? 0;
+  const ok = job.completed ?? 0;
+  const failed = job.failed ?? 0;
+  const results = Array.isArray(job.results) ? job.results : [];
+  const failRows = results.filter((r) => r.status === "fail").slice(0, 8);
+  const parts = [
+    html`<p>Imported ${ok} of ${total} feeds${failed ? ` (${failed} failed)` : ""}.</p>`,
+  ];
+  if (failRows.length > 0) {
+    parts.push(
+      "<ul>" +
+        failRows
+          .map(
+            (r) =>
+              html`<li>${r.name || r.xmlUrl || "feed"}${r.reason ? ` — ${r.reason}` : ""}</li>`,
+          )
+          .join("") +
+        "</ul>",
+    );
+  }
+  if (failed > failRows.length) {
+    parts.push(
+      html`<p>Showing ${failRows.length} of ${failed} failures.</p>`,
+    );
+  }
+  return parts.join("");
+}
+
+/**
  * Restore cached folders into state once. Skip DOM replace if the inline
  * injector already painted the renderer HTML.
  * @returns {boolean}
@@ -155,17 +188,6 @@ export async function refreshFolders({ background = true } = {}) {
   } finally {
     hideFeedsSpinner();
   }
-}
-
-/**
- * Re-render the sidebar from current state and refresh the folder-tree cache.
- * Prefer {@link syncUnreadBadgesFromState} for badge-only updates.
- */
-export function rerenderFolderTree() {
-  renderFoldersList(state.folders, state.unfiledFeeds);
-  saveFolderTreeCache(state.folders, state.unfiledFeeds);
-  updateNavSelection(state.lastClickedItem.type, state.lastClickedItem.obj);
-  hydrateFeedIcons();
 }
 
 /**
@@ -376,6 +398,12 @@ export async function importFeeds() {
           });
           return;
         }
+
+        await modal.show({
+          title: "Import complete",
+          content: importJobSummaryHtml(job),
+          type: "alert",
+        });
 
         await refreshFolders({ background: false });
         await refreshFeeds();
