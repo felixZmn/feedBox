@@ -26,7 +26,19 @@ import {
   columns,
 } from "./state.js";
 import { findFeedById, findFolderById } from "./feeds.js";
-import { markArticleAsRead, clearSearchFilter } from "./articles.js";
+import { markArticleAsRead, clearSearchFilter, toggleArticleSaved } from "./articles.js";
+
+/**
+ * Header star uses the same save toggle as the article row.
+ */
+export function registerSaveArticleButton() {
+  document.getElementById("trigger-save-article")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!state.selectedArticle) return;
+    void toggleArticleSaved(state.selectedArticle);
+  });
+}
 
 /**
  * @param {object} article
@@ -199,7 +211,11 @@ export async function applyRouteFromLocation({ replaceHistory = false } = {}) {
 
   let type = itemType.ALL;
   let obj = null;
-  if (route.context === "feed") {
+  if (route.context === "unread") {
+    type = itemType.UNREAD;
+  } else if (route.context === "saved") {
+    type = itemType.SAVED;
+  } else if (route.context === "feed") {
     obj = findFeedById(route.contextId);
     if (!obj) {
       const { selectAndLoadArticles } = await import("./articles.js");

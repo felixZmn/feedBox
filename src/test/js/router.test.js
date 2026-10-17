@@ -68,6 +68,27 @@ test("parseRoute trims a trailing slash", () => {
   });
 });
 
+test("parseRoute accepts unread and saved", () => {
+  assert.deepEqual(parseRoute("/unread"), {
+    valid: true,
+    context: "unread",
+    contextId: null,
+    articleId: null,
+  });
+  assert.deepEqual(parseRoute("/saved/article/4"), {
+    valid: true,
+    context: "saved",
+    contextId: null,
+    articleId: 4,
+  });
+  assert.equal(buildPath({ context: "unread" }), "/unread");
+  assert.equal(buildPath({ context: "unread", articleId: 8 }), "/unread/article/8");
+  assert.equal(buildPath({ context: "saved" }), "/saved");
+  assert.equal(buildPath({ context: "saved", articleId: 4 }), "/saved/article/4");
+  assert.equal(isAppPath("/unread/article/8"), true);
+  assert.equal(isAppPath("/saved"), true);
+});
+
 test("buildPath mirrors parseRoute", () => {
   assert.equal(buildPath({}), "/");
   assert.equal(buildPath({ context: "feed", contextId: 12 }), "/feed/12");

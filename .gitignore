@@ -23,3 +23,6 @@ buildNumber.properties
 
 # Local secrets and environment-specific config
 application-local.properties
+
+node_modules/
+*.log

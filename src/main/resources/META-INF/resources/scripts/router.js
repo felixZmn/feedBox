@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * @typedef {'all' | 'feed' | 'folder'} RouteContext
+ * @typedef {'all' | 'unread' | 'saved' | 'feed' | 'folder'} RouteContext
  * @typedef {{
  *   valid: boolean,
  *   context: RouteContext,
@@ -12,6 +12,8 @@
 
 const LIST_RE = /^\/(feed|folder)\/(\d+)(?:\/article\/(\d+))?$/;
 const ARTICLE_ONLY_RE = /^\/article\/(\d+)$/;
+const UNREAD_RE = /^\/unread(?:\/article\/(\d+))?$/;
+const SAVED_RE = /^\/saved(?:\/article\/(\d+))?$/;
 
 /**
  * Parse an app pathname into a route. Unknown paths are invalid.
@@ -23,6 +25,26 @@ export function parseRoute(pathname) {
 
   if (path === "/") {
     return { valid: true, context: "all", contextId: null, articleId: null };
+  }
+
+  const unread = path.match(UNREAD_RE);
+  if (unread) {
+    return {
+      valid: true,
+      context: "unread",
+      contextId: null,
+      articleId: unread[1] != null ? Number(unread[1]) : null,
+    };
+  }
+
+  const saved = path.match(SAVED_RE);
+  if (saved) {
+    return {
+      valid: true,
+      context: "saved",
+      contextId: null,
+      articleId: saved[1] != null ? Number(saved[1]) : null,
+    };
   }
 
   const articleOnly = path.match(ARTICLE_ONLY_RE);
@@ -67,6 +89,10 @@ export function buildPath({
     path = `/feed/${contextId}`;
   } else if (context === "folder" && contextId != null) {
     path = `/folder/${contextId}`;
+  } else if (context === "unread") {
+    path = "/unread";
+  } else if (context === "saved") {
+    path = "/saved";
   }
 
   if (articleId != null) {

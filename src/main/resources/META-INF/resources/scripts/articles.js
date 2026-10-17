@@ -9,7 +9,10 @@ import {
   renderSkeletons,
   renderEmptyState,
   setArticleReadState,
+  setArticleSavedState,
+  syncReaderSaveButton,
   updateNavSelection,
+  updateSavedBadge,
 } from "./dom.js";
 import {
   state,
@@ -312,6 +315,12 @@ export async function loadArticles() {
         if (!state.lastClickedItem.obj) return;
         params.folder = state.lastClickedItem.obj.id;
         break;
+      case itemType.UNREAD:
+        params.view = "unread";
+        break;
+      case itemType.SAVED:
+        params.view = "saved";
+        break;
       case itemType.ALL:
       default:
         break;
@@ -337,9 +346,14 @@ export async function loadArticles() {
     if (!newArticles || newArticles.length === 0) {
       state.status.hasMoreArticles = false;
       if (state.articles.length === 0) {
-        const emptyMessage = state.filter.isActive
-          ? `No articles match "${state.filter.term}"`
-          : undefined;
+        let emptyMessage;
+        if (state.filter.isActive) {
+          emptyMessage = `No articles match "${state.filter.term}"`;
+        } else if (state.lastClickedItem.type === itemType.UNREAD) {
+          emptyMessage = "No unread articles";
+        } else if (state.lastClickedItem.type === itemType.SAVED) {
+          emptyMessage = "No saved articles";
+        }
         renderEmptyState(emptyMessage);
       }
       return;
@@ -406,22 +420,91 @@ function scheduleVisiblePageLoad() {
 /**
  * @param {(article: object) => void} onArticleActivate
  */
+/**
+ * @param {HTMLElement} root
+ * @param {Element} target
+ * @returns {import("./types.js").Article | undefined}
+ */
+function articleFromRow(root, target) {
+  const articleEl = target.closest(".article[data-article-id]");
+  if (!articleEl || !root.contains(articleEl)) return undefined;
+  return state.articles.find((a) => a.id === Number(articleEl.dataset.articleId));
+}
+
+/**
+ * Save or unsave. Does not open, close, or change the selected article's read state.
+ * The on-screen row stays put when Saved is the current list.
+ * @param {import("./types.js").Article} article
+ */
+export async function toggleArticleSaved(article) {
+  if (!article) return;
+  const next = !article.saved;
+  const previousCount = state.savedCount ?? 0;
+  applySavedLocally(article, next);
+  const nextCount = Math.max(0, previousCount + (next ? 1 : -1));
+  state.savedCount = nextCount;
+  updateSavedBadge(nextCount);
+  try {
+    if (next) {
+      await dataService.saveArticle(article.id);
+    } else {
+      await dataService.unsaveArticle(article.id);
+    }
+  } catch (error) {
+    console.error("[app] Failed to update saved article:", error);
+    applySavedLocally(article, !next);
+    state.savedCount = previousCount;
+    updateSavedBadge(previousCount);
+  }
+}
+
+/**
+ * @param {import("./types.js").Article} article
+ * @param {boolean} saved
+ */
+function applySavedLocally(article, saved) {
+  article.saved = saved;
+  if (state.selectedArticle?.id === article.id) {
+    state.selectedArticle.saved = saved;
+  }
+  const cached = articleDetailCache.get(article.id);
+  if (cached) cached.saved = saved;
+  const listed = state.articles.find((a) => a.id === article.id);
+  if (listed && listed !== article) listed.saved = saved;
+  setArticleSavedState(article.id, saved);
+  if (state.selectedArticle?.id === article.id) {
+    syncReaderSaveButton(state.selectedArticle);
+  }
+}
+
 export function registerArticlesDelegatedEvents(onArticleActivate) {
   const articlesList = document.getElementById("articles-list");
 
   articlesList?.addEventListener("click", (e) => {
-    const articleEl = e.target.closest(".article[data-article-id]");
-    if (!articleEl || !articlesList.contains(articleEl)) return;
-    const article = state.articles.find(
-      (a) => a.id === Number(articleEl.dataset.articleId),
-    );
+    const mark = e.target.closest(".article-mark");
+    if (mark && articlesList.contains(mark)) {
+      e.stopPropagation();
+      const article = articleFromRow(articlesList, mark);
+      if (article && !article.read) void markArticleAsRead(article);
+      return;
+    }
+    const star = e.target.closest(".article-star");
+    if (star && articlesList.contains(star)) {
+      e.stopPropagation();
+      const article = articleFromRow(articlesList, star);
+      if (article) void toggleArticleSaved(article);
+      return;
+    }
+    if (e.target.closest("button")) return;
+    const article = articleFromRow(articlesList, e.target);
     if (article) onArticleActivate(article);
   });
 
   articlesList?.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" && e.key !== " ") return;
+    if (e.target.closest("button")) return;
     const articleEl = e.target.closest(".article[data-article-id]");
-    if (!articleEl || !articlesList.contains(articleEl)) return;
+    if (!articleEl || articleEl !== e.target || !articlesList.contains(articleEl)) return;
     e.preventDefault();
     const article = state.articles.find(
       (a) => a.id === Number(articleEl.dataset.articleId),

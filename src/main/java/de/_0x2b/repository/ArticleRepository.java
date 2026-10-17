@@ -30,14 +30,14 @@ public class ArticleRepository extends AbstractRepository {
             SELECT a.id, a.feed_id, f.name AS publisher, a.title, a.description,
                    a.content, a.link, a.guid, a.published, a.authors, a.image_url, a.categories,
                    """ + EFFECTIVE_READ + """
-                   AS read
+                   AS read, a.saved
             """;
     /** List/pagination projection — no HTML bodies. */
     private static final String SELECT_LIST_COLS = """
             SELECT a.id, a.feed_id, f.name AS publisher, a.title,
                    a.link, a.published, a.authors, a.image_url,
                    """ + EFFECTIVE_READ + """
-                   AS read
+                   AS read, a.saved
             """;
     private static final String FROM_JOIN = """
             FROM article a
@@ -66,6 +66,13 @@ public class ArticleRepository extends AbstractRepository {
                 categories = EXCLUDED.categories
             """;
     private static final String MARK_READ_SQL = "UPDATE article SET read = true WHERE id = ? AND read = false";
+    private static final String SAVE_SQL = "UPDATE article SET saved = true WHERE id = ? AND saved = false";
+    private static final String UNSAVE_SQL = "UPDATE article SET saved = false WHERE id = ? AND saved = true";
+    private static final String COUNT_SAVED_SQL = """
+            SELECT COUNT(*)::int AS saved_count
+            FROM article
+            WHERE saved = true AND published IS NOT NULL
+            """;
     private static final String MARK_READ_ALL_SQL = """
             UPDATE reader_state
             SET mark_read_through_id = GREATEST(
@@ -112,12 +119,12 @@ public class ArticleRepository extends AbstractRepository {
     private final RowMapper<Article> articleMapper = rs -> new Article(rs.getLong("id"), rs.getInt("feed_id"),
             rs.getString("publisher"), rs.getString("title"), rs.getString("description"), rs.getString("content"),
             rs.getString("link"), rs.getString("guid"), readPublished(rs), rs.getString("authors"),
-            rs.getString("image_url"), rs.getString("categories"), rs.getBoolean("read"));
+            rs.getString("image_url"), rs.getString("categories"), rs.getBoolean("read"), rs.getBoolean("saved"));
 
     private final RowMapper<ArticleSummary> summaryMapper = rs -> new ArticleSummary(
             rs.getLong("id"), rs.getInt("feed_id"), rs.getString("publisher"), rs.getString("title"),
-            rs.getString("link"), readPublished(rs), rs.getString("authors"), rs.getString("image_url"),
-            rs.getBoolean("read"));
+            rs.getString("link"), readPublished(rs), rs.getString("authors"),             rs.getString("image_url"),
+            rs.getBoolean("read"), rs.getBoolean("saved"));
 
     private static Instant readPublished(java.sql.ResultSet rs) throws SQLException {
         Timestamp ts = rs.getTimestamp("published", UTC);
@@ -168,6 +175,51 @@ public class ArticleRepository extends AbstractRepository {
      */
     public int markRead(long id) throws SQLException {
         return super.update(MARK_READ_SQL, List.of(id));
+    }
+
+    /**
+     * Mark one article saved. Does not change read state.
+     *
+     * @return rows updated (0 if already saved or missing)
+     */
+    public int save(long id) throws SQLException {
+        return super.update(SAVE_SQL, List.of(id));
+    }
+
+    /**
+     * Clear the saved flag. Does not change read state.
+     *
+     * @return rows updated (0 if already unsaved or missing)
+     */
+    public int unsave(long id) throws SQLException {
+        return super.update(UNSAVE_SQL, List.of(id));
+    }
+
+    public List<ArticleSummary> findSaved(String q) {
+        return findInternal("a.saved = true", List.of(), null, null, false, q);
+    }
+
+    public List<ArticleSummary> findSaved(long paginationId, Instant paginationPublished, String q) {
+        return findInternal("a.saved = true", List.of(), paginationId, paginationPublished, false, q);
+    }
+
+    public List<ArticleSummary> findUnread(String q) {
+        return findInternal("NOT " + EFFECTIVE_READ, List.of(), null, null, false, q);
+    }
+
+    public List<ArticleSummary> findUnread(long paginationId, Instant paginationPublished, String q) {
+        return findInternal("NOT " + EFFECTIVE_READ, List.of(), paginationId, paginationPublished, false, q);
+    }
+
+    /** Dated saved articles. Other tests may have saved rows, so callers compare deltas. */
+    public int countSaved() {
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(COUNT_SAVED_SQL);
+                ResultSet rs = stmt.executeQuery()) {
+            return rs.next() ? rs.getInt("saved_count") : 0;
+        } catch (SQLException e) {
+            throw new DataAccessException("Query failed: " + COUNT_SAVED_SQL, e);
+        }
     }
 
     /**

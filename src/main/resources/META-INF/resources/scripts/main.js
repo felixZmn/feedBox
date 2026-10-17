@@ -63,6 +63,7 @@ import {
   articleClickListener,
   applyRouteFromLocation,
   onPopState,
+  registerSaveArticleButton,
 } from "./reader.js";
 import {
   initContextMenuListeners,
@@ -153,6 +154,17 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
+/**
+ * @param {string} type
+ * @param {KeyboardEvent} event
+ */
+function onViewKey(type, event) {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  if (event.target.closest(".tree-options")) return;
+  event.preventDefault();
+  selectAndLoadArticles(type, null);
+}
+
 function initEventListeners() {
   dom.button.next.addEventListener("click", () => navigateArticle(1));
   dom.button.previous.addEventListener("click", () => navigateArticle(-1));
@@ -166,6 +178,22 @@ function initEventListeners() {
     if (e.target.closest(".tree-options")) return;
     selectAndLoadArticles(itemType.ALL, null);
   });
+  dom.button.showAllFeeds?.addEventListener("keydown", (e) =>
+    onViewKey(itemType.ALL, e),
+  );
+  dom.button.showUnread?.addEventListener("click", () => {
+    selectAndLoadArticles(itemType.UNREAD, null);
+  });
+  dom.button.showUnread?.addEventListener("keydown", (e) =>
+    onViewKey(itemType.UNREAD, e),
+  );
+  dom.button.showSaved?.addEventListener("click", () => {
+    selectAndLoadArticles(itemType.SAVED, null);
+  });
+  dom.button.showSaved?.addEventListener("keydown", (e) =>
+    onViewKey(itemType.SAVED, e),
+  );
+  registerSaveArticleButton();
   dom.button.add.addEventListener("click", (e) => {
     e.stopPropagation();
     openAddContextMenu(e.clientX, e.clientY);

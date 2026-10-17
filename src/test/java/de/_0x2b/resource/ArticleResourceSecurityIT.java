@@ -74,6 +74,50 @@ class ArticleResourceSecurityIT {
     }
 
     @Test
+    void anonymousSavedRoutes_areUnauthorized() {
+        given().when().post("/api/article/1/saved").then().statusCode(401);
+        given().when().delete("/api/article/1/saved").then().statusCode(401);
+        given().when().get("/api/article/saved/count").then().statusCode(401);
+    }
+
+    @Test
+    @TestSecurity(user = "alice")
+    void authenticatedSave_roundTrip_doesNotChangeRead() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        int folderId = folderRepository.create(new Folder(-1, "sec-saved-" + suffix, null, "f-base"));
+        int feedId = feedRepository.create(new Feed(-1, folderId, "sec-saved-feed-" + suffix,
+                URI.create("https://saved.example/" + suffix),
+                URI.create("https://saved.example/" + suffix + "/rss")));
+        Instant published = Instant.parse("2026-04-01T10:00:00Z");
+        String title = "Save Me " + suffix;
+        articleRepository.create(List.of(new Article(-1, feedId, "sec-saved-feed-" + suffix, title,
+                "d", "<p>body</p>", "https://saved.example/a", "https://saved.example/a",
+                published, "", "", "[]")));
+        long id = articleRepository.findByFeed(feedId, "").getFirst().id();
+
+        given().contentType("application/json").when().post("/api/article/" + id + "/saved").then().statusCode(204);
+        given().queryParam("view", "saved").queryParam("q", title)
+                .when().get("/api/article")
+                .then()
+                .statusCode(200)
+                .body("[0].id", equalTo((int) id))
+                .body("[0].saved", equalTo(true))
+                .body("[0].read", equalTo(false));
+        given().when().get("/api/article/" + id)
+                .then()
+                .statusCode(200)
+                .body("saved", equalTo(true))
+                .body("read", equalTo(false));
+
+        given().contentType("application/json").when().delete("/api/article/" + id + "/saved").then().statusCode(204);
+        given().when().get("/api/article/" + id)
+                .then()
+                .statusCode(200)
+                .body("saved", equalTo(false))
+                .body("read", equalTo(false));
+    }
+
+    @Test
     @TestSecurity(user = "alice")
     void authenticatedMarkRead_missingArticle_returns404() {
         given()

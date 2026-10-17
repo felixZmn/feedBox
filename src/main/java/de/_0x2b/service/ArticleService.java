@@ -44,6 +44,42 @@ public class ArticleService {
     }
 
     /**
+     * Save an article for later. Does not change read state. Already saved is a no-op.
+     *
+     * @throws NotFoundException when the article does not exist
+     */
+    public void save(long id) {
+        try {
+            int updated = articleRepository.save(id);
+            if (updated == 0 && !articleRepository.exists(id)) {
+                throw new NotFoundException("Article not found: " + id);
+            }
+        } catch (SQLException e) {
+            throw new DataAccessException("Failed to save article: " + id, e);
+        }
+    }
+
+    /**
+     * Remove the saved flag. Does not change read state. Already unsaved is a no-op.
+     *
+     * @throws NotFoundException when the article does not exist
+     */
+    public void unsave(long id) {
+        try {
+            int updated = articleRepository.unsave(id);
+            if (updated == 0 && !articleRepository.exists(id)) {
+                throw new NotFoundException("Article not found: " + id);
+            }
+        } catch (SQLException e) {
+            throw new DataAccessException("Failed to unsave article: " + id, e);
+        }
+    }
+
+    public int countSaved() {
+        return articleRepository.countSaved();
+    }
+
+    /**
      * Advance the global read horizon so every existing article counts as read.
      * New inserts (higher ids) stay unread.
      */
@@ -83,5 +119,21 @@ public class ArticleService {
             return articleRepository.findByFeed(feedId, q);
         }
         return articleRepository.findByFeed(feedId, cursor.id(), cursor.published(), q);
+    }
+
+    /** Dated articles that are not effectively read. */
+    public List<ArticleSummary> findUnread(PaginationCursor cursor, String q) {
+        if (cursor == null || cursor.isEmpty()) {
+            return articleRepository.findUnread(q);
+        }
+        return articleRepository.findUnread(cursor.id(), cursor.published(), q);
+    }
+
+    /** Dated saved articles, read or unread. */
+    public List<ArticleSummary> findSaved(PaginationCursor cursor, String q) {
+        if (cursor == null || cursor.isEmpty()) {
+            return articleRepository.findSaved(q);
+        }
+        return articleRepository.findSaved(cursor.id(), cursor.published(), q);
     }
 }

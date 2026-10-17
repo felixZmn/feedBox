@@ -15,6 +15,7 @@
  * @property {string} imageUrl - The URL of the article's image (empty string if none).
  * @property {string} [categories] - JSON array of category strings (detail endpoint).
  * @property {boolean} [read] - Whether the article has been marked read.
+ * @property {boolean} [saved] - Whether the reader saved the article for later.
  */
 
 /**

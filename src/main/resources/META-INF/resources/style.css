@@ -458,6 +458,8 @@ details[open] summary img {
 .articles-list .article-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  flex-wrap: nowrap;
   color: var(--font-color-muted);
   font-size: var(--font-size-small);
   gap: var(--default-space);
@@ -485,6 +487,8 @@ details[open] summary img {
 }
 
 .articles-list .source {
+  flex: 1 1 auto;
+  min-width: 0;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
@@ -498,9 +502,56 @@ details[open] summary img {
 }
 
 .articles-list .article {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.15rem;
   padding: var(--default-space) 0.75rem;
   margin-inline: var(--articles-inline);
   border-radius: var(--radius-sm);
+}
+
+.article-mark,
+.article-star {
+  flex: 0 0 auto;
+}
+
+.article-mark {
+  width: 1.25rem;
+  height: 1.25rem;
+  min-width: 1.25rem;
+  min-height: 1.25rem;
+}
+
+.article-mark .icon,
+.article-star .icon {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.article-meta-end {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 0.35rem;
+}
+
+.article-star {
+  width: 1.5rem;
+  height: 1.25rem;
+  min-width: 1.5rem;
+  min-height: 1.25rem;
+}
+
+.article-body {
+  min-width: 0;
+}
+
+#trigger-show-all-feeds:focus-visible,
+#trigger-show-unread:focus-visible,
+#trigger-show-saved:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .articles-list .article:hover {
@@ -742,6 +793,12 @@ details[open] summary img {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
   border-radius: var(--radius-sm);
+}
+
+.sidebar-divider {
+  height: 1px;
+  margin: 0.65rem 0.75rem 0.35rem;
+  background: var(--border-color);
 }
 
 .space-top {
