@@ -27,6 +27,8 @@ const SHELL = [
   "/scripts/boot-cache.js",
   "/scripts/unread.js",
   "/scripts/article-context.js",
+  "/scripts/article-row.js",
+  "/scripts/saved.js",
   "/scripts/vendor/purify.es.mjs",
   "/icons/maskable_icon_x192.png",
   "/icons/maskable_icon_x512.png",
@@ -44,6 +46,10 @@ const SHELL = [
   "/icons/reader_previous.svg",
   "/icons/reader_next.svg",
   "/icons/rss.svg",
+  "/icons/circle-check.svg",
+  "/icons/circle-check-filled.svg",
+  "/icons/bookmark.svg",
+  "/icons/bookmark-filled.svg",
 ];
 
 function offline(message = "Offline") {

@@ -13,6 +13,8 @@ export const ARTICLES_LIST_MAX = 500;
 
 export const itemType = Object.freeze({
   ALL: "",
+  UNREAD: "unread",
+  SAVED: "saved",
   FEED: "feed",
   FOLDER: "folder",
 });
@@ -29,6 +31,7 @@ export const state = {
     hasMoreArticles: true,
   },
   selectedArticle: null,
+  savedCount: 0,
   lastClickedItem: { type: itemType.ALL, obj: null },
   restoredFromCache: false,
 };
@@ -47,6 +50,9 @@ export const dom = {
     close: document.getElementById("trigger-close"),
     backToFeeds: document.getElementById("trigger-back-feeds"),
     showAllFeeds: document.getElementById("trigger-show-all-feeds"),
+    showUnread: document.getElementById("trigger-show-unread"),
+    showSaved: document.getElementById("trigger-show-saved"),
+    saveArticle: document.getElementById("trigger-save-article"),
     add: document.getElementById("trigger-add"),
     addFeed: document.getElementById("trigger-feed-add"),
     editFeed: document.getElementById("trigger-feed-edit"),
@@ -137,6 +143,12 @@ export function pathForSelection(articleId = null) {
       articleId,
     });
   }
+  if (type === itemType.UNREAD) {
+    return buildPath({ context: "unread", articleId });
+  }
+  if (type === itemType.SAVED) {
+    return buildPath({ context: "saved", articleId });
+  }
   return buildPath({ articleId });
 }
 
@@ -184,6 +196,14 @@ export function updateDocumentTitle() {
   const { type, obj } = state.lastClickedItem;
   if ((type === itemType.FEED || type === itemType.FOLDER) && obj?.name) {
     document.title = `${obj.name} · ${APP_TITLE}`;
+    return;
+  }
+  if (type === itemType.UNREAD) {
+    document.title = `Unread · ${APP_TITLE}`;
+    return;
+  }
+  if (type === itemType.SAVED) {
+    document.title = `Saved · ${APP_TITLE}`;
     return;
   }
   document.title = APP_TITLE;

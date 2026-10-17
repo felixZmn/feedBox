@@ -188,6 +188,105 @@ class ArticleRepositoryIT {
         assertFalse(articleRepository.findByFeed(feedKeep, "").getFirst().read());
     }
 
+    @Test
+    void save_staysSavedAfterMarkRead_andListsNewestFirst() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        int folderId = folderRepository.create(new Folder(-1, "it-saved-" + suffix, null, "f-base"));
+        int feedId = feedRepository.create(new Feed(-1, folderId, "it-saved-feed-" + suffix,
+                URI.create("https://saved.example/" + suffix),
+                URI.create("https://saved.example/" + suffix + "/rss")));
+
+        Instant older = Instant.parse("2026-04-01T00:00:00Z");
+        Instant newer = Instant.parse("2026-05-01T00:00:00Z");
+        articleRepository.create(List.of(
+                new Article(-1, feedId, "f", "Older saved", "", "", "https://saved.example/old",
+                        "https://saved.example/old", older, "", "", "[]"),
+                new Article(-1, feedId, "f", "Newer saved", "", "", "https://saved.example/new",
+                        "https://saved.example/new", newer, "", "", "[]"),
+                new Article(-1, feedId, "f", "Not saved", "", "", "https://saved.example/no",
+                        "https://saved.example/no", newer, "", "", "[]")));
+        long olderId = idByTitle(feedId, "Older saved");
+        long newerId = idByTitle(feedId, "Newer saved");
+        long unsavedId = idByTitle(feedId, "Not saved");
+        int before = articleRepository.countSaved();
+
+        assertEquals(1, articleRepository.save(olderId));
+        assertEquals(0, articleRepository.save(olderId), "already saved is a no-op");
+        assertEquals(1, articleRepository.save(newerId));
+        assertEquals(before + 2, articleRepository.countSaved());
+
+        assertEquals(1, articleRepository.markRead(olderId));
+        articleRepository.markAllRead();
+
+        List<Long> savedIds = articleRepository.findSaved("").stream()
+                .filter(a -> a.feedId() == feedId)
+                .map(ArticleSummary::id)
+                .toList();
+        assertEquals(List.of(newerId, olderId), savedIds);
+        ArticleSummary newerSaved = articleRepository.findSaved("").stream()
+                .filter(a -> a.id() == newerId)
+                .findFirst()
+                .orElseThrow();
+        assertTrue(newerSaved.saved());
+        assertTrue(newerSaved.read(), "horizon mark-read must not clear saved");
+        assertTrue(articleRepository.findById(olderId).isSaved());
+
+        assertEquals(1, articleRepository.unsave(newerId));
+        assertEquals(0, articleRepository.unsave(newerId));
+        assertEquals(before + 1, articleRepository.countSaved());
+        assertFalse(articleRepository.findSaved("").stream().anyMatch(a -> a.id() == newerId));
+        assertFalse(articleRepository.findSaved("").stream().anyMatch(a -> a.id() == unsavedId));
+    }
+
+    @Test
+    void findUnread_omitsColumnReadAndHorizonRead_newestFirst() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        int folderId = folderRepository.create(new Folder(-1, "it-unread-view-" + suffix, null, "f-base"));
+        int feedId = feedRepository.create(new Feed(-1, folderId, "it-unread-view-feed-" + suffix,
+                URI.create("https://unread-view.example/" + suffix),
+                URI.create("https://unread-view.example/" + suffix + "/rss")));
+
+        Instant older = Instant.parse("2026-06-01T00:00:00Z");
+        Instant newer = Instant.parse("2026-07-01T00:00:00Z");
+        articleRepository.create(List.of(
+                new Article(-1, feedId, "f", "Stay unread", "", "", "https://unread-view.example/stay",
+                        "https://unread-view.example/stay", newer, "", "", "[]"),
+                new Article(-1, feedId, "f", "Column read", "", "", "https://unread-view.example/col",
+                        "https://unread-view.example/col", older, "", "", "[]")));
+        long stayId = idByTitle(feedId, "Stay unread");
+        long columnId = idByTitle(feedId, "Column read");
+        assertEquals(1, articleRepository.markRead(columnId));
+
+        List<Long> unreadIds = articleRepository.findUnread("").stream()
+                .filter(a -> a.feedId() == feedId)
+                .map(ArticleSummary::id)
+                .toList();
+        assertEquals(List.of(stayId), unreadIds);
+        assertFalse(articleRepository.findUnread("").stream().anyMatch(a -> a.id() == columnId));
+
+        articleRepository.markAllRead();
+        assertFalse(articleRepository.findUnread("").stream().anyMatch(a -> a.feedId() == feedId));
+
+        articleRepository.create(List.of(
+                new Article(-1, feedId, "f", "After horizon", "", "", "https://unread-view.example/after",
+                        "https://unread-view.example/after", older, "", "", "[]")));
+        long afterId = idByTitle(feedId, "After horizon");
+        List<Long> afterHorizon = articleRepository.findUnread("").stream()
+                .filter(a -> a.feedId() == feedId)
+                .map(ArticleSummary::id)
+                .toList();
+        assertEquals(List.of(afterId), afterHorizon);
+        assertFalse(articleRepository.findById(afterId).isRead());
+    }
+
+    private long idByTitle(int feedId, String title) {
+        return articleRepository.findByFeed(feedId, "").stream()
+                .filter(a -> title.equals(a.title()))
+                .findFirst()
+                .orElseThrow()
+                .id();
+    }
+
     private long latestArticleId(int feedId) throws Exception {
         try (Connection conn = dataSource.getConnection();
                 PreparedStatement stmt = conn.prepareStatement(

@@ -3,6 +3,9 @@ package de._0x2b.resource;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import jakarta.ws.rs.BadRequestException;
 
 class ArticleResourceTest {
 
@@ -33,6 +36,34 @@ class ArticleResourceTest {
         String atLimit = "a".repeat(MAX_SEARCH_LENGTH);
 
         assertEquals(atLimit, ArticleResource.normalizeSearch(atLimit));
+    }
+
+    @Test
+    void resolveListView_blankIsAll() {
+        assertEquals(ArticleResource.ListView.ALL, ArticleResource.resolveListView(null, null, null));
+        assertEquals(ArticleResource.ListView.ALL, ArticleResource.resolveListView(null, null, "  "));
+    }
+
+    @Test
+    void resolveListView_acceptsUnreadAndSaved() {
+        assertEquals(ArticleResource.ListView.UNREAD, ArticleResource.resolveListView(null, null, "unread"));
+        assertEquals(ArticleResource.ListView.SAVED, ArticleResource.resolveListView(null, null, "saved"));
+    }
+
+    @Test
+    void resolveListView_rejectsUnknownView() {
+        assertThrows(BadRequestException.class, () -> ArticleResource.resolveListView(null, null, "later"));
+    }
+
+    @Test
+    void resolveListView_rejectsViewCombinedWithFolderOrFeed() {
+        assertThrows(BadRequestException.class, () -> ArticleResource.resolveListView(1, null, "unread"));
+        assertThrows(BadRequestException.class, () -> ArticleResource.resolveListView(null, 2, "saved"));
+    }
+
+    @Test
+    void resolveListView_rejectsFolderAndFeedTogether() {
+        assertThrows(BadRequestException.class, () -> ArticleResource.resolveListView(1, 2, null));
     }
 
     @Test

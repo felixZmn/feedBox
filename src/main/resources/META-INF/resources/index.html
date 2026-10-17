@@ -184,7 +184,7 @@
           </div>
         </div>
         <div class="column" id="feeds-col">
-          <div class="details" id="trigger-show-all-feeds">
+          <div class="details" id="trigger-show-all-feeds" tabindex="0">
             <div class="summary">
               <img src="icons/package.svg" class="icon f-base" alt="" /><span
                 class="tree-name"
@@ -199,6 +199,23 @@
               >
             </div>
           </div>
+          <div class="details" id="trigger-show-unread" tabindex="0">
+            <div class="summary">
+              <img src="icons/circle-check.svg" class="icon f-base" alt="" /><span
+                class="tree-name"
+                >Unread</span
+              >
+            </div>
+          </div>
+          <div class="details" id="trigger-show-saved" tabindex="0">
+            <div class="summary">
+              <img src="icons/bookmark.svg" class="icon f-base" alt="" /><span
+                class="tree-name"
+                >Saved</span
+              ><span class="tree-unread" id="saved-count" hidden></span
+              ><span class="tree-options" aria-hidden="true"></span>
+            </div>
+          </div>
           <div id="feeds-loading" class="feeds-spinner">
             <img
               class="icon f-base spinner"
@@ -206,6 +223,7 @@
               alt="Loading"
             />
           </div>
+          <div class="sidebar-divider" role="separator"></div>
           <div id="folder-container">
             <!-- Folders will be injected here -->
           </div>
@@ -265,6 +283,21 @@
             </button>
           </div>
           <div class="right">
+            <button
+              type="button"
+              class="item-spacer"
+              id="trigger-save-article"
+              title="Save article"
+              aria-label="Save article"
+              disabled
+            >
+              <img
+                id="reader-save-icon"
+                class="icon f-base"
+                src="icons/bookmark.svg"
+                alt=""
+              />
+            </button>
             <a
               class="item-spacer d-none"
               id="trigger-external-open"

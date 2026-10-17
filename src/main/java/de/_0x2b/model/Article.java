@@ -18,19 +18,20 @@ public record Article(
         String authors,
         String imageUrl,
         String categories,
-        boolean read) {
+        boolean read,
+        boolean saved) {
 
     /** Convenience when guid defaults to link. */
     public Article(long id, int feedId, String feedName, String title, String description, String content, String link,
             Instant published, String authors, String imageUrl, String categories) {
         this(id, feedId, feedName, title, description, content, link, link, published, authors, imageUrl, categories,
-                false);
+                false, false);
     }
 
     public Article(long id, int feedId, String feedName, String title, String description, String content, String link,
             String guid, Instant published, String authors, String imageUrl, String categories) {
         this(id, feedId, feedName, title, description, content, link, guid, published, authors, imageUrl, categories,
-                false);
+                false, false);
     }
 
     public long getId() {
@@ -83,5 +84,9 @@ public record Article(
 
     public boolean isRead() {
         return read;
+    }
+
+    public boolean isSaved() {
+        return saved;
     }
 }

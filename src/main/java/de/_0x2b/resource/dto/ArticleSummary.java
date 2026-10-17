@@ -19,5 +19,6 @@ public record ArticleSummary(
         Instant published,
         String authors,
         String imageUrl,
-        boolean read) {
+        boolean read,
+        boolean saved) {
 }

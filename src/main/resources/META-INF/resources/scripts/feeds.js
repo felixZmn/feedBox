@@ -13,6 +13,7 @@ import {
   showFeedsSpinner,
   hideFeedsSpinner,
   updateNavSelection,
+  updateSavedBadge,
   setFeedUnreadBadge,
   setFolderUnreadBadge,
   updateAllFeedsUnreadBadge,
@@ -140,6 +141,17 @@ async function selectAndLoadArticlesAfterInvalidation() {
   });
 }
 
+async function refreshSavedCount() {
+  try {
+    const result = await dataService.loadSavedCount();
+    const count = Number(result?.count) || 0;
+    state.savedCount = count;
+    updateSavedBadge(count);
+  } catch (error) {
+    console.error("[app] Failed to load saved count:", error);
+  }
+}
+
 /**
  * Network refresh for folders/feeds.
  * @param {{ background?: boolean }} [options]
@@ -176,6 +188,7 @@ export async function refreshFolders({ background = true } = {}) {
       updateNavSelection(state.lastClickedItem.type, state.lastClickedItem.obj);
     }
     state.restoredFromCache = true;
+    await refreshSavedCount();
     if (selectionInvalidated) {
       await selectAndLoadArticlesAfterInvalidation();
     }

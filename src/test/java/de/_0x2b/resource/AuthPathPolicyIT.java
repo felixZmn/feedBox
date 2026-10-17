@@ -45,4 +45,10 @@ class AuthPathPolicyIT {
     void startBounce_requiresAuth() {
         given().redirects().follow(false).when().get("/start").then().statusCode(401);
     }
+
+    @Test
+    void unreadAndSavedPaths_requireAuth() {
+        given().redirects().follow(false).when().get("/unread").then().statusCode(401);
+        given().redirects().follow(false).when().get("/saved").then().statusCode(401);
+    }
 }

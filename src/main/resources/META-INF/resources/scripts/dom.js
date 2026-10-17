@@ -1,6 +1,8 @@
 "use strict";
 
+import { articleMarkState, articleStarState } from "./article-row.js";
 import { FOLDER_STATE_KEY } from "./data.js";
+import { savedBadgePresentation } from "./saved.js";
 import { unreadBadgeHtml, totalUnreadCount } from "./unread.js";
 import { html, getRelativeTime, parseDate, sanitizeHTML, isSafeHttpUrl } from "./util.js";
 
@@ -45,6 +47,59 @@ export function setArticleReadState(articleId, read) {
   );
   if (!el) return;
   el.classList.toggle("unread", !read);
+  const title = el.querySelector(".article-title")?.textContent || "No Title";
+  el.setAttribute("aria-label", `${title}, ${read ? "Read" : "Unread"}`);
+  const button = el.querySelector(".article-mark");
+  if (!button) return;
+  paintFlag(button, articleMarkState(read));
+}
+
+/**
+ * Swap the star on a loaded row without moving it.
+ * @param {number} articleId
+ * @param {boolean} saved
+ */
+export function setArticleSavedState(articleId, saved) {
+  const el = articlesContainer?.querySelector(
+    `.article[data-article-id="${articleId}"]`,
+  );
+  if (!el) return;
+  const button = el.querySelector(".article-star");
+  if (!button) return;
+  paintFlag(button, articleStarState(saved));
+}
+
+/**
+ * @param {number} count
+ */
+export function updateSavedBadge(count) {
+  const el = document.getElementById("saved-count");
+  if (!el) return;
+  const badge = savedBadgePresentation(count);
+  el.textContent = badge.text;
+  el.hidden = badge.hidden;
+  if (badge.label) {
+    el.setAttribute("aria-label", badge.label);
+  } else {
+    el.removeAttribute("aria-label");
+  }
+}
+
+/**
+ * Header star. Disabled when no article is open.
+ * @param {{ id?: number, saved?: boolean } | null} article
+ */
+export function syncReaderSaveButton(article) {
+  const button = document.getElementById("trigger-save-article");
+  const img = document.getElementById("reader-save-icon");
+  if (!button || !img) return;
+  if (!article?.id) {
+    button.disabled = true;
+    paintFlag(button, articleStarState(false));
+    return;
+  }
+  button.disabled = false;
+  paintFlag(button, articleStarState(!!article.saved));
 }
 
 /**
@@ -71,6 +126,16 @@ export function updateNavSelection(type, obj) {
       `details[data-folder-id="${obj.id}"] > summary`,
     );
     if (folderEl) folderEl.classList.add("selected");
+    return;
+  }
+
+  if (type === "unread") {
+    document.getElementById("trigger-show-unread")?.classList.add("selected");
+    return;
+  }
+
+  if (type === "saved") {
+    document.getElementById("trigger-show-saved")?.classList.add("selected");
     return;
   }
 
@@ -287,6 +352,35 @@ export function prepareCachedIconsForHydration() {
  * @param {Article} article
  * @returns {HTMLElement}
  */
+/**
+ * @param {string} className
+ * @param {{ src: string, label: string }} flag
+ * @returns {HTMLButtonElement}
+ */
+function flagButton(className, flag) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `item-spacer ${className}`;
+  const img = document.createElement("img");
+  img.alt = "";
+  button.appendChild(img);
+  paintFlag(button, flag);
+  return button;
+}
+
+/**
+ * @param {HTMLButtonElement} button
+ * @param {{ src: string, label: string, tone: string }} flag
+ */
+function paintFlag(button, flag) {
+  button.setAttribute("aria-label", flag.label);
+  button.title = flag.label;
+  const img = button.querySelector("img");
+  if (!img) return;
+  img.src = flag.src;
+  img.className = `icon ${flag.tone}`;
+}
+
 function createArticleElement(article) {
   const articleDiv = document.createElement("div");
   const headerDiv = document.createElement("div");
@@ -294,30 +388,37 @@ function createArticleElement(article) {
   const titleDiv = document.createElement("div");
   const sourceSpan = document.createElement("span");
   const ageSpan = document.createElement("span");
+  const title = article.title || "No Title";
 
   articleDiv.className = "article";
   articleDiv.dataset.articleId = String(article.id);
   articleDiv.tabIndex = 0;
-  articleDiv.setAttribute("role", "button");
+  articleDiv.setAttribute(
+    "aria-label",
+    `${title}, ${article.read ? "Read" : "Unread"}`,
+  );
   if (!article.read) {
     articleDiv.classList.add("unread");
   }
   if (selectedArticleId != null && article.id === selectedArticleId) {
     articleDiv.classList.add("selected");
   }
+
+  const metaEnd = document.createElement("div");
+  metaEnd.className = "article-meta-end";
+  const body = document.createElement("div");
+  body.className = "article-body";
   headerDiv.className = "article-header";
   imageDiv.className = "article-image";
   titleDiv.className = "article-title";
   sourceSpan.className = "source";
   ageSpan.className = "age";
 
-  titleDiv.textContent = article.title || "No Title";
+  titleDiv.textContent = title;
   sourceSpan.textContent = article.feedName || "Unknown";
   ageSpan.textContent = getRelativeTime(article.published) || "";
 
-  headerDiv.appendChild(sourceSpan);
-  headerDiv.appendChild(ageSpan);
-  articleDiv.appendChild(headerDiv);
+  body.appendChild(titleDiv);
 
   if (article.imageUrl && isSafeHttpUrl(article.imageUrl)) {
     const image = document.createElement("img");
@@ -327,9 +428,16 @@ function createArticleElement(article) {
     image.src = article.imageUrl;
     image.alt = "";
     imageDiv.appendChild(image);
-    articleDiv.appendChild(imageDiv);
+    body.appendChild(imageDiv);
   }
-  articleDiv.appendChild(titleDiv);
+
+  headerDiv.appendChild(sourceSpan);
+  metaEnd.appendChild(ageSpan);
+  metaEnd.appendChild(flagButton("article-mark", articleMarkState(!!article.read)));
+  metaEnd.appendChild(flagButton("article-star", articleStarState(!!article.saved)));
+  headerDiv.appendChild(metaEnd);
+  body.appendChild(headerDiv);
+  articleDiv.appendChild(body);
   return articleDiv;
 }
 
@@ -389,6 +497,7 @@ export function renderReaderView(article) {
     externalLink.removeAttribute("href");
     externalLink.classList.add("d-none");
   }
+  syncReaderSaveButton(article);
 }
 
 export function clearReaderView() {
@@ -405,6 +514,7 @@ export function clearReaderView() {
   externalLink.removeAttribute("href");
   externalLink.classList.add("d-none");
   setSelectedArticleHighlight(null);
+  syncReaderSaveButton(null);
 }
 
 /**

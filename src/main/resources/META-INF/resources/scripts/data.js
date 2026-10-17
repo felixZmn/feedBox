@@ -124,6 +124,18 @@ class DataService {
     return this._request(`./api/folder/${folderId}/read`, { method: "POST" });
   }
 
+  async saveArticle(articleId) {
+    return this._request(`./api/article/${articleId}/saved`, { method: "POST" });
+  }
+
+  async unsaveArticle(articleId) {
+    return this._request(`./api/article/${articleId}/saved`, { method: "DELETE" });
+  }
+
+  async loadSavedCount() {
+    return this._request("./api/article/saved/count");
+  }
+
   /**
    * Unified request handler.
    * Uses same-origin session cookie via auth.js.

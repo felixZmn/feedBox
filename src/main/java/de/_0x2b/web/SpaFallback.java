@@ -13,7 +13,7 @@ import jakarta.enterprise.event.Observes;
 public class SpaFallback {
 
     private static final String SPA_PATH =
-            "^/(?:(?:feed|folder)/[0-9]+(?:/article/[0-9]+)?|article/[0-9]+)/?$";
+            "^/(?:(?:feed|folder)/[0-9]+(?:/article/[0-9]+)?|article/[0-9]+|unread(?:/article/[0-9]+)?|saved(?:/article/[0-9]+)?)/?$";
 
     void register(@Observes Router router) {
         // Run after static resources so missing files fall through to the shell.
