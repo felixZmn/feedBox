@@ -8,9 +8,9 @@
 
 ## Summary
 
-Show read state on every article row with a filled or unfilled mark, let that mark mark the article read, and add a star that saves an article for later. The sidebar gains Unread and Saved above the folders, separated by the same spacing already used above Add.
+Show read state on every article row with a circle-check, let that check mark the article read, and add a bookmark that saves an article for later. The sidebar gains Unread and Saved above the folders, separated from the folders by a thin divider.
 
-Read state already exists (`article.read` plus the global and per-feed read horizons). This feature does not add a way to mark one article unread. Saved is a new boolean on `article`, independent of read state. Unread and Saved are filters on the existing paginated article list. Icons are Tabler SVGs, vendored like the icons already in the reader.
+Read state already exists (`article.read` plus the global and per-feed read horizons). This feature does not add a way to mark one article unread. Saved is a new boolean on `article`, independent of read state. Unread and Saved are filters on the existing paginated article list. The circle-check and bookmark are Tabler SVGs, vendored like the icons already in the reader. Unread is the blue outline check. Read is the grey filled check. Unsaved is the grey outline bookmark. Saved is the blue filled bookmark. Both sit on the bottom line of the row, to the right of the time.
 
 ## Technical Context
 
@@ -26,7 +26,7 @@ Read state already exists (`article.read` plus the global and per-feed read hori
 
 **Performance Goals**: A visible row switches to the read appearance, and the All Feeds unread count updates, within 1 second of the mark-read call succeeding. Saved and unread lists stay on the existing page of 25.
 
-**Constraints**: Title font does not change for read state. The status mark and star stay in fixed positions. Lists stay paginated summaries. New JAX-RS methods stay `@Authenticated`. No new config key, public route, or third-party call. UI reuses `style.css` tokens, `item-spacer` hit area, `html` escaping, and `classList`.
+**Constraints**: Title font does not change for read state. The circle-check and bookmark stay on the bottom line, to the right of the time, and stay the same small size on a narrow screen. Lists stay paginated summaries. New JAX-RS methods stay `@Authenticated`. No new config key, public route, or third-party call. UI reuses `style.css` tokens, `html` escaping, and `classList`.
 
 **Scale/Scope**: One signed-in reader. One saved flag per article. Two new sidebar rows and two icons on each article row.
 
@@ -44,7 +44,7 @@ Read state already exists (`article.read` plus the global and per-feed read hori
 | VI. Schema integrity | `V7` is append-only. Both new list filters get partial indexes. List responses stay `ArticleSummary` pages of 25. Full HTML stays on `GET /api/article/{id}`. No article delete path is added. | Pass |
 | VII. Regression tests | Repository IT covers saved and unread filters. Security IT covers 401 on the new methods. Router and badge behavior get `node --test`. | Pass |
 | VIII. Bounded work | Page size stays 25. The saved count is one indexed count, not a full scan returned to the client. Row and badge updates happen on the existing nodes. | Pass |
-| IX. Human Interface Guidelines | Same type, accent, radii, light and dark tokens. Keyboard, visible focus, accessible names. No new animation. Hit area matches `.item-spacer`, including the 44px minimum already applied under 1100px. | Pass |
+| IX. Human Interface Guidelines | Same type, accent, radii, light and dark tokens. Keyboard, visible focus, accessible names. No new animation. The header bookmark matches the other header buttons. The row check and bookmark stay small on a narrow screen so the source line does not grow. | Pass |
 
 Post-design re-check: pass. No exceptions.
 
@@ -78,19 +78,19 @@ src/main/resources/
 ├── application.properties                      # authenticated SPA paths
 ├── db/migration/V7__article_saved.sql
 └── META-INF/resources/
-    ├── index.html                              # Unread, Saved, reader star
-    ├── style.css                               # flag cluster, sidebar gap, no title-weight rule
+    ├── index.html                              # Unread, Saved, divider, reader bookmark
+    ├── style.css                               # bottom-line icons, sidebar divider, no title-weight rule
     ├── sw.js                                   # precache the four new SVGs
-    ├── icons/circle.svg
-    ├── icons/circle-filled.svg
-    ├── icons/star.svg
-    ├── icons/star-filled.svg
+    ├── icons/circle-check.svg
+    ├── icons/circle-check-filled.svg
+    ├── icons/bookmark.svg
+    ├── icons/bookmark-filled.svg
     └── scripts/
         ├── articles.js                         # view params, mark, save, empty copy
         ├── data.js                             # save, unsave, saved count
         ├── dom.js                              # row flags, nav selection, badges
         ├── main.js                             # sidebar activation
-        ├── reader.js                           # header star, route apply
+        ├── reader.js                           # header bookmark, route apply
         ├── router.js                           # /unread and /saved
         ├── state.js                            # item types, paths, titles
         └── types.js                            # saved on Article
