@@ -52,20 +52,20 @@ Mark as read on one article sets `article.read`. Mark as read on a feed, a folde
 
 ```text
 unread --open article-----------------> read
-unread --activate filled mark---------> read
+unread --activate outline check-------> read
 unread --mark feed, folder, or all----> read
-read   --activate unfilled mark-------> read
+read   --activate filled check--------> read
 ```
 
 There is no transition back to unread for a single article.
 
-Effective read is what the list, the mark icon, and Unread filtering use. A row can be read because of a horizon even when `article.read` is false.
+Effective read is what the list, the circle-check, and Unread filtering use. A row can be read because of a horizon even when `article.read` is false.
 
 ### Saved
 
 ```text
-unsaved --activate star--> saved
-saved   --activate star--> unsaved
+unsaved --activate bookmark--> saved
+saved   --activate bookmark--> unsaved
 ```
 
 Read transitions do not change this state. Saved transitions do not change read state.
@@ -74,11 +74,11 @@ Read transitions do not change this state. Saved transitions do not change read 
 
 | View already on screen | Transition | What the reader sees |
 |------------------------|------------|----------------------|
-| Unread | article becomes read | Mark becomes unfilled. Row stays. All Feeds unread count drops now. Next load of Unread omits the row. |
-| Saved | article is unsaved | Star becomes unfilled. Row stays. Saved count drops now. Next load of Saved omits the row. |
-| Saved | saved article becomes read | Mark becomes unfilled. Row stays, including on the next load. |
-| Any | save or unsave fails | Star and saved count return to the previous values. |
-| Any | mark-read fails | Mark stays filled. Unread count returns to the previous value. |
+| Unread | article becomes read | Check becomes filled. Row stays. All Feeds unread count drops now. Next load of Unread omits the row. |
+| Saved | article is unsaved | Bookmark becomes an outline. Row stays. Saved count drops now. Next load of Saved omits the row. |
+| Saved | saved article becomes read | Check becomes filled. Row stays, including on the next load. |
+| Any | save or unsave fails | Bookmark and saved count return to the previous values. |
+| Any | mark-read fails | Check stays an outline. Unread count returns to the previous value. |
 
 ## Relationships
 

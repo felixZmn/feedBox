@@ -49,22 +49,22 @@ Keep `article_unread_feed_horizon_idx` for the per-feed unread counts.
 
 ## Icons
 
-**Decision**: Vendor four Tabler SVGs next to the existing icons, with the same `viewBox="0 0 24 24"`, round caps, and black paint so the existing CSS filters (`.f-base` and the dark-scheme overrides) recolor them:
+**Decision**: Vendor four Tabler SVGs next to the existing icons, with the same `viewBox="0 0 24 24"`, round caps, and black paint so the existing CSS filters (`.f-base`, `.f-blue`, `.f-grey`, and the dark-scheme overrides) recolor them:
 
 | File | Use |
 |------|-----|
-| `icons/circle-filled.svg` | Unread status mark, and the Unread sidebar icon |
-| `icons/circle.svg` | Read status mark |
-| `icons/star.svg` | Unsaved star, reader star when unsaved, Saved sidebar icon |
-| `icons/star-filled.svg` | Saved star on the row and in the reader |
+| `icons/circle-check.svg` | Unread status mark, and the Unread sidebar icon |
+| `icons/circle-check-filled.svg` | Read status mark |
+| `icons/bookmark.svg` | Unsaved bookmark, reader bookmark when unsaved, Saved sidebar icon |
+| `icons/bookmark-filled.svg` | Saved bookmark on the row and in the reader |
 
-Unread is the filled mark. Read is the matching unfilled mark. Both use the same color. Shape, not color, distinguishes them. The visible glyph stays small. The control uses `.item-spacer`, so the hit area matches the header buttons, including the 44px minimum under 1100px.
+Unread is the blue outline check. Read is the grey filled check. Unsaved is the grey outline bookmark. Saved is the blue filled bookmark. Shape still differs, so color is not the only cue. Both row icons stay about 16px on a wide screen and on a narrow screen. The header bookmark matches the other header buttons. The Saved count is followed by an empty slot the width of the options menu, so the number lines up with the other sidebar counts.
 
 Add the four paths to the service-worker `SHELL` list so they precache with the other icons.
 
-**Rationale**: The reader already attributes icons to Tabler and styles them with filters on `<img>`. A filled and unfilled pair from that set satisfies the spec without a second style. `circle` / `circle-filled` is a status mark, not a second title treatment. No npm icon package.
+**Rationale**: The reader already attributes icons to Tabler and styles them with filters on `<img>`. Circle-check reads as done or not done. Bookmark reads as save for later. No npm icon package.
 
-**Alternatives considered**: A CSS-only dot. Rejected because the spec requires the same icon library and style. Bold unread titles. Rejected in clarification. Hiding the mark when read. Rejected because the row would jump.
+**Alternatives considered**: A CSS-only dot. Rejected because the spec requires the same icon library and style. Bold unread titles. Rejected in clarification. Hiding the read check. Rejected because the row would jump and both icons must stay visible. Enlarging the row icons to 44px on a narrow screen. Rejected because that stretched the source line.
 
 ## Routes
 
@@ -80,17 +80,17 @@ Choosing Unread or Saved uses the same article-column navigation as choosing All
 
 ## Row behavior
 
-**Decision**: The article row stops being `role="button"` once it contains the mark and the star. The row stays keyboard-focusable. Enter and Space on the row open the article. Enter and Space on the mark or star do not. Clicks on those controls do not open the article.
+**Decision**: The article row stops being `role="button"` once it contains the check and the bookmark. The row stays keyboard-focusable. Enter and Space on the row open the article. Enter and Space on the check or bookmark do not. Clicks on those controls do not open the article.
 
-The mark and the star sit in a leading cluster, mark then star. Swapping filled and unfilled SVGs does not change the cluster size. The title's font, weight, and color do not change. `.unread` may remain as a state hook for tests, and it must not restyle the title.
+The title is the first line. A picture, when present, sits under the title. The bottom line is the source on the left and, on the right, the time, the circle-check, then the bookmark. Swapping outline and filled SVGs does not move those icons. The title's font, weight, and color do not change. `.unread` may remain as a state hook, and it must not restyle the title. A thin divider, using the existing border color, sits between Saved and the folders.
 
-Activating the filled mark calls the existing `markArticleAsRead` path. The unfilled mark is named "Read" and does nothing. The star calls save or unsave. Optimistic updates revert when the request fails, following the existing mark-read rollback.
+Activating the outline check calls the existing `markArticleAsRead` path. The filled check is named "Read" and does nothing. The bookmark calls save or unsave. Optimistic updates revert when the request fails, following the existing mark-read rollback.
 
-While Unread is already on screen, a row that becomes read switches to the unfilled mark and stays in the list. The next load of Unread omits it. While Saved is on screen, unsaving switches to the unfilled star and the row stays until the next load of Saved. Sidebar counts update immediately.
+While Unread is already on screen, a row that becomes read switches to the filled check and stays in the list. The next load of Unread omits it. While Saved is on screen, unsaving switches to the outline bookmark and the row stays until the next load of Saved. Sidebar counts update immediately.
 
-**Rationale**: A button inside `role="button"` is invalid, and the spec requires the mark, the star, and the row to be separate actions. Keeping the row in place is the clarified non-jumping rule. Reusing `markArticleAsRead` keeps unread badges and rollback on one path.
+**Rationale**: A button inside `role="button"` is invalid, and the spec requires the check, the bookmark, and the row to be separate actions. Keeping the row in place is the clarified non-jumping rule. Putting both icons on the bottom line keeps the title clear. Reusing `markArticleAsRead` keeps unread badges and rollback on one path.
 
-**Alternatives considered**: Removing the unread row as soon as it is marked read. Rejected in the spec because the list would move beside the open article.
+**Alternatives considered**: Removing the unread row as soon as it is marked read. Rejected in the spec because the list would move beside the open article. A leading cluster at the start of the row. Rejected after review because the marks competed with the title.
 
 ## Document title
 

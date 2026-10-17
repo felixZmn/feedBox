@@ -69,13 +69,15 @@ Anonymous calls to these paths, and to `GET /api/article/saved/count`, return `4
 
 ## Row and sidebar contract
 
-Article row, leading cluster, in order:
+The title is the first line. A picture, when the article has one, sits under the title. The bottom line has the source on the left. On the right, in order: the time, the circle-check, then the bookmark.
 
-1. Status mark. Filled circle, name "Mark as read", when the article is unread. Unfilled circle, name "Read", when it is read. Activating the filled mark marks the article read and does not open it. Activating the unfilled mark does not open it and does not mark it unread.
-2. Star. Unfilled, name "Save article", when unsaved. Filled, name "Remove from Saved", when saved. Activating it does not open the article and does not change read state.
+1. Circle-check. Blue outline, name "Mark as read", when the article is unread. Grey filled, name "Read", when it is read. Activating the outline check marks the article read and does not open it. Activating the filled check does not open it and does not mark it unread.
+2. Bookmark. Grey outline, name "Save article", when unsaved. Blue filled, name "Remove from Saved", when saved. Activating it does not open the article and does not change read state.
+
+On a narrow screen those two row icons stay the same small size as on a wide screen. The header bookmark matches the other header buttons.
 
 The row's accessible name includes the title and either "Unread" or "Read". The title font is the same in both states. Selection and hover keep their current backgrounds.
 
-Sidebar, top to bottom: All Feeds (existing unread count and options menu), Unread (filled-circle icon, no count, no options menu), Saved (star icon, saved count only when greater than zero, no options menu), empty space the size of the space above Add, folders, Add.
+Sidebar, top to bottom: All Feeds (existing unread count and options menu), Unread (circle-check icon, no count, no options menu), Saved (bookmark icon, saved count only when greater than zero, lined up with the other sidebar counts, no options menu), a thin divider, folders, Add.
 
 Empty Unread copy: "No unread articles". Empty Saved copy: "No saved articles".
