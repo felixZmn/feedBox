@@ -1,7 +1,7 @@
 "use strict";
 
 // Filtered at build time (${sw.version}) so HTML + modules stay in lockstep.
-const VERSION = "${sw.version}";
+const VERSION = "2026-10-19-001";
 const CACHE = `feedbox-${VERSION}`;
 const SHELL = [
   "/",
