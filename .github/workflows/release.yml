@@ -60,7 +60,7 @@ jobs:
       - name: Compute next version
         id: semver
         if: github.event_name != 'workflow_dispatch' || github.event.inputs.version == ''
-        uses: paulhatch/semantic-version@4d6da96a9bc3116da3613309a11ff75fba58eb8d # v6.0.4
+        uses: paulhatch/semantic-version@79147b94804704a613626766998afe7b2bd0bb47 # v6.0.5
         with:
           tag_prefix: ""
           version_format: "${major}.${minor}.${patch}"
@@ -142,7 +142,7 @@ jobs:
 
       - name: Log in to GHCR
         if: steps.version.outputs.released == 'true'
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
