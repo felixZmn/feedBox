@@ -17,11 +17,11 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
-        <quarkus.platform.version>3.40.1</quarkus.platform.version>
+        <quarkus.platform.version>3.40.1.1</quarkus.platform.version>
         <!-- Integration tests (*IT) need Docker for Postgres Dev Services.
              Enabled in CI via -DskipITs=false; local `mvn test` stays unit-only. -->
         <skipITs>true</skipITs>
-        <surefire-plugin.version>3.6.0</surefire-plugin.version>
+        <surefire-plugin.version>3.6.1</surefire-plugin.version>
         <maven.build.timestamp.format>yyyyMMddHHmmss</maven.build.timestamp.format>
         <!-- Overwritten by git-commit-id-maven-plugin when a git repo is present -->
         <git.commit.id.abbrev>nogit</git.commit.id.abbrev>
