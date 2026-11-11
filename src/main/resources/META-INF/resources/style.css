@@ -5,7 +5,7 @@
     system-ui, sans-serif;
   --accent: #005e83;
   --font-color: #1d1d1f;
-  --font-color-muted: #6e6e73;
+  --font-color-muted: #5c5c61;
   --font-color-highlight: var(--accent);
   --background-color: #f5f5f7;
   --surface-sidebar: #ececef;
@@ -355,6 +355,10 @@ button {
   line-height: 1;
 }
 
+.selected .tree-unread {
+  color: var(--font-color);
+}
+
 .feed-error {
   flex: 0 0 auto;
   font-weight: bold;
@@ -549,7 +553,15 @@ button {
 
 .article-mark,
 .article-star {
+  position: relative;
   flex: 0 0 auto;
+}
+
+.article-mark::after,
+.article-star::after {
+  content: "";
+  position: absolute;
+  inset: -12px -2px;
 }
 
 .article-mark {
@@ -583,12 +595,6 @@ button {
   min-width: 0;
 }
 
-#trigger-show-all-feeds:focus-visible,
-#trigger-show-unread:focus-visible,
-#trigger-show-saved:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
 
 .articles-list .article:hover {
   background-color: var(--hover-bg);
@@ -809,6 +815,11 @@ button {
   color: var(--font-color-muted);
 }
 
+.search-container:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 /* Helpers */
 .border-right {
   border-right: 1px solid var(--border-color);
@@ -822,6 +833,9 @@ button {
 }
 
 .article:focus-visible,
+.article-link:focus-visible,
+.tree-link:focus-visible,
+.folder-toggle:focus-visible,
 .context-menu-item:focus-visible,
 .tree-options:focus-visible,
 .item-spacer:focus-visible,
@@ -1197,8 +1211,8 @@ dialog::backdrop {
   }
 
   .feeds-ul li,
-  summary,
-  .summary,
+  .details,
+  .folder-row,
   .articles-list .article {
     min-height: 44px;
     box-sizing: border-box;
