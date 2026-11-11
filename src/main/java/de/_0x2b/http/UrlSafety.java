@@ -55,20 +55,21 @@ public final class UrlSafety {
      */
     public static List<InetAddress> resolveValidated(URI uri, Set<Integer> allowedPorts) {
         if (uri == null) {
-            throw new UnsafeUrlException("URL is required");
+            throw new UnsafeUrlException(UnsafeUrlException.Reason.INVALID_URL, "URL is required");
         }
         if (!uri.isAbsolute()) {
-            throw new UnsafeUrlException("URL must be absolute: " + uri);
+            throw new UnsafeUrlException(UnsafeUrlException.Reason.INVALID_URL, "URL must be absolute: " + uri);
         }
 
         String scheme = uri.getScheme();
         if (scheme == null || !ALLOWED_SCHEMES.contains(scheme.toLowerCase(Locale.ROOT))) {
-            throw new UnsafeUrlException("Only http and https URLs are allowed: " + uri);
+            throw new UnsafeUrlException(UnsafeUrlException.Reason.INVALID_URL,
+                    "Only http and https URLs are allowed: " + uri);
         }
 
         String host = uri.getHost();
         if (host == null || host.isBlank()) {
-            throw new UnsafeUrlException("URL host is required: " + uri);
+            throw new UnsafeUrlException(UnsafeUrlException.Reason.INVALID_URL, "URL host is required: " + uri);
         }
 
         Set<Integer> ports = (allowedPorts == null || allowedPorts.isEmpty())
@@ -76,23 +77,23 @@ public final class UrlSafety {
                 : allowedPorts;
         int port = uri.getPort();
         if (port != -1 && !ports.contains(port)) {
-            throw new UnsafeUrlException("Port not allowed: " + uri);
+            throw new UnsafeUrlException(UnsafeUrlException.Reason.BLOCKED, "Port not allowed: " + uri);
         }
 
         InetAddress[] addresses;
         try {
             addresses = InetAddress.getAllByName(host);
         } catch (UnknownHostException e) {
-            throw new UnsafeUrlException("Cannot resolve host: " + host, e);
+            throw new UnsafeUrlException(UnsafeUrlException.Reason.UNRESOLVED, "Cannot resolve host: " + host, e);
         }
         if (addresses.length == 0) {
-            throw new UnsafeUrlException("Cannot resolve host: " + host);
+            throw new UnsafeUrlException(UnsafeUrlException.Reason.UNRESOLVED, "Cannot resolve host: " + host);
         }
 
         List<InetAddress> safe = new ArrayList<>(addresses.length);
         for (InetAddress address : addresses) {
             if (isBlockedAddress(address)) {
-                throw new UnsafeUrlException(
+                throw new UnsafeUrlException(UnsafeUrlException.Reason.BLOCKED,
                         "Refusing to fetch private or local address for host " + host + ": "
                                 + address.getHostAddress());
             }
