@@ -2,6 +2,7 @@
 
 import { dataService } from "./data.js";
 import { modal } from "./modal.js";
+import { toast } from "./toast.js";
 import {
   appendArticlesList,
   clearArticlesList,
@@ -168,6 +169,7 @@ export async function markArticleAsRead(article) {
       feed.unreadCount = previousCount;
       syncUnreadBadgesFromState();
     }
+    toast("Couldn't mark as read. Check your connection.");
   }
 }
 
@@ -495,6 +497,7 @@ export async function toggleArticleSaved(article) {
     applySavedLocally(article, !next);
     state.savedCount = previousCount;
     updateSavedBadge(previousCount);
+    toast("Couldn't save. Check your connection.");
   }
 }
 
