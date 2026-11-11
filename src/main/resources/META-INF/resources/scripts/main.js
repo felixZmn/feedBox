@@ -4,7 +4,8 @@ import { modal } from "./modal.js";
 import {
   showAddFeedDialog,
   showAddFolderDialog,
-  showConfirmDialog,
+  showDeleteFeedDialog,
+  showDeleteFolderDialog,
   showEditFeedDialog,
   showEditFolderDialog,
 } from "./dialog.js";
@@ -277,10 +278,10 @@ function initEventListeners() {
   });
   dom.button.deleteFolder.addEventListener("click", async () => {
     try {
-      const headline = "Delete";
-      const message = `Are you sure you want to delete the folder "${state.lastClickedItem.obj.name}"? All contained feeds will be deleted.`;
-      const response = await showConfirmDialog(headline, message);
-      if (response) await deleteFolder(state.lastClickedItem.obj);
+      const folder = state.lastClickedItem.obj;
+      if (!folder) return;
+      const response = await showDeleteFolderDialog(folder);
+      if (response) await deleteFolder(folder, response.feeds);
     } finally {
       restoreMenuTriggerFocus();
     }
@@ -330,10 +331,10 @@ function initEventListeners() {
   });
   dom.button.deleteFeed.addEventListener("click", async () => {
     try {
-      const headline = "Delete";
-      const message = `Are you sure you want to delete the feed "${state.lastClickedItem.obj.name}"?`;
-      const response = await showConfirmDialog(headline, message);
-      if (response) await deleteFeed(state.lastClickedItem.obj);
+      const feed = state.lastClickedItem.obj;
+      if (!feed) return;
+      const confirmed = await showDeleteFeedDialog(feed);
+      if (confirmed) await deleteFeed(feed);
     } finally {
       restoreMenuTriggerFocus();
     }

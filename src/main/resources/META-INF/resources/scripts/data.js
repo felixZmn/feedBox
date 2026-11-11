@@ -22,8 +22,16 @@ class DataService {
       body: folder,
     });
   }
-  async deleteFolder(folderId) {
-    return this._request(`./api/folder/${folderId}`, { method: "DELETE" });
+  /**
+   * @param {number} folderId
+   * @param {"keep"|"delete"} [feeds="keep"]
+   */
+  async deleteFolder(folderId, feeds = "keep") {
+    const mode = feeds === "delete" ? "delete" : "keep";
+    return this._request(
+      `./api/folder/${folderId}?feeds=${encodeURIComponent(mode)}`,
+      { method: "DELETE" },
+    );
   }
 
   async createFeed(feed) {
@@ -161,8 +169,18 @@ class DataService {
     return this._request(`./api/article/${articleId}/saved`, { method: "DELETE" });
   }
 
-  async loadSavedCount() {
-    return this._request("./api/article/saved/count");
+  /**
+   * @param {{ feed?: number, folder?: number }} [scope]
+   * @returns {Promise<{ count: number }>}
+   */
+  async loadSavedCount(scope = {}) {
+    const params = new URLSearchParams();
+    if (scope.feed != null) params.set("feed", String(scope.feed));
+    if (scope.folder != null) params.set("folder", String(scope.folder));
+    const qs = params.toString();
+    return this._request(
+      qs ? `./api/article/saved/count?${qs}` : "./api/article/saved/count",
+    );
   }
 
   /**

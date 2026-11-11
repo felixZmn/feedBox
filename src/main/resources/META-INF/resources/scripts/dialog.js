@@ -56,6 +56,108 @@ export async function showConfirmDialog(headline, message) {
   });
 }
 
+/**
+ * @param {number} count
+ * @param {string} singular
+ * @param {string} plural
+ */
+function countLabel(count, singular, plural) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+/**
+ * Confirm deleting a feed; warns when saved articles would be removed.
+ * @param {{ id: number, name: string }} feed
+ * @returns {Promise<boolean>}
+ */
+export async function showDeleteFeedDialog(feed) {
+  let savedCount = 0;
+  try {
+    const result = await dataService.loadSavedCount({ feed: feed.id });
+    savedCount = Number(result?.count) || 0;
+  } catch (error) {
+    console.warn("[app] Could not load saved count for feed delete:", error);
+  }
+
+  const parts = [
+    `Are you sure you want to delete the feed "${feed.name}"?`,
+  ];
+  if (savedCount > 0) {
+    parts.push(
+      `This permanently removes ${countLabel(savedCount, "saved article", "saved articles")}.`,
+    );
+  }
+  const body = parts.map((text) => {
+    const p = document.createElement("p");
+    p.textContent = text;
+    return p.outerHTML;
+  }).join("");
+
+  const result = await modal.show({
+    title: "Delete Feed",
+    content: `<div class="dialog-stack">${body}</div>`,
+    type: "confirm",
+    confirmLabel: "Delete Feed",
+    destructive: true,
+  });
+  return !!result;
+}
+
+/**
+ * Confirm deleting a folder; offers keep vs delete feeds, warns about saved.
+ * @param {{ id: number, name: string, feeds?: object[] }} folder
+ * @returns {Promise<{ feeds: "keep"|"delete" } | null>}
+ */
+export async function showDeleteFolderDialog(folder) {
+  const feedCount = (folder.feeds ?? []).length;
+  let savedCount = 0;
+  try {
+    const result = await dataService.loadSavedCount({ folder: folder.id });
+    savedCount = Number(result?.count) || 0;
+  } catch (error) {
+    console.warn("[app] Could not load saved count for folder delete:", error);
+  }
+
+  const intro = document.createElement("p");
+  intro.textContent = `Are you sure you want to delete the folder "${folder.name}"?`;
+
+  let warningHtml = "";
+  if (savedCount > 0) {
+    const warn = document.createElement("p");
+    warn.textContent =
+      feedCount > 0
+        ? `This folder has ${countLabel(savedCount, "saved article", "saved articles")}. Deleting its feeds removes them permanently.`
+        : `This folder has ${countLabel(savedCount, "saved article", "saved articles")}.`;
+    warningHtml = warn.outerHTML;
+  }
+
+  let choiceHtml = "";
+  if (feedCount > 0) {
+    choiceHtml = html`<fieldset class="dialog-choice">
+      <legend>What should happen to the feeds?</legend>
+      <label class="dialog-choice-option">
+        <input type="radio" name="feeds" value="keep" checked />
+        Move ${countLabel(feedCount, "feed", "feeds")} to No folder
+      </label>
+      <label class="dialog-choice-option">
+        <input type="radio" name="feeds" value="delete" />
+        Delete folder and ${countLabel(feedCount, "feed", "feeds")}
+      </label>
+    </fieldset>`;
+  }
+
+  const result = await modal.show({
+    title: "Delete Folder",
+    content: `<div class="dialog-stack">${intro.outerHTML}${warningHtml}${choiceHtml}</div>`,
+    type: "confirm",
+    confirmLabel: "Delete Folder",
+    destructive: true,
+  });
+  if (!result) return null;
+  const feeds = result.feeds === "delete" ? "delete" : "keep";
+  return { feeds };
+}
+
 export async function showAddFolderDialog() {
   const optionsHtml = colorOptionsHtml();
   const content =

@@ -327,12 +327,16 @@ export async function editFolder(folder) {
   }, "Error updating folder: " + folder.name);
 }
 
-export async function deleteFolder(folder) {
+/**
+ * @param {import("./types.js").Folder} folder
+ * @param {"keep"|"delete"} [feeds="keep"]
+ */
+export async function deleteFolder(folder, feeds = "keep") {
   await withErrorModal(async () => {
     const wasSelected =
       state.lastClickedItem.type === itemType.FOLDER &&
       state.lastClickedItem.obj?.id === folder.id;
-    await dataService.deleteFolder(folder.id);
+    await dataService.deleteFolder(folder.id, feeds);
     await refreshFolders({ background: false });
     if (wasSelected || !state.lastClickedItem.obj) {
       const { selectAndLoadArticles } = await import("./articles.js");
