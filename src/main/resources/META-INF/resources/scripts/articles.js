@@ -42,8 +42,17 @@ import {
   decrementFeedUnreadCount,
   syncUnreadBadgesFromState,
   refreshFolders,
+  refreshFeeds,
+  importFeeds,
+  showAddedFeed,
 } from "./feeds.js";
+import { showAddFeedDialog } from "./dialog.js";
 import { contextDisplayName, updateSearchChrome } from "./search-ui.js";
+
+function hasAnyFeeds() {
+  if ((state.unfiledFeeds ?? []).length > 0) return true;
+  return (state.folders ?? []).some((folder) => (folder.feeds ?? []).length > 0);
+}
 
 const NEW_ARTICLES_CHECK_THROTTLE_MS = 5 * 60 * 1000;
 let lastNewArticlesCheckAt = 0;
@@ -636,17 +645,48 @@ export async function loadArticles() {
           state.lastClickedItem.type,
           state.lastClickedItem.obj,
         );
-        let emptyMessage;
-        if (state.filter.isActive) {
-          emptyMessage = `No articles match “${state.filter.term}” in ${scope}`;
+        if (!state.filter.isActive && !hasAnyFeeds()) {
+          renderEmptyState("Add a feed to get started", {
+            actions: [
+              {
+                label: "Add a feed",
+                onClick: () => {
+                  void (async () => {
+                    const created = await showAddFeedDialog(state.folders);
+                    if (created) await showAddedFeed(created);
+                  })();
+                },
+              },
+              {
+                label: "Import OPML",
+                primary: false,
+                onClick: () => importFeeds(),
+              },
+            ],
+          });
+        } else if (
+          !state.filter.isActive &&
+          state.lastClickedItem.type === itemType.FEED
+        ) {
+          renderEmptyState("No articles yet", {
+            inlineAction: {
+              label: "Refresh now",
+              onClick: () => {
+                void refreshFeeds();
+              },
+            },
+          });
+        } else if (state.filter.isActive) {
+          renderEmptyState(
+            `No articles match “${state.filter.term}” in ${scope}`,
+          );
         } else if (state.lastClickedItem.type === itemType.UNREAD) {
-          emptyMessage = "No unread articles";
+          renderEmptyState("No unread articles");
         } else if (state.lastClickedItem.type === itemType.SAVED) {
-          emptyMessage = "No saved articles";
+          renderEmptyState("No saved articles");
         } else {
-          emptyMessage = `No articles in ${scope}`;
+          renderEmptyState(`No articles in ${scope}`);
         }
-        renderEmptyState(emptyMessage);
       } else {
         renderListFooter({ kind: "caught-up" });
       }

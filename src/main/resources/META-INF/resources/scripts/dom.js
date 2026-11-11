@@ -638,11 +638,44 @@ export function removeSkeletons() {
 
 /**
  * @param {string} [message="No articles found"]
+ * @param {{
+ *   actions?: { label: string, onClick: () => void, primary?: boolean }[],
+ *   inlineAction?: { label: string, onClick: () => void },
+ * }} [options]
  */
-export function renderEmptyState(message = "No articles found") {
+export function renderEmptyState(message = "No articles found", options = {}) {
   const div = document.createElement("div");
   div.className = "empty-state";
-  div.textContent = message;
+
+  const text = document.createElement("p");
+  text.className = "empty-state-message";
+  if (options.inlineAction) {
+    text.append(message, " · ");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "empty-state-inline-action";
+    btn.textContent = options.inlineAction.label;
+    btn.addEventListener("click", () => options.inlineAction.onClick());
+    text.appendChild(btn);
+  } else {
+    text.textContent = message;
+  }
+  div.appendChild(text);
+
+  if (options.actions?.length) {
+    const row = document.createElement("div");
+    row.className = "empty-state-actions";
+    for (const action of options.actions) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = action.primary === false ? "btn" : "btn btn-primary";
+      btn.textContent = action.label;
+      btn.addEventListener("click", () => action.onClick());
+      row.appendChild(btn);
+    }
+    div.appendChild(row);
+  }
+
   articlesContainer.appendChild(div);
 }
 
