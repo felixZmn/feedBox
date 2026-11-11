@@ -3,6 +3,7 @@
 import { toast } from "./toast.js";
 import { isAppPath } from "./router.js";
 
+const LOGOUT_KEY = "feedbox-logout";
 const RETURN_TO_KEY = "returnTo";
 const OFFLINE_HEADER = "X-FeedBox-Offline";
 const FOLDER_TREE_CACHE_KEY = "folder-tree-cache";
@@ -239,9 +240,32 @@ export function initReturnToCapture() {
   });
 }
 
+/**
+ * @param {StorageEvent} event
+ * @returns {boolean} true when another tab announced a logout.
+ */
+export function handleLogoutStorageEvent(event) {
+  if (event?.key !== LOGOUT_KEY || !event.newValue) {
+    return false;
+  }
+  enterLoggedOut("signed-out-elsewhere");
+  return true;
+}
+
+/** Sign this tab out when another tab logs out (the `storage` event only fires cross-tab). */
+export function initCrossTabLogout() {
+  window.addEventListener("storage", handleLogoutStorageEvent);
+}
+
 /** End the Quarkus OIDC session (httpOnly cookie cleared server-side). */
 export function logout() {
   clearPrivateUiCache();
+  try {
+    // Other tabs listen for this write via the `storage` event.
+    localStorage.setItem(LOGOUT_KEY, String(Date.now()));
+  } catch {
+    /* ignore quota / private-mode errors */
+  }
   window.location.assign("/logout");
 }
 

@@ -19,6 +19,7 @@ import {
   onSessionLoss,
   isLoggedOut,
   initReturnToCapture,
+  initCrossTabLogout,
   takeReturnTo,
 } from "./auth.js";
 import {
@@ -221,6 +222,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
 
   initReturnToCapture();
+  initCrossTabLogout();
 
   document
     .getElementById("connectivity-retry")
