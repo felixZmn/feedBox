@@ -15,6 +15,7 @@ import {
   parseDate,
   sanitizeHTML,
   prepareArticleFragment,
+  isSummaryOnly,
   isSafeHttpUrl,
 } from "./util.js";
 
@@ -507,6 +508,24 @@ export function appendArticlesList(articles, keepSelectedId) {
 }
 
 /**
+ * Hint shown under summary-only articles, linking to the original.
+ * @param {string} link safe http(s) URL
+ * @returns {HTMLParagraphElement}
+ */
+function createSummaryHint(link) {
+  const hint = document.createElement("p");
+  hint.className = "summary-hint";
+  hint.append("This feed only includes a summary. ");
+  const anchor = document.createElement("a");
+  anchor.href = link;
+  anchor.target = "_blank";
+  anchor.rel = "noopener noreferrer";
+  anchor.textContent = "Open original";
+  hint.append(anchor, ".");
+  return hint;
+}
+
+/**
  * @param {Article} article
  */
 export function renderReaderView(article) {
@@ -528,6 +547,7 @@ export function renderReaderView(article) {
   } else {
     content.innerHTML = sanitizeHTML(body) || "No Content";
   }
+  if (isSummaryOnly(article)) content.appendChild(createSummaryHint(article.link));
   date.textContent = `${parseDate(article.published) || "Unknown"} by ${
     article.authors || "Unknown"
   }`;
