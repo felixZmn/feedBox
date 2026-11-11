@@ -79,6 +79,7 @@ import {
   restoreMenuTriggerFocus,
   hideContextMenu,
 } from "./menu.js";
+import { initShortcuts } from "./shortcuts.js";
 
 setReloadArticlesForCurrentContext(
   createArticleContextReloader({
@@ -142,6 +143,7 @@ function initApp() {
       folderContextMenu(x, y, folder, trigger),
   });
   registerArticlesDelegatedEvents(articleClickListener);
+  initShortcuts();
 }
 
 /** Fetch the folder tree and apply the route; needs a live session. */
