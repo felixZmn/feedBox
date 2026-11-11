@@ -27,7 +27,14 @@ public class ArticleMapper {
                 .map(zdt -> zdt.toInstant())
                 .orElse(null);
         var author = item.getAuthor().orElse("");
+        // Identity is derived from the feed-supplied date only, so an estimated
+        // date never changes the guid between refreshes.
         String guid = resolveGuid(item, link, title, published);
+        // No date in the feed: use first-seen time and flag it as an estimate.
+        boolean estimated = published == null;
+        if (estimated) {
+            published = Instant.now();
+        }
 
         var imageUrl = "";
         if (item.getMediaThumbnail().isPresent()) {
@@ -42,7 +49,7 @@ public class ArticleMapper {
 
         return new Article(
                 -1, feed.getId(), feed.getName(), title, description, content, link,
-                guid, published, author, imageUrl, categories);
+                guid, published, author, imageUrl, categories, false, false, estimated);
     }
 
     /**

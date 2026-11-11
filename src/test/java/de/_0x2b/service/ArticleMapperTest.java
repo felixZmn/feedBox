@@ -54,11 +54,12 @@ class ArticleMapperTest {
         assertEquals("https://example.com/a", a.getGuid(), "permalink wins over RSS guid when both set");
         assertEquals("Author", a.getAuthors());
         assertEquals(Instant.parse("2020-01-01T00:00:00Z"), a.getPublished());
+        assertFalse(a.isPublishedEstimated());
         assertEquals("[\"cat1\",\"cat2\"]", a.getCategories());
     }
 
     @Test
-    void toArticle_whenMissingPubDate_storesNullNotNow() {
+    void toArticle_whenMissingPubDate_estimatesDateAsNow() {
         Feed feed = new Feed(10, 1, "FeedName", URI.create("https://example.com"),
                 URI.create("https://example.com/rss"));
 
@@ -74,9 +75,12 @@ class ArticleMapperTest {
         when(item.getEnclosure()).thenReturn(Optional.empty());
         when(item.getCategories()).thenReturn(List.of());
 
+        Instant before = Instant.now();
         Article a = sut.toArticle(feed, item);
 
-        assertNull(a.getPublished());
+        assertNotNull(a.getPublished());
+        assertFalse(a.getPublished().isBefore(before));
+        assertTrue(a.isPublishedEstimated());
         assertEquals("https://example.com/a", a.getGuid());
         assertEquals("[]", a.getCategories());
     }

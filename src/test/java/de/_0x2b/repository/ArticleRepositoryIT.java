@@ -3,7 +3,6 @@ package de._0x2b.repository;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
@@ -68,7 +67,7 @@ class ArticleRepositoryIT {
     }
 
     @Test
-    void create_allowsNullPublished_andExcludesFromList() throws Exception {
+    void create_undatedArticle_getsEstimatedDate_andIsListed() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 8);
         int folderId = folderRepository.create(new Folder(-1, "it-nullpub-" + suffix, null, "f-base"));
         int feedId = feedRepository.create(new Feed(-1, folderId, "it-nullpub-feed-" + suffix,
@@ -79,13 +78,48 @@ class ArticleRepositoryIT {
                 "https://example.org/x", null, "", "", "[]");
         articleRepository.create(List.of(undated));
 
-        assertTrue(articleRepository.findByFeed(feedId, "").isEmpty(),
-                "NULL published articles must be excluded from the list query");
+        List<ArticleSummary> page = articleRepository.findByFeed(feedId, "");
+        assertEquals(1, page.size(), "undated articles must be listed with an estimated date");
+        assertTrue(page.getFirst().publishedEstimated());
+        assertNotNull(page.getFirst().published());
 
-        long id = latestArticleId(feedId);
-        Article detail = articleRepository.findById(id);
+        Article detail = articleRepository.findById(latestArticleId(feedId));
         assertNotNull(detail);
-        assertNull(detail.getPublished());
+        assertNotNull(detail.getPublished());
+        assertTrue(detail.isPublishedEstimated());
+    }
+
+    @Test
+    void create_upsert_keepsEstimatedDateStable_andRealDateWins() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        int folderId = folderRepository.create(new Folder(-1, "it-est-" + suffix, null, "f-base"));
+        int feedId = feedRepository.create(new Feed(-1, folderId, "it-est-feed-" + suffix,
+                URI.create("https://est.example/" + suffix),
+                URI.create("https://est.example/" + suffix + "/feed")));
+        String link = "https://est.example/" + suffix + "/a";
+
+        articleRepository.create(List.of(new Article(-1, feedId, "f", "T", "", "", link, link, null, "", "", "[]")));
+        Instant firstSeen = articleRepository.findByFeed(feedId, "").getFirst().published();
+
+        // Refresh with a later estimate must not move the date.
+        articleRepository.create(List.of(new Article(-1, feedId, "f", "T", "", "", link, link,
+                firstSeen.plusSeconds(3600), "", "", "[]", false, false, true)));
+        ArticleSummary afterEstimate = articleRepository.findByFeed(feedId, "").getFirst();
+        assertEquals(firstSeen, afterEstimate.published());
+        assertTrue(afterEstimate.publishedEstimated());
+
+        // A real date replaces the estimate and clears the flag.
+        Instant real = Instant.parse("2026-02-01T08:00:00Z");
+        articleRepository.create(List.of(new Article(-1, feedId, "f", "T", "", "", link, link, real, "", "", "[]")));
+        ArticleSummary afterReal = articleRepository.findByFeed(feedId, "").getFirst();
+        assertEquals(real, afterReal.published());
+        assertFalse(afterReal.publishedEstimated());
+
+        // A later undated refresh must not clobber the real date.
+        articleRepository.create(List.of(new Article(-1, feedId, "f", "T", "", "", link, link, null, "", "", "[]")));
+        ArticleSummary afterUndated = articleRepository.findByFeed(feedId, "").getFirst();
+        assertEquals(real, afterUndated.published());
+        assertFalse(afterUndated.publishedEstimated());
     }
 
     @Test

@@ -27,6 +27,8 @@ class FlywayMigrationIT {
         try (Connection conn = dataSource.getConnection()) {
             assertTrue(columnExists(conn, "article", "guid"), "V5 should add article.guid");
             assertTrue(columnExists(conn, "article", "read"), "V4 should add article.read");
+            assertTrue(columnExists(conn, "article", "published_estimated"),
+                    "V8 should add article.published_estimated");
             assertTrue(indexExists(conn, "article_feed_guid_uidx"));
             assertTrue(indexExists(conn, "article_feed_link_uidx"));
             assertTrue(indexExists(conn, "article_published_id_idx"));
