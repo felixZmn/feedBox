@@ -76,7 +76,12 @@ public class ArticleService {
     }
 
     public int countSaved() {
-        return articleRepository.countSaved();
+        return countSaved(null, null);
+    }
+
+    /** Dated saved total, optionally for one feed or one folder. */
+    public int countSaved(Integer feedId, Integer folderId) {
+        return articleRepository.countSaved(feedId, folderId);
     }
 
     /**

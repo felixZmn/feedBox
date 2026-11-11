@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Instant;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
@@ -92,6 +93,16 @@ class ArticleServiceTest {
         service.markAllRead(99L);
 
         verify(articleRepository).markAllRead(99L);
+        verifyNoMoreInteractions(articleRepository);
+    }
+
+    @Test
+    void countSaved_withFeed_forwardsScope() {
+        when(articleRepository.countSaved(7, null)).thenReturn(3);
+
+        assertEquals(3, service.countSaved(7, null));
+
+        verify(articleRepository).countSaved(7, null);
         verifyNoMoreInteractions(articleRepository);
     }
 

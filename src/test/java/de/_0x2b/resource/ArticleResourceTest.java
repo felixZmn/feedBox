@@ -67,6 +67,19 @@ class ArticleResourceTest {
     }
 
     @Test
+    void validateSavedCountScope_allowsOneOrNeither() {
+        ArticleResource.validateSavedCountScope(null, null);
+        ArticleResource.validateSavedCountScope(1, null);
+        ArticleResource.validateSavedCountScope(null, 2);
+    }
+
+    @Test
+    void validateSavedCountScope_rejectsFeedAndFolderTogether() {
+        assertThrows(BadRequestException.class,
+                () -> ArticleResource.validateSavedCountScope(1, 2));
+    }
+
+    @Test
     void normalizeSearch_capsOverlongQuery() {
         String tooLong = "a".repeat(MAX_SEARCH_LENGTH + 20);
 

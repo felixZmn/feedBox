@@ -54,8 +54,18 @@ public class ArticleResource {
 
     @GET
     @Path("/saved/count")
-    public SavedCount savedCount() {
-        return new SavedCount(articleService.countSaved());
+    public SavedCount savedCount(
+            @QueryParam("feed") Integer feedId,
+            @QueryParam("folder") Integer folderId) {
+        validateSavedCountScope(feedId, folderId);
+        return new SavedCount(articleService.countSaved(feedId, folderId));
+    }
+
+    /** @throws BadRequestException when feed and folder are both set */
+    static void validateSavedCountScope(Integer feedId, Integer folderId) {
+        if (feedId != null && folderId != null) {
+            throw new BadRequestException("Specify at most one of feed or folder");
+        }
     }
 
     @GET

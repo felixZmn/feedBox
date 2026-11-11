@@ -4,6 +4,7 @@ import de._0x2b.exception.DataAccessException;
 import de._0x2b.exception.NotFoundException;
 import de._0x2b.model.Folder;
 import de._0x2b.repository.ArticleRepository;
+import de._0x2b.repository.FeedRepository;
 import de._0x2b.repository.FolderRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -17,6 +18,9 @@ public class FolderService {
 
     @Inject
     FolderRepository folderRepository;
+
+    @Inject
+    FeedRepository feedRepository;
 
     @Inject
     ArticleRepository articleRepository;
@@ -87,13 +91,20 @@ public class FolderService {
     }
 
     /**
-     * Delete a folder and its feeds by folder ID
+     * Delete a folder. When {@code keepFeeds} is true (the default for the
+     * HTTP API), feeds are moved to "No folder" first so the CASCADE does
+     * not remove them. When false, feeds (and their articles) go with the
+     * folder.
      *
-     * @param folderId
+     * @param folderId folder primary key
+     * @param keepFeeds true to unlink feeds; false to delete them
      * @throws NotFoundException when the folder does not exist
      */
     @Transactional
-    public void delete(int folderId) {
+    public void delete(int folderId, boolean keepFeeds) {
+        if (keepFeeds) {
+            feedRepository.clearFolderId(folderId);
+        }
         int rows = folderRepository.delete(folderId);
         if (rows == 0) {
             throw new NotFoundException("Folder not found: " + folderId);
