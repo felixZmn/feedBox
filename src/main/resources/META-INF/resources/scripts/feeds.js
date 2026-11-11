@@ -528,9 +528,9 @@ function isModifiedLinkClick(e) {
  *   onSelectSaved: () => void,
  *   onSelectFeed: (feed: object) => void,
  *   onSelectFolder: (folder: object) => void,
- *   onAllFeedsContextMenu: (x: number, y: number) => void,
- *   onFeedContextMenu: (x: number, y: number, feed: object) => void,
- *   onFolderContextMenu: (x: number, y: number, folder: object) => void,
+ *   onAllFeedsContextMenu: (x: number, y: number, trigger?: EventTarget | null) => void,
+ *   onFeedContextMenu: (x: number, y: number, feed: object, trigger?: EventTarget | null) => void,
+ *   onFolderContextMenu: (x: number, y: number, folder: object, trigger?: EventTarget | null) => void,
  * }} handlers
  */
 export function registerFeedsDelegatedEvents(handlers) {
@@ -542,19 +542,21 @@ export function registerFeedsDelegatedEvents(handlers) {
       e.preventDefault();
       e.stopPropagation();
       if (options.closest("#trigger-show-all-feeds")) {
-        handlers.onAllFeedsContextMenu(e.clientX, e.clientY);
+        handlers.onAllFeedsContextMenu(e.clientX, e.clientY, options);
         return;
       }
       const feedLi = options.closest("li[data-feed-id]");
       if (feedLi) {
         const feed = findFeedById(Number(feedLi.dataset.feedId));
-        if (feed) handlers.onFeedContextMenu(e.clientX, e.clientY, feed);
+        if (feed) handlers.onFeedContextMenu(e.clientX, e.clientY, feed, options);
         return;
       }
       const folderEl = options.closest("[data-folder-id]");
       if (folderEl) {
         const folder = findFolderById(Number(folderEl.dataset.folderId));
-        if (folder) handlers.onFolderContextMenu(e.clientX, e.clientY, folder);
+        if (folder) {
+          handlers.onFolderContextMenu(e.clientX, e.clientY, folder, options);
+        }
       }
       return;
     }

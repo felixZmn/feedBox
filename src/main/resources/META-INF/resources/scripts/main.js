@@ -71,6 +71,7 @@ import {
   feedContextMenu,
   folderContextMenu,
   allFeedsContextMenu,
+  restoreMenuTriggerFocus,
 } from "./menu.js";
 
 setReloadArticlesForCurrentContext(
@@ -126,9 +127,12 @@ window.addEventListener("DOMContentLoaded", async () => {
     onSelectFeed: (feed) => selectAndLoadArticles(itemType.FEED, feed),
     onSelectFolder: (folder) =>
       selectAndLoadArticles(itemType.FOLDER, folder),
-    onAllFeedsContextMenu: allFeedsContextMenu,
-    onFeedContextMenu: feedContextMenu,
-    onFolderContextMenu: folderContextMenu,
+    onAllFeedsContextMenu: (x, y, trigger) =>
+      allFeedsContextMenu(x, y, trigger),
+    onFeedContextMenu: (x, y, feed, trigger) =>
+      feedContextMenu(x, y, feed, trigger),
+    onFolderContextMenu: (x, y, folder, trigger) =>
+      folderContextMenu(x, y, folder, trigger),
   });
   registerArticlesDelegatedEvents(articleClickListener);
 
@@ -168,7 +172,7 @@ function initEventListeners() {
   registerSaveArticleButton();
   dom.button.add.addEventListener("click", (e) => {
     e.stopPropagation();
-    openAddContextMenu(e.clientX, e.clientY);
+    openAddContextMenu(e.clientX, e.clientY, e.currentTarget);
   });
   dom.button.refresh.addEventListener("click", () => refreshFeeds());
   dom.button.export.addEventListener("click", async (event) => {
@@ -177,42 +181,62 @@ function initEventListeners() {
   });
   dom.button.import.addEventListener("click", () => importFeeds());
   dom.button.addFolder.addEventListener("click", async () => {
-    const newFolder = await showAddFolderDialog();
-    if (newFolder) await createFolder(newFolder);
+    try {
+      const newFolder = await showAddFolderDialog();
+      if (newFolder) await createFolder(newFolder);
+    } finally {
+      restoreMenuTriggerFocus();
+    }
   });
   dom.button.editFolder.addEventListener("click", async () => {
-    const editedFolder = await showEditFolderDialog(state.lastClickedItem.obj);
-    if (editedFolder) {
-      editedFolder.id = state.lastClickedItem.obj.id;
-      await editFolder(editedFolder);
+    try {
+      const editedFolder = await showEditFolderDialog(state.lastClickedItem.obj);
+      if (editedFolder) {
+        editedFolder.id = state.lastClickedItem.obj.id;
+        await editFolder(editedFolder);
+      }
+    } finally {
+      restoreMenuTriggerFocus();
     }
   });
   dom.button.deleteFolder.addEventListener("click", async () => {
-    const headline = "Delete";
-    const message = `Are you sure you want to delete the folder "${state.lastClickedItem.obj.name}"? All contained feeds will be deleted.`;
-    const response = await showConfirmDialog(headline, message);
-    if (response) await deleteFolder(state.lastClickedItem.obj);
+    try {
+      const headline = "Delete";
+      const message = `Are you sure you want to delete the folder "${state.lastClickedItem.obj.name}"? All contained feeds will be deleted.`;
+      const response = await showConfirmDialog(headline, message);
+      if (response) await deleteFolder(state.lastClickedItem.obj);
+    } finally {
+      restoreMenuTriggerFocus();
+    }
   });
 
   dom.button.addFeed.addEventListener("click", async () => {
-    const newFeed = await showAddFeedDialog(state.folders);
-    if (newFeed) {
-      newFeed.folderId = newFeed.folderId || null;
-      await createFeed(newFeed);
+    try {
+      const newFeed = await showAddFeedDialog(state.folders);
+      if (newFeed) {
+        newFeed.folderId = newFeed.folderId || null;
+        await createFeed(newFeed);
+      }
+    } finally {
+      restoreMenuTriggerFocus();
     }
   });
   dom.button.editFeed.addEventListener("click", async () => {
-    const response = await showEditFeedDialog(
-      state.folders,
-      state.lastClickedItem.obj,
-    );
-    if (response) {
-      const editedFeed = {
-        ...state.lastClickedItem.obj,
-        feedUrl: response.feedUrl,
-        folderId: response.folderId || null,
-      };
-      await editFeed(editedFeed);
+    try {
+      const response = await showEditFeedDialog(
+        state.folders,
+        state.lastClickedItem.obj,
+      );
+      if (response) {
+        const editedFeed = {
+          ...state.lastClickedItem.obj,
+          feedUrl: response.feedUrl,
+          folderId: response.folderId || null,
+        };
+        await editFeed(editedFeed);
+      }
+    } finally {
+      restoreMenuTriggerFocus();
     }
   });
   dom.button.openWebsite.addEventListener("click", async () => {
@@ -239,10 +263,14 @@ function initEventListeners() {
     }
   });
   dom.button.deleteFeed.addEventListener("click", async () => {
-    const headline = "Delete";
-    const message = `Are you sure you want to delete the feed "${state.lastClickedItem.obj.name}"?`;
-    const response = await showConfirmDialog(headline, message);
-    if (response) await deleteFeed(state.lastClickedItem.obj);
+    try {
+      const headline = "Delete";
+      const message = `Are you sure you want to delete the feed "${state.lastClickedItem.obj.name}"?`;
+      const response = await showConfirmDialog(headline, message);
+      if (response) await deleteFeed(state.lastClickedItem.obj);
+    } finally {
+      restoreMenuTriggerFocus();
+    }
   });
   dom.button.close.addEventListener("click", (e) => {
     e.preventDefault();

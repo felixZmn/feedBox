@@ -12,6 +12,8 @@ export const columns = Object.freeze({
 export class NavigationService {
   #domReadyListener;
   #pageshowHandler;
+  /** @type {MediaQueryList | null} */
+  #narrowPanes = null;
 
   currentState = { column: columns.FEEDS };
 
@@ -28,16 +30,17 @@ export class NavigationService {
     this.feedsEl = document.getElementById("feeds-list");
     this.articlesEl = document.getElementById("articles-list");
     this.readerEl = document.getElementById("reader");
+    this.#narrowPanes = window.matchMedia("(max-width: 1100px)");
 
     if (!this.feedsEl || !this.articlesEl || !this.readerEl) {
       console.warn("NavigationService: Column elements not found in DOM");
       return;
     }
 
-    this.#renderColumn(this.currentState.column);
+    this.#renderColumn(this.currentState.column, { moveFocus: false });
 
     this.#pageshowHandler = () => {
-      this.#renderColumn(this.currentState.column);
+      this.#renderColumn(this.currentState.column, { moveFocus: false });
     };
     window.addEventListener("pageshow", this.#pageshowHandler);
   }
@@ -52,16 +55,18 @@ export class NavigationService {
       return;
     }
 
-    if (this.currentState.column === column) {
-      this.#renderColumn(column);
-      return;
+    const changed = this.currentState.column !== column;
+    if (changed) {
+      this.currentState = { column };
     }
-
-    this.currentState = { column };
-    this.#renderColumn(column);
+    this.#renderColumn(column, { moveFocus: changed });
   }
 
-  #renderColumn(column) {
+  /**
+   * @param {string} column
+   * @param {{ moveFocus?: boolean }} [options]
+   */
+  #renderColumn(column, { moveFocus = false } = {}) {
     if (!this.feedsEl || !this.articlesEl || !this.readerEl) return;
 
     [this.feedsEl, this.articlesEl, this.readerEl].forEach((el) =>
@@ -72,19 +77,39 @@ export class NavigationService {
       case columns.FEEDS:
         this.feedsEl.classList.add("active", "primary");
         this.articlesEl.classList.add("active");
-        this.feedsEl.focus?.();
         break;
       case columns.ARTICLES:
         this.feedsEl.classList.add("active");
         this.articlesEl.classList.add("active", "primary");
-        this.articlesEl.focus?.();
         break;
       case columns.READER:
         this.readerEl.classList.add("active", "primary");
-        this.readerEl.focus?.();
         break;
       default:
         console.error(`Unknown column: ${column}`);
+        return;
+    }
+
+    if (!moveFocus || !this.#narrowPanes?.matches) return;
+    this.#focusColumn(column);
+  }
+
+  /**
+   * @param {string} column
+   */
+  #focusColumn(column) {
+    if (column === columns.READER) {
+      this.readerEl.querySelector("h1[tabindex='-1']")?.focus();
+      return;
+    }
+    if (column === columns.ARTICLES) {
+      this.articlesEl
+        .querySelector(".article.selected .article-link")
+        ?.focus();
+      return;
+    }
+    if (column === columns.FEEDS) {
+      this.feedsEl.querySelector(".selected .tree-link, .selected a")?.focus();
     }
   }
 

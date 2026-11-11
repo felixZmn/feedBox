@@ -149,16 +149,31 @@ export function articleClickListener(article) {
   updateDocumentTitle();
 }
 
+/**
+ * @param {number | null | undefined} articleId
+ */
+function focusArticleRowLink(articleId) {
+  if (articleId == null) return;
+  document
+    .querySelector(
+      `#articles-container .article[data-article-id="${articleId}"] .article-link`,
+    )
+    ?.focus();
+}
+
 export function closeReader() {
+  const articleId = state.selectedArticle?.id ?? null;
   if (articleHistoryPushed) {
     setArticleHistoryPushed(false);
     history.back();
+    focusArticleRowLink(articleId);
     return;
   }
   state.selectedArticle = null;
   clearReaderView();
   replaceAppUrl(pathForSelection(null), columns.ARTICLES);
   updateDocumentTitle();
+  focusArticleRowLink(articleId);
 }
 
 /**
