@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildPath,
   isAppPath,
+  isSameContext,
   parseRoute,
 } from "../../main/resources/META-INF/resources/scripts/router.js";
 
@@ -104,4 +105,49 @@ test("isAppPath matches valid routes only", () => {
   assert.equal(isAppPath("/"), true);
   assert.equal(isAppPath("/feed/1/article/2"), true);
   assert.equal(isAppPath("/q/health"), false);
+});
+
+test("isSameContext matches all, feed, folder, unread and saved", () => {
+  assert.equal(
+    isSameContext(parseRoute("/"), { type: "", obj: null }),
+    true,
+  );
+  assert.equal(
+    isSameContext(parseRoute("/unread"), { type: "unread", obj: null }),
+    true,
+  );
+  assert.equal(
+    isSameContext(parseRoute("/unread/article/9"), {
+      type: "unread",
+      obj: null,
+    }),
+    true,
+  );
+  assert.equal(
+    isSameContext(parseRoute("/saved"), { type: "saved", obj: null }),
+    true,
+  );
+  assert.equal(
+    isSameContext(parseRoute("/feed/12"), { type: "feed", obj: { id: 12 } }),
+    true,
+  );
+  assert.equal(
+    isSameContext(parseRoute("/folder/3"), {
+      type: "folder",
+      obj: { id: 3 },
+    }),
+    true,
+  );
+  assert.equal(
+    isSameContext(parseRoute("/unread"), { type: "saved", obj: null }),
+    false,
+  );
+  assert.equal(
+    isSameContext(parseRoute("/feed/12"), { type: "feed", obj: { id: 99 } }),
+    false,
+  );
+  assert.equal(
+    isSameContext(parseRoute("/"), { type: "unread", obj: null }),
+    false,
+  );
 });

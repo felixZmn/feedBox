@@ -110,6 +110,34 @@ export function isAppPath(pathname) {
 }
 
 /**
+ * Whether a parsed route matches the sidebar/list selection currently in memory.
+ * Used by popstate so Back from an article in Unread/Saved does not reload the list.
+ * @param {AppRoute} route
+ * @param {{ type: string, obj: { id?: number } | null }} lastClickedItem
+ * @returns {boolean}
+ */
+export function isSameContext(route, lastClickedItem) {
+  if (!route?.valid || !lastClickedItem) return false;
+  const { type, obj } = lastClickedItem;
+  if (route.context === "all") {
+    return type === "" || type === "all";
+  }
+  if (route.context === "unread") {
+    return type === "unread";
+  }
+  if (route.context === "saved") {
+    return type === "saved";
+  }
+  if (route.context === "feed") {
+    return type === "feed" && obj?.id === route.contextId;
+  }
+  if (route.context === "folder") {
+    return type === "folder" && obj?.id === route.contextId;
+  }
+  return false;
+}
+
+/**
  * @param {string} pathname
  * @returns {string}
  */

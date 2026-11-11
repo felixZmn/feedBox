@@ -7,7 +7,7 @@ import {
   setSelectedArticleHighlight,
   updateNavSelection,
 } from "./dom.js";
-import { parseRoute } from "./router.js";
+import { isSameContext, parseRoute } from "./router.js";
 import {
   state,
   itemType,
@@ -284,15 +284,7 @@ export async function onPopState(event) {
     return;
   }
 
-  const sameContext =
-    (route.context === "all" &&
-      state.lastClickedItem.type === itemType.ALL) ||
-    (route.context === "feed" &&
-      state.lastClickedItem.type === itemType.FEED &&
-      state.lastClickedItem.obj?.id === route.contextId) ||
-    (route.context === "folder" &&
-      state.lastClickedItem.type === itemType.FOLDER &&
-      state.lastClickedItem.obj?.id === route.contextId);
+  const sameContext = isSameContext(route, state.lastClickedItem);
 
   const currentArticleId = state.selectedArticle?.id ?? null;
   const routeArticleId = route.articleId ?? null;
