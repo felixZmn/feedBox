@@ -52,21 +52,17 @@ export function setFeedUnreadBadge(feedId, count) {
 }
 
 /**
- * In-place folder unread badge update (summary row).
+ * In-place folder unread badge update (folder row).
  * @param {number|string} folderId
  * @param {number} count
  */
 export function setFolderUnreadBadge(folderId, count) {
-  const details = document.querySelector(
-    `#folder-container details[data-folder-id="${folderId}"]`,
+  const folderEl = document.querySelector(
+    `#folder-container [data-folder-id="${folderId}"]`,
   );
-  const summary = details?.querySelector(":scope > summary");
-  if (!summary) return;
-  syncUnreadBadge(
-    summary,
-    count,
-    summary.querySelector(":scope > .tree-options"),
-  );
+  const row = folderEl?.querySelector(":scope > .folder-row");
+  if (!row) return;
+  syncUnreadBadge(row, count, row.querySelector(":scope > .tree-options"));
 }
 
 /**

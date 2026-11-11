@@ -510,9 +510,22 @@ export async function refreshFeeds() {
 }
 
 /**
+ * True for clicks that should keep the browser's default link behaviour
+ * (new tab / window / modified click).
+ * @param {MouseEvent} e
+ */
+function isModifiedLinkClick(e) {
+  return (
+    e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey
+  );
+}
+
+/**
  * One delegated event layer for boot-painted and live-rendered feed trees.
  * @param {{
  *   onSelectAll: () => void,
+ *   onSelectUnread: () => void,
+ *   onSelectSaved: () => void,
  *   onSelectFeed: (feed: object) => void,
  *   onSelectFolder: (folder: object) => void,
  *   onAllFeedsContextMenu: (x: number, y: number) => void,
@@ -525,7 +538,7 @@ export function registerFeedsDelegatedEvents(handlers) {
 
   feedsList?.addEventListener("click", (e) => {
     const options = e.target.closest(".tree-options");
-    if (options) {
+    if (options && feedsList.contains(options)) {
       e.preventDefault();
       e.stopPropagation();
       if (options.closest("#trigger-show-all-feeds")) {
@@ -538,65 +551,63 @@ export function registerFeedsDelegatedEvents(handlers) {
         if (feed) handlers.onFeedContextMenu(e.clientX, e.clientY, feed);
         return;
       }
-      const folderDetails = options.closest("details[data-folder-id]");
-      if (folderDetails) {
-        const folder = findFolderById(Number(folderDetails.dataset.folderId));
+      const folderEl = options.closest("[data-folder-id]");
+      if (folderEl) {
+        const folder = findFolderById(Number(folderEl.dataset.folderId));
         if (folder) handlers.onFolderContextMenu(e.clientX, e.clientY, folder);
       }
       return;
     }
 
-    const feedLi = e.target.closest("li[data-feed-id]");
-    if (feedLi && feedsList.contains(feedLi)) {
+    const toggle = e.target.closest(".folder-toggle");
+    if (toggle && feedsList.contains(toggle)) {
+      e.preventDefault();
+      const folderEl = toggle.closest("[data-folder-id]");
+      if (!folderEl) return;
+      const nextOpen = toggle.getAttribute("aria-expanded") !== "true";
+      toggle.setAttribute("aria-expanded", String(nextOpen));
+      toggle.setAttribute(
+        "aria-label",
+        nextOpen ? "Collapse folder" : "Expand folder",
+      );
+      const panelId = toggle.getAttribute("aria-controls");
+      const panel = panelId ? document.getElementById(panelId) : null;
+      if (panel) panel.hidden = !nextOpen;
+      setFolderOpenState(folderEl.dataset.folderId, nextOpen);
+      return;
+    }
+
+    const link = e.target.closest("a.tree-link");
+    if (!link || !feedsList.contains(link)) return;
+    if (isModifiedLinkClick(e)) return;
+    e.preventDefault();
+
+    const feedLi = link.closest("li[data-feed-id]");
+    if (feedLi) {
       const feed = findFeedById(Number(feedLi.dataset.feedId));
       if (feed) handlers.onSelectFeed(feed);
       return;
     }
 
-    const folderName = e.target.closest(
-      "details[data-folder-id] > summary > .tree-name",
-    );
-    if (folderName) {
-      e.preventDefault();
-      const details = folderName.closest("details[data-folder-id]");
-      const folder = findFolderById(Number(details.dataset.folderId));
+    const folderEl = link.closest("[data-folder-id]");
+    if (folderEl) {
+      const folder = findFolderById(Number(folderEl.dataset.folderId));
       if (folder) handlers.onSelectFolder(folder);
-    }
-  });
-
-  feedsList?.addEventListener("keydown", (e) => {
-    if (e.key !== "Enter" && e.key !== " ") return;
-    const options = e.target.closest(".tree-options");
-    if (!options || !feedsList.contains(options)) return;
-    e.preventDefault();
-    const rect = options.getBoundingClientRect();
-    if (options.closest("#trigger-show-all-feeds")) {
-      handlers.onAllFeedsContextMenu(rect.left, rect.bottom);
       return;
     }
-    const feedLi = options.closest("li[data-feed-id]");
-    if (feedLi) {
-      const feed = findFeedById(Number(feedLi.dataset.feedId));
-      if (feed) handlers.onFeedContextMenu(rect.left, rect.bottom, feed);
+
+    if (link.closest("#trigger-show-all-feeds")) {
+      handlers.onSelectAll();
       return;
     }
-    const folderDetails = options.closest("details[data-folder-id]");
-    if (folderDetails) {
-      const folder = findFolderById(Number(folderDetails.dataset.folderId));
-      if (folder) handlers.onFolderContextMenu(rect.left, rect.bottom, folder);
+    if (link.closest("#trigger-show-unread")) {
+      handlers.onSelectUnread();
+      return;
+    }
+    if (link.closest("#trigger-show-saved")) {
+      handlers.onSelectSaved();
     }
   });
-
-  feedsList?.addEventListener(
-    "toggle",
-    (e) => {
-      const details = e.target;
-      if (!(details instanceof HTMLDetailsElement)) return;
-      if (!details.dataset.folderId) return;
-      setFolderOpenState(details.dataset.folderId, details.open);
-    },
-    true,
-  );
 
   feedsList?.addEventListener(
     "error",

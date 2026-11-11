@@ -123,7 +123,7 @@ export function updateNavSelection(type, obj) {
 
   if (type === "folder" && obj) {
     const folderEl = feedsList.querySelector(
-      `details[data-folder-id="${obj.id}"] > summary`,
+      `[data-folder-id="${obj.id}"] > .folder-row`,
     );
     if (folderEl) folderEl.classList.add("selected");
     return;
@@ -196,12 +196,14 @@ function feedHtml(feed) {
   // credentials on fetch; placeholder until then).
   return (
     html`<li data-feed-id="${feed.id}">
-    <img class="tree-entry-icon" src="icons/rss.svg" alt="" data-feed-icon="${feed.id}" />
-    <span class="tree-name">${feed.name || ""}</span>
+    <a class="tree-link" href="/feed/${feed.id}">
+      <img class="tree-entry-icon" src="icons/rss.svg" alt="" data-feed-icon="${feed.id}" />
+      <span class="tree-name">${feed.name || ""}</span>
+    </a>
     ` +
     error +
     unreadBadgeHtml(feed.unreadCount) +
-    html`<span class="tree-options" role="button" tabindex="0" aria-label="Feed options">⋮</span>
+    html`<button type="button" class="tree-options" aria-haspopup="menu" aria-label="Feed options">⋮</button>
   </li>`
   );
 }
@@ -245,39 +247,48 @@ export function loadFeedIcons(apiFetch) {
 }
 
 /**
- * Build folder details HTML.
+ * Build folder row + nested feed list HTML (button toggle, not details/summary).
  * @param {Folder} folder
  * @param {Record<string, boolean>} openStates
  */
 function folderHtml(folder, openStates) {
-  const openAttr =
+  const isOpen =
     Object.prototype.hasOwnProperty.call(openStates, folder.id) &&
-    openStates[folder.id]
-      ? " open"
-      : "";
+    openStates[folder.id];
   const color = folder.color || "f-base";
+  const panelId = `folder-feeds-${folder.id}`;
   const folderUnread = (folder.feeds ?? []).reduce(
     (sum, feed) => sum + (Number(feed.unreadCount) || 0),
     0,
   );
   const feeds = (folder.feeds ?? []).map(feedHtml).join("");
   return (
-    html`<details data-folder-id="${folder.id}"` +
-    openAttr +
-    html`>
-    <summary>
-      <img src="icons/folder.svg" alt="" class="icon ${color}" />
-      <span class="tree-name">${folder.name || ""}</span>
+    html`<div class="folder" data-folder-id="${folder.id}">
+    <div class="folder-row">
+      <button
+        type="button"
+        class="folder-toggle"
+        aria-expanded="${isOpen ? "true" : "false"}"
+        aria-controls="${panelId}"
+        aria-label="${isOpen ? "Collapse folder" : "Expand folder"}"
+      >
+        <img src="icons/folder.svg" alt="" class="icon ${color}" />
+      </button>
+      <a class="tree-link" href="/folder/${folder.id}">
+        <span class="tree-name">${folder.name || ""}</span>
+      </a>
       ` +
     unreadBadgeHtml(folderUnread) +
-    html`<span class="tree-options" role="button" tabindex="0" aria-label="Folder options">⋮</span>
-    </summary>
+    html`<button type="button" class="tree-options" aria-haspopup="menu" aria-label="Folder options">⋮</button>
+    </div>
     <div class="folder-container">
-      <ul class="feeds-ul">` +
+      <ul class="feeds-ul" id="${panelId}"` +
+    (isOpen ? "" : " hidden") +
+    html`>` +
     feeds +
     html`</ul>
     </div>
-  </details>`
+  </div>`
   );
 }
 
@@ -288,11 +299,20 @@ export function syncFolderOpenStatesFromStorage() {
   const container = document.getElementById("folder-container");
   if (!container) return;
   const states = loadFolderOpenStates();
-  container.querySelectorAll("details[data-folder-id]").forEach((details) => {
-    const id = details.dataset.folderId;
-    if (Object.prototype.hasOwnProperty.call(states, id)) {
-      details.open = !!states[id];
+  container.querySelectorAll("[data-folder-id]").forEach((folderEl) => {
+    const id = folderEl.dataset.folderId;
+    if (!Object.prototype.hasOwnProperty.call(states, id)) return;
+    const isOpen = !!states[id];
+    const toggle = folderEl.querySelector(":scope > .folder-row > .folder-toggle");
+    const panel = folderEl.querySelector(":scope > .folder-container > .feeds-ul");
+    if (toggle) {
+      toggle.setAttribute("aria-expanded", String(isOpen));
+      toggle.setAttribute(
+        "aria-label",
+        isOpen ? "Collapse folder" : "Expand folder",
+      );
     }
+    if (panel) panel.hidden = !isOpen;
   });
 }
 
