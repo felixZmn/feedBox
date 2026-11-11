@@ -712,6 +712,20 @@ button {
   color: var(--font-color-highlight);
 }
 
+/* Comfortable measure; wide code and tables scroll instead of overflowing */
+.reader .content {
+  max-width: 68ch;
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+
+.reader .content pre,
+.reader .content table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 .column-header {
   position: relative;
   display: flex;
