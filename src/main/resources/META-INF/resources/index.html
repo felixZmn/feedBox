@@ -272,17 +272,33 @@
             <form class="search-container" id="search-form" role="search">
               <img src="icons/search.svg" alt="" class="icon f-base" />
               <input
-                type="text"
-                placeholder="Search articles..."
+                type="search"
+                placeholder="Search All Feeds"
                 id="search-input"
-                aria-label="Search articles by title and description"
-                title="Search articles by title and description in the current feed or folder"
+                aria-label="Search All Feeds"
+                title="Search articles in All Feeds"
                 enterkeyhint="search"
+                autocomplete="off"
               />
+              <button
+                type="button"
+                class="search-clear"
+                id="search-clear"
+                hidden
+                aria-label="Clear search"
+                title="Clear search"
+              >
+                ×
+              </button>
             </form>
           </div>
           <div class="right"></div>
         </div>
+        <div
+          class="search-results-row"
+          id="search-results-row"
+          hidden
+        ></div>
         <div class="column">
           <button
             type="button"

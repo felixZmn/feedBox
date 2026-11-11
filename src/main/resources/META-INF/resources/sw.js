@@ -33,6 +33,7 @@ const SHELL = [
   "/scripts/article-row.js",
   "/scripts/saved.js",
   "/scripts/shortcuts.js",
+  "/scripts/search-ui.js",
   "/scripts/vendor/purify.es.mjs",
   "/icons/maskable_icon_x192.png",
   "/icons/maskable_icon_x512.png",

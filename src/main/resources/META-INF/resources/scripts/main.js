@@ -81,6 +81,7 @@ import {
   hideContextMenu,
 } from "./menu.js";
 import { initShortcuts } from "./shortcuts.js";
+import { initSearchUi } from "./search-ui.js";
 
 setReloadArticlesForCurrentContext(
   createArticleContextReloader({
@@ -146,6 +147,7 @@ function initApp() {
   });
   registerArticlesDelegatedEvents(articleClickListener);
   initShortcuts();
+  initSearchUi(() => submitSearch());
 }
 
 /** Fetch the folder tree and apply the route; needs a live session. */
