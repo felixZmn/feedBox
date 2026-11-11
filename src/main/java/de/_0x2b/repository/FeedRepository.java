@@ -54,6 +54,7 @@ public class FeedRepository extends AbstractRepository {
                 URI.create(rs.getString("feed_url")),
                 ts == null ? null : ts.toInstant(),
                 rs.getString("last_error"),
+                0,
                 0);
     };
 

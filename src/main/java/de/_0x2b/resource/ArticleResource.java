@@ -3,6 +3,7 @@ package de._0x2b.resource;
 import java.util.List;
 
 import de._0x2b.exception.NotFoundException;
+import de._0x2b.resource.dto.MarkReadRequest;
 import de._0x2b.resource.dto.PaginationCursor;
 import de._0x2b.resource.dto.SavedCount;
 import de._0x2b.service.ArticleService;
@@ -69,8 +70,9 @@ public class ArticleResource {
 
     @POST
     @Path("/read")
-    public Response markAllRead() {
-        articleService.markAllRead();
+    public Response markAllRead(MarkReadRequest body) {
+        Long throughId = body != null ? body.throughId() : null;
+        articleService.markAllRead(throughId);
         return Response.noContent().build();
     }
 

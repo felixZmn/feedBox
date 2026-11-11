@@ -32,13 +32,15 @@ public class FolderService {
 
     /**
      * Advance the read horizon on every feed in this folder.
+     * When {@code throughId} is set, only articles up to that id (capped at
+     * each feed's max) are marked.
      *
      * @param folderId folder primary key
      * @throws NotFoundException when the folder does not exist
      */
-    public void markRead(int folderId) {
+    public void markRead(int folderId, Long throughId) {
         try {
-            int updated = articleRepository.markReadByFolder(folderId);
+            int updated = articleRepository.markReadByFolder(folderId, throughId);
             if (updated == 0 && !folderRepository.exists(folderId)) {
                 throw new NotFoundException("Folder not found: " + folderId);
             }

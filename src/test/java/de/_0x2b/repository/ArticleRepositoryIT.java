@@ -223,6 +223,34 @@ class ArticleRepositoryIT {
     }
 
     @Test
+    void markAllRead_withThroughId_capsBelowMax_andLatestArticleIdByFeed() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        int folderId = folderRepository.create(new Folder(-1, "it-through-" + suffix, null, "f-base"));
+        int feedId = feedRepository.create(new Feed(-1, folderId, "it-through-feed-" + suffix,
+                URI.create("https://through.example/" + suffix),
+                URI.create("https://through.example/" + suffix + "/rss")));
+
+        Instant published = Instant.parse("2026-04-01T00:00:00Z");
+        articleRepository.create(List.of(
+                new Article(-1, feedId, "f", "Old", "", "", "https://through.example/old",
+                        "https://through.example/old", published, "", "", "[]"),
+                new Article(-1, feedId, "f", "New", "", "", "https://through.example/new",
+                        "https://through.example/new", published.plusSeconds(60), "", "", "[]")));
+
+        var listed = articleRepository.findByFeed(feedId, "");
+        long newerId = listed.getFirst().id();
+        long olderId = listed.getLast().id();
+        assertTrue(newerId > olderId);
+
+        assertEquals(1, articleRepository.markAllRead(olderId));
+        assertTrue(articleRepository.findById(olderId).isRead());
+        assertFalse(articleRepository.findById(newerId).isRead());
+        assertEquals(1, articleRepository.countUnreadByFeed().getOrDefault(feedId, 0));
+
+        assertEquals(newerId, articleRepository.latestArticleIdByFeed().get(feedId));
+    }
+
+    @Test
     void save_staysSavedAfterMarkRead_andListsNewestFirst() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 8);
         int folderId = folderRepository.create(new Folder(-1, "it-saved-" + suffix, null, "f-base"));

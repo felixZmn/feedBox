@@ -77,28 +77,43 @@ test("waitForJob reports every snapshot until the job finishes", async (t) => {
   assert.deepEqual(seen, [1, 2, 3]);
 });
 
-test("normalizeFeed keeps lastRefreshedAt but the tree fingerprint ignores it", () => {
+test("normalizeFeed keeps lastRefreshedAt and latestArticleId but the tree fingerprint ignores them", () => {
   const feed = {
     id: 1,
     folderId: null,
     name: "Blog",
     feedUrl: "https://example.com/rss",
     lastRefreshedAt: "2026-11-11T10:00:00Z",
+    latestArticleId: 99,
   };
   assert.equal(normalizeFeed(feed).lastRefreshedAt, "2026-11-11T10:00:00Z");
+  assert.equal(normalizeFeed(feed).latestArticleId, 99);
+  assert.equal(normalizeFeed({ ...feed, latestArticleId: undefined }).latestArticleId, 0);
 
-  const tree = (refreshed, error = null) => ({
+  const tree = (refreshed, error = null, latest = 99) => ({
     folders: [
       {
         id: 10,
         name: "F",
-        feeds: [{ ...feed, folderId: 10, lastRefreshedAt: refreshed, lastError: error }],
+        feeds: [
+          {
+            ...feed,
+            folderId: 10,
+            lastRefreshedAt: refreshed,
+            lastError: error,
+            latestArticleId: latest,
+          },
+        ],
       },
     ],
-    unfiledFeeds: [{ ...feed, id: 2, lastRefreshedAt: refreshed }],
+    unfiledFeeds: [{ ...feed, id: 2, lastRefreshedAt: refreshed, latestArticleId: latest }],
   });
   assert.equal(
     folderTreesEqual(tree("2026-11-11T10:00:00Z"), tree("2026-11-11T11:00:00Z")),
+    true,
+  );
+  assert.equal(
+    folderTreesEqual(tree("2026-11-11T10:00:00Z", null, 99), tree("2026-11-11T10:00:00Z", null, 100)),
     true,
   );
   assert.equal(

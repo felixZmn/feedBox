@@ -234,6 +234,7 @@ export function normalizeFeed(feed) {
     lastRefreshedAt: feed.lastRefreshedAt ?? null,
     lastError: feed.lastError ?? null,
     unreadCount: Number(feed.unreadCount) || 0,
+    latestArticleId: Number(feed.latestArticleId) || 0,
   };
 }
 
@@ -243,7 +244,11 @@ export function normalizeFeed(feed) {
  * @param {Feed} feed
  */
 function renderedFeedFields(feed) {
-  const { lastRefreshedAt: _volatile, ...rest } = normalizeFeed(feed);
+  const {
+    lastRefreshedAt: _refreshed,
+    latestArticleId: _latest,
+    ...rest
+  } = normalizeFeed(feed);
   return rest;
 }
 

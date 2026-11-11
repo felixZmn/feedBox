@@ -5,6 +5,7 @@ import java.util.List;
 import de._0x2b.model.Folder;
 import de._0x2b.model.FolderColor;
 import de._0x2b.resource.dto.CreateFolderRequest;
+import de._0x2b.resource.dto.MarkReadRequest;
 import de._0x2b.resource.dto.UpdateFolderRequest;
 import de._0x2b.service.FolderService;
 import io.quarkus.security.Authenticated;
@@ -62,8 +63,9 @@ public class FolderResource {
 
     @POST
     @Path("/{id}/read")
-    public Response markRead(@PathParam("id") int id) {
-        folderService.markRead(id);
+    public Response markRead(@PathParam("id") int id, MarkReadRequest body) {
+        Long throughId = body != null ? body.throughId() : null;
+        folderService.markRead(id, throughId);
         return Response.noContent().build();
     }
 }

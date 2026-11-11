@@ -31,6 +31,7 @@
  * @property {string|null} lastRefreshedAt - ISO timestamp of last successful refresh
  * @property {string|null} lastError - Last refresh error message, or null if healthy
  * @property {number} [unreadCount] - Number of unread dated articles in this feed
+ * @property {number} [latestArticleId] - Max article id in this feed (0 when empty)
  */
 
 /**

@@ -6,6 +6,7 @@ import de._0x2b.job.BackgroundJobService;
 import de._0x2b.job.JobSnapshot;
 import de._0x2b.model.Feed;
 import de._0x2b.resource.dto.CreateFeedRequest;
+import de._0x2b.resource.dto.MarkReadRequest;
 import de._0x2b.resource.dto.UpdateFeedRequest;
 import de._0x2b.service.FeedService;
 import io.quarkus.security.Authenticated;
@@ -72,8 +73,9 @@ public class FeedResource {
 
     @POST
     @Path("/{id}/read")
-    public Response markRead(@PathParam("id") int id) {
-        feedService.markRead(id);
+    public Response markRead(@PathParam("id") int id, MarkReadRequest body) {
+        Long throughId = body != null ? body.throughId() : null;
+        feedService.markRead(id, throughId);
         return Response.noContent().build();
     }
 

@@ -14,42 +14,56 @@ public record Feed(
         URI feedUrl,
         Instant lastRefreshedAt,
         String lastError,
-        int unreadCount) {
+        int unreadCount,
+        long latestArticleId) {
 
     public Feed(int id, Integer folderId, String name, URI url, URI feedUrl) {
-        this(id, folderId, name, url, feedUrl, null, null, 0);
+        this(id, folderId, name, url, feedUrl, null, null, 0, 0);
     }
 
     public Feed withId(int id) {
-        return new Feed(id, folderId, name, url, feedUrl, lastRefreshedAt, lastError, unreadCount);
+        return new Feed(id, folderId, name, url, feedUrl, lastRefreshedAt, lastError, unreadCount,
+                latestArticleId);
     }
 
     public Feed withFolderId(Integer folderId) {
-        return new Feed(id, folderId, name, url, feedUrl, lastRefreshedAt, lastError, unreadCount);
+        return new Feed(id, folderId, name, url, feedUrl, lastRefreshedAt, lastError, unreadCount,
+                latestArticleId);
     }
 
     public Feed withName(String name) {
-        return new Feed(id, folderId, name, url, feedUrl, lastRefreshedAt, lastError, unreadCount);
+        return new Feed(id, folderId, name, url, feedUrl, lastRefreshedAt, lastError, unreadCount,
+                latestArticleId);
     }
 
     public Feed withUrl(URI url) {
-        return new Feed(id, folderId, name, url, feedUrl, lastRefreshedAt, lastError, unreadCount);
+        return new Feed(id, folderId, name, url, feedUrl, lastRefreshedAt, lastError, unreadCount,
+                latestArticleId);
     }
 
     public Feed withFeedUrl(URI feedUrl) {
-        return new Feed(id, folderId, name, url, feedUrl, lastRefreshedAt, lastError, unreadCount);
+        return new Feed(id, folderId, name, url, feedUrl, lastRefreshedAt, lastError, unreadCount,
+                latestArticleId);
     }
 
     public Feed withLastRefreshedAt(Instant lastRefreshedAt) {
-        return new Feed(id, folderId, name, url, feedUrl, lastRefreshedAt, lastError, unreadCount);
+        return new Feed(id, folderId, name, url, feedUrl, lastRefreshedAt, lastError, unreadCount,
+                latestArticleId);
     }
 
     public Feed withLastError(String lastError) {
-        return new Feed(id, folderId, name, url, feedUrl, lastRefreshedAt, lastError, unreadCount);
+        return new Feed(id, folderId, name, url, feedUrl, lastRefreshedAt, lastError, unreadCount,
+                latestArticleId);
     }
 
     public Feed withUnreadCount(int unreadCount) {
-        return new Feed(id, folderId, name, url, feedUrl, lastRefreshedAt, lastError, unreadCount);
+        return new Feed(id, folderId, name, url, feedUrl, lastRefreshedAt, lastError, unreadCount,
+                latestArticleId);
+    }
+
+    public Feed withLatestArticleId(long latestArticleId) {
+        return new Feed(id, folderId, name, url, feedUrl, lastRefreshedAt, lastError, unreadCount,
+                latestArticleId);
     }
 
     public int getId() {
@@ -82,5 +96,9 @@ public record Feed(
 
     public int getUnreadCount() {
         return unreadCount;
+    }
+
+    public long getLatestArticleId() {
+        return latestArticleId;
     }
 }
