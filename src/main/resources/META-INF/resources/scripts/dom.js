@@ -211,7 +211,7 @@ function feedHtml(feed) {
     html`<li data-feed-id="${feed.id}">
     <a class="tree-link" href="/feed/${feed.id}">
       <img class="tree-entry-icon" src="icons/rss.svg" alt="" data-feed-icon="${feed.id}" />
-      <span class="tree-name">${feed.name || ""}</span>` +
+      <span class="tree-name" title="${feed.name || ""}">${feed.name || ""}</span>` +
     error +
     html`</a>
     ` +
@@ -288,7 +288,7 @@ function folderHtml(folder, openStates) {
         <img src="icons/folder.svg" alt="" class="icon ${color}" />
       </button>
       <a class="tree-link" href="/folder/${folder.id}">
-        <span class="tree-name">${folder.name || ""}</span>
+        <span class="tree-name" title="${folder.name || ""}">${folder.name || ""}</span>
       </a>
       ` +
     unreadBadgeHtml(folderUnread) +
