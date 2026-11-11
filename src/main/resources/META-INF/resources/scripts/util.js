@@ -242,20 +242,21 @@ export function prepareArticleFragment(htmlString, baseUrl) {
 
 /**
  * Transforms a date string into a relative time format, e.g. "5m", "2h", "3d".
- * If the date is in the future, prefixes with a '-'.
+ * Future dates (and the current minute) show as "now".
  * @param {*} dateStr
+ * @param {number|Date} [now]
  * @returns {string|null}
  */
-export function getRelativeTime(dateStr) {
+export function getRelativeTime(dateStr, now = Date.now()) {
   if (!dateStr) return null;
   const date = new Date(dateStr);
   if (isNaN(date)) return null;
 
-  const now = new Date();
-  const diffMs = date - now;
-  const past = diffMs < 0;
-  const absMs = Math.abs(diffMs);
+  const nowMs = now instanceof Date ? now.getTime() : Number(now);
+  const diffMs = date.getTime() - nowMs;
+  if (!Number.isFinite(diffMs) || diffMs >= 0) return "now";
 
+  const absMs = -diffMs;
   const SECOND = 1000;
   const MINUTE = 60 * SECOND;
   const HOUR = 60 * MINUTE;
@@ -286,12 +287,13 @@ export function getRelativeTime(dateStr) {
     unit = "y";
   }
 
-  return (past ? "" : "-") + value + unit;
+  return value + unit;
 }
 
 export function parseDate(dateStr) {
   if (!dateStr) return null;
   const date = new Date(dateStr);
+  if (isNaN(date)) return null;
   return new Intl.DateTimeFormat(undefined, {
     weekday: "short",
     day: "2-digit",
@@ -299,6 +301,5 @@ export function parseDate(dateStr) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-    second: "2-digit",
   }).format(date);
 }

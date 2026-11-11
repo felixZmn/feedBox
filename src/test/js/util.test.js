@@ -5,6 +5,8 @@ import {
   resolveContentUrl,
   resolveSrcset,
   isSummaryOnly,
+  getRelativeTime,
+  parseDate,
 } from "../../main/resources/META-INF/resources/scripts/util.js";
 
 const BASE = "https://example.com/blog/post/1?x=1";
@@ -49,4 +51,18 @@ test("isSummaryOnly needs a safe link and no full content", () => {
   assert.equal(isSummaryOnly({ content: "", description: "teaser" }), false);
   assert.equal(isSummaryOnly({ link: "javascript:alert(1)" }), false);
   assert.equal(isSummaryOnly(null), false);
+});
+
+test("getRelativeTime uses compact ages and maps the future to now", () => {
+  const now = Date.parse("2024-06-01T12:00:00.000Z");
+  assert.equal(getRelativeTime("2024-06-01T11:55:00.000Z", now), "5m");
+  assert.equal(getRelativeTime("2024-06-01T10:00:00.000Z", now), "2h");
+  assert.equal(getRelativeTime("2024-06-01T13:00:00.000Z", now), "now");
+  assert.equal(getRelativeTime(null, now), null);
+});
+
+test("parseDate omits seconds", () => {
+  const formatted = parseDate("2024-06-01T12:34:56.000Z");
+  assert.ok(formatted);
+  assert.equal(/:\d{2}:\d{2}/.test(formatted), false);
 });
