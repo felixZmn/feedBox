@@ -85,6 +85,16 @@ export function allFeedsContextMenu(x, y, trigger) {
 }
 
 /**
+ * Feeds-header overflow: import, export, shortcuts, sign out.
+ * @param {number} x
+ * @param {number} y
+ * @param {EventTarget | null} [trigger]
+ */
+export function openChromeContextMenu(x, y, trigger) {
+  showContextMenuGroup("context-chrome", x, y, trigger);
+}
+
+/**
  * @param {HTMLElement | null | undefined} el
  * @param {number} count
  */

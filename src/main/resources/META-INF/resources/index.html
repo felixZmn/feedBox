@@ -152,30 +152,45 @@
       >
         Delete Folder
       </li>
+
+      <li
+        class="context-menu-item context-chrome d-none"
+        id="trigger-import"
+        role="menuitem"
+        tabindex="0"
+      >
+        Import OPML
+      </li>
+      <li
+        class="context-menu-item context-chrome d-none"
+        id="trigger-export"
+        role="menuitem"
+        tabindex="0"
+      >
+        Export OPML
+      </li>
+      <li
+        class="context-menu-item context-chrome d-none"
+        id="trigger-shortcuts-help"
+        role="menuitem"
+        tabindex="0"
+      >
+        Keyboard shortcuts
+      </li>
+      <li
+        class="context-menu-item context-chrome d-none"
+        id="trigger-logout"
+        role="menuitem"
+        tabindex="0"
+      >
+        Sign Out
+      </li>
     </ul>
 
     <div class="layout">
       <nav id="feeds-list" class="feeds-list border-right" aria-label="Feeds">
         <div class="column-header">
           <div class="left">
-            <button
-              type="button"
-              class="item-spacer"
-              id="trigger-export"
-              title="Export feeds"
-              aria-label="Export feeds"
-            >
-              <img class="icon f-base" src="icons/export.svg" alt="" />
-            </button>
-            <button
-              type="button"
-              class="item-spacer"
-              id="trigger-import"
-              title="Import feeds"
-              aria-label="Import feeds"
-            >
-              <img class="icon f-base" src="icons/import.svg" alt="" />
-            </button>
             <button
               type="button"
               class="item-spacer"
@@ -195,11 +210,12 @@
             <button
               type="button"
               class="item-spacer"
-              id="trigger-logout"
-              title="Logout"
-              aria-label="Logout"
+              id="trigger-header-menu"
+              title="More"
+              aria-label="More"
+              aria-haspopup="menu"
             >
-              <img class="icon f-base" src="icons/logout.svg" alt="" />
+              ⋯
             </button>
           </div>
         </div>
