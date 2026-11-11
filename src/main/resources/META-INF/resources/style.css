@@ -506,9 +506,9 @@ button {
   border-radius: var(--radius-sm);
 }
 
-/* Nest feeds under the folder label (icon 20px + row gap), not the pane edge. */
+/* Soft nest: one icon-width step so hierarchy reads without eating labels. */
 .folder-container {
-  margin: 0 0 0 calc(20px + var(--default-space));
+  margin: 0 0 0 20px;
 }
 
 /* articles list: header stays fixed; list scrolls. Matching
