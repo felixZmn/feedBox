@@ -92,7 +92,7 @@
     --background-color: #1c1c1e;
     --surface-sidebar: #2c2c2e;
     --surface-list: #1c1c1e;
-    --surface-reader: #000000;
+    --surface-reader: #1c1c1e;
     --border-color: rgba(255, 255, 255, 0.12);
     --hover-bg: rgba(93, 173, 226, 0.12);
     --selected-bg: rgba(93, 173, 226, 0.22);
@@ -606,7 +606,8 @@ button {
 .article-star::after {
   content: "";
   position: absolute;
-  inset: -12px -2px;
+  /* Expand the hit box to ≥44×44 without growing the glyph */
+  inset: -12px -12px;
 }
 
 .article-mark {
@@ -669,7 +670,7 @@ button {
 
 .reader .title {
   font-size: var(--font-size-large);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.2;
   margin-bottom: var(--default-space);
@@ -786,6 +787,13 @@ button {
   /* Same outer inset as tree rows: .column margin + row margin-inline */
   padding-inline: calc(var(--default-space) + var(--list-inset));
   background-color: var(--surface-sidebar);
+  /* Match .feeds-list .column so the tree doesn’t shift under the header */
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.feeds-list .column {
+  scrollbar-gutter: stable;
 }
 
 /* Refresh glyph lines up with tree icons; ⋯ with .tree-options */
@@ -822,20 +830,20 @@ button {
   min-height: 2.75rem;
   border: none;
   border-radius: var(--radius-md);
-  background-color: var(--btn-primary-bg);
-  color: #ffffff;
+  background-color: var(--btn-primary-soft);
+  color: var(--btn-primary-fg);
   font: inherit;
   font-size: var(--font-size-small);
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
   position: sticky;
   top: 0;
   z-index: 2;
-  box-shadow: var(--shadow-sm);
 }
 
 .new-articles-pill:hover {
-  filter: brightness(1.06);
+  background-color: var(--btn-primary-soft-hover);
+  filter: none;
 }
 
 .new-articles-pill:focus-visible {
@@ -1084,6 +1092,17 @@ li:hover,
   }
 }
 
+@keyframes dialog-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes menu-in {
   from {
     opacity: 0;
@@ -1167,7 +1186,6 @@ li:hover,
 
 .empty-state-message {
   margin: 0;
-  font-style: italic;
 }
 
 .empty-state-actions {
@@ -1769,6 +1787,11 @@ dialog::backdrop {
     min-width: 44px;
   }
 
+  .search-clear {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
   .feeds-ul li,
   .details,
   .folder-row,
@@ -1860,8 +1883,37 @@ dialog::backdrop {
   }
 
   dialog {
-    width: calc(100vw - 1.5rem);
-    max-width: 400px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    max-height: 90dvh;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+  }
+
+  dialog[open] {
+    display: flex;
+    flex-direction: column;
+    animation: dialog-sheet-in 0.22s ease-out;
+  }
+
+  dialog form {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  dialog .modal-body {
+    overflow-y: auto;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
