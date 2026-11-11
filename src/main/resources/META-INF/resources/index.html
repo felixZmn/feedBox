@@ -273,7 +273,7 @@
         </div>
       </main>
 
-      <section id="reader" class="reader">
+      <section id="reader" class="reader" aria-labelledby="reader-title">
         <div class="column-header">
           <div class="left">
             <button
@@ -337,7 +337,7 @@
         </div>
         <div class="column">
           <div class="article">
-            <h1 class="title">No article selected</h1>
+            <h1 id="reader-title" class="title" tabindex="-1">No article selected</h1>
             <div id="reader-publisher"></div>
             <div class="date"></div>
             <div class="border-bottom"></div>
@@ -347,10 +347,10 @@
       </section>
     </div>
 
-    <dialog id="generic-modal" class="modal">
+    <dialog id="generic-modal" class="modal" aria-labelledby="modal-title">
       <div class="modal-header">
         <h2 id="modal-title">Title</h2>
-        <button class="icon-btn close-modal">&times;</button>
+        <button class="icon-btn close-modal" aria-label="Close">&times;</button>
       </div>
 
       <div id="modal-body" class="modal-body"></div>
