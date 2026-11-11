@@ -494,11 +494,8 @@ export async function refreshFeeds() {
       return;
     }
     await refreshFolders({ background: false });
-    const { selectAndLoadArticles } = await import("./articles.js");
-    await selectAndLoadArticles(itemType.ALL, null, {
-      syncUrl: "replace",
-      column: columns.ARTICLES,
-    });
+    const { reloadArticlesForCurrentContext } = await import("./state.js");
+    await reloadArticlesForCurrentContext();
   } catch (error) {
     console.error("[app] Feed refresh failed:", error);
     await modal.show({
