@@ -1129,6 +1129,13 @@ dialog::backdrop {
   font-size: var(--font-size-small);
 }
 
+.dialog-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--font-color-muted);
+  font-size: var(--font-size-small);
+}
+
 .modal-footer {
   padding: 1rem 1.25rem;
   display: flex;

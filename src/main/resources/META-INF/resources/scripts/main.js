@@ -39,8 +39,8 @@ import {
   createFolder,
   editFolder,
   deleteFolder,
-  createFeed,
-  editFeed,
+  showAddedFeed,
+  feedSaved,
   deleteFeed,
   importFeeds,
   exportFeeds,
@@ -286,29 +286,19 @@ function initEventListeners() {
 
   dom.button.addFeed.addEventListener("click", async () => {
     try {
-      const newFeed = await showAddFeedDialog(state.folders);
-      if (newFeed) {
-        newFeed.folderId = newFeed.folderId || null;
-        await createFeed(newFeed);
-      }
+      const created = await showAddFeedDialog(state.folders);
+      if (created) await showAddedFeed(created);
     } finally {
       restoreMenuTriggerFocus();
     }
   });
   dom.button.editFeed.addEventListener("click", async () => {
     try {
-      const response = await showEditFeedDialog(
+      const saved = await showEditFeedDialog(
         state.folders,
         state.lastClickedItem.obj,
       );
-      if (response) {
-        const editedFeed = {
-          ...state.lastClickedItem.obj,
-          feedUrl: response.feedUrl,
-          folderId: response.folderId || null,
-        };
-        await editFeed(editedFeed);
-      }
+      if (saved) await feedSaved();
     } finally {
       restoreMenuTriggerFocus();
     }

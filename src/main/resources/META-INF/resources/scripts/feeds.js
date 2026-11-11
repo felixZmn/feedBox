@@ -321,21 +321,28 @@ export async function deleteFolder(folder) {
   }, "Error deleting folder: " + folder.name);
 }
 
-export async function createFeed(feed) {
+/**
+ * Reveal a feed the Add Feed dialog just created: open its folder, refresh
+ * the tree, and select it so its first articles show right away.
+ * @param {{ id: number, folderId: number|null }} created
+ */
+export async function showAddedFeed({ id, folderId }) {
   await withErrorModal(async () => {
-    await dataService.createFeed(feed);
+    if (folderId != null) setFolderOpenState(folderId, true);
     await refreshFolders({ background: false });
-  }, (error) => {
-    const isDuplicate = error.status === 409 || error.cause?.status === 409;
-    return isDuplicate ? "This feed already exists." : "Error saving feed.";
-  });
+    const feed = findFeedById(id);
+    if (!feed) return;
+    const { selectAndLoadArticles } = await import("./articles.js");
+    await selectAndLoadArticles(itemType.FEED, feed);
+  }, "The feed was added, but the list could not be refreshed.");
 }
 
-export async function editFeed(feed) {
-  await withErrorModal(async () => {
-    await dataService.updateFeed(feed);
-    await refreshFolders({ background: false });
-  }, "Error updating feed: " + feed.feedUrl);
+/** Pick up a rename, move, or new address saved by the Edit Feed dialog. */
+export async function feedSaved() {
+  await withErrorModal(
+    () => refreshFolders({ background: false }),
+    "The feed was saved, but the list could not be refreshed.",
+  );
 }
 
 export async function deleteFeed(feed) {

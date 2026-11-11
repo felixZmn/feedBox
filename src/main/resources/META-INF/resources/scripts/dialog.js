@@ -3,6 +3,11 @@
 import { dataService } from "./data.js";
 import { modal } from "./modal.js";
 import { html } from "./util.js";
+import {
+  normalizeFeedUrl,
+  feedErrorMessage,
+  INVALID_URL_MESSAGE,
+} from "./feed-form.js";
 
 const colorOptions = [
   { value: "f-base", label: "Grey" },
@@ -101,18 +106,58 @@ export async function showEditFolderDialog(folder) {
   });
 }
 
+/**
+ * Replace the Add Feed form with a chooser when a page links several feeds.
+ * @param {HTMLElement} bodyEl
+ * @param {Array<{ name?: string, feedUrl: string }>} feeds
+ * @param {string} folderId
+ */
+function renderFeedChooser(bodyEl, feeds, folderId) {
+  const options = feeds
+    .map((feed) => {
+      const label =
+        feed.name && feed.name !== feed.feedUrl
+          ? `${feed.name} — ${feed.feedUrl}`
+          : feed.feedUrl;
+      return html`<option value="${feed.feedUrl}">${label}</option>`;
+    })
+    .join("");
+  bodyEl.innerHTML =
+    html`<p class="dialog-note">This site offers ${feeds.length} feeds. Choose one to add.</p>
+    <label class="field" for="feed-choice">Feed</label>
+    <select id="feed-choice" name="chosenFeedUrl">
+      ` +
+    options +
+    html`</select>
+    <input type="hidden" name="folderId" value="${folderId ?? ""}" />`;
+  bodyEl.querySelector("#feed-choice")?.focus();
+}
+
+/**
+ * Ask for a site or feed address, discover the feed, and create it.
+ * Errors (not a feed, unreachable, already followed) stay in the dialog.
+ * @param {Folder[]} folders
+ * @returns {Promise<{ id: number, feedUrl: string, folderId: number|null }|null>}
+ *          the created feed, or null when cancelled
+ */
 export async function showAddFeedDialog(folders) {
   const folderOptions = folders
     .map((folder) => html`<option value="${folder.id}">${folder.name}</option>`)
     .join("");
   const content =
-    html`<label class="field" for="feed-url">Feed URL</label>
+    html`<label class="field" for="feed-url">Website or feed</label>
     <input
       id="feed-url"
       name="feedUrl"
-      type="url"
-      placeholder="https://example.com/feed.xml"
+      type="text"
+      inputmode="url"
+      autocomplete="url"
+      autocapitalize="off"
+      spellcheck="false"
+      maxlength="2048"
+      placeholder="example.com"
       required
+      autofocus
     />
     <label class="field" for="feed-folder">Folder</label>
     <select id="feed-folder" name="folderId">
@@ -121,50 +166,63 @@ export async function showAddFeedDialog(folders) {
     folderOptions +
     html`</select>`;
 
-  return modal.show({
+  let created = null;
+  const confirmed = await modal.show({
     title: "Add Feed",
     content,
     type: "confirm",
+    confirmLabel: "Add Feed",
     onValidate: async (data, bodyEl) => {
-      if (!data.feedUrl || data.feedUrl.trim() === "") {
-        showDialogError(bodyEl, "Please enter a URL.");
-        return false;
-      }
-      const response = await dataService.checkFeed(data.feedUrl);
-      if (!Array.isArray(response) || response.length === 0) {
-        showDialogError(bodyEl, "No feeds found.");
-        return false;
-      }
+      const folderId = data.folderId ? Number(data.folderId) : null;
+      let feedUrl = data.chosenFeedUrl;
 
-      if (response.length === 1) {
-        const feedUrlInput = bodyEl.querySelector("#feed-url");
-        if (feedUrlInput) {
-          feedUrlInput.value = response[0].feedUrl;
+      if (!feedUrl) {
+        const requested = normalizeFeedUrl(data.feedUrl);
+        if (!requested) {
+          showDialogError(bodyEl, INVALID_URL_MESSAGE);
+          return false;
         }
-        return true;
+        modal.setBusy("Checking…");
+        let found;
+        try {
+          found = await dataService.checkFeed(requested);
+        } catch (error) {
+          showDialogError(bodyEl, feedErrorMessage(error));
+          return false;
+        }
+        if (!Array.isArray(found) || found.length === 0) {
+          showDialogError(bodyEl, feedErrorMessage({ code: "NOT_A_FEED" }));
+          return false;
+        }
+        if (found.length > 1) {
+          renderFeedChooser(bodyEl, found, data.folderId);
+          return false;
+        }
+        feedUrl = found[0].feedUrl;
       }
 
-      const feedOptions = response
-        .map(
-          (feed) =>
-            html`<option value="${feed.feedUrl}">${feed.name} (${feed.feedUrl})</option>`,
-        )
-        .join("");
-
-      bodyEl.innerHTML =
-        html`<label class="field" for="feed-selector">Multiple feeds found. Please select one:</label>
-        <select id="feed-selector" name="feedUrl">
-          ` +
-        feedOptions +
-        html`</select>
-        <input type="hidden" name="folderId" value="${data.folderId}" />`;
-
-      return false;
+      modal.setBusy("Adding…");
+      try {
+        const id = await dataService.createFeed({ feedUrl, folderId });
+        created = { id: Number(id), feedUrl, folderId };
+        return true;
+      } catch (error) {
+        showDialogError(bodyEl, feedErrorMessage(error));
+        return false;
+      }
     },
   });
+  return confirmed ? created : null;
 }
 
-export function showEditFeedDialog(folders, feed) {
+/**
+ * Edit name, address, and folder; saves before closing so a conflicting
+ * address is reported in the dialog.
+ * @param {Folder[]} folders
+ * @param {Feed} feed
+ * @returns {Promise<{ id: number, name: string, feedUrl: string, folderId: number|null }|null>}
+ */
+export async function showEditFeedDialog(folders, feed) {
   const folderOptions = folders
     .map((folder) => {
       const isSelected = folder.id === feed.folderId ? "selected" : "";
@@ -172,11 +230,26 @@ export function showEditFeedDialog(folders, feed) {
     })
     .join("");
   const content =
-    html`<label class="field" for="feed-url">Feed URL</label>
+    html`<label class="field" for="feed-name">Name</label>
+    <input
+      id="feed-name"
+      name="name"
+      type="text"
+      maxlength="255"
+      value="${feed.name}"
+      required
+      autofocus
+    />
+    <label class="field" for="feed-url">Feed address</label>
     <input
       id="feed-url"
       name="feedUrl"
-      type="url"
+      type="text"
+      inputmode="url"
+      autocomplete="url"
+      autocapitalize="off"
+      spellcheck="false"
+      maxlength="2048"
       value="${feed.feedUrl}"
       required
     />
@@ -187,9 +260,46 @@ export function showEditFeedDialog(folders, feed) {
     folderOptions +
     html`</select>`;
 
-  return modal.show({
+  let saved = null;
+  const confirmed = await modal.show({
     title: "Edit Feed",
     content,
     type: "confirm",
+    confirmLabel: "Save",
+    onValidate: async (data, bodyEl) => {
+      const name = (data.name ?? "").trim();
+      if (!name) {
+        showDialogError(bodyEl, "Please enter a name.");
+        return false;
+      }
+      const typedUrl = (data.feedUrl ?? "").trim();
+      const feedUrl =
+        typedUrl === feed.feedUrl ? feed.feedUrl : normalizeFeedUrl(typedUrl);
+      if (!feedUrl) {
+        showDialogError(bodyEl, INVALID_URL_MESSAGE);
+        return false;
+      }
+      const update = {
+        id: feed.id,
+        name,
+        feedUrl,
+        folderId: data.folderId ? Number(data.folderId) : null,
+      };
+      modal.setBusy("Saving…");
+      try {
+        await dataService.updateFeed(update);
+        saved = update;
+        return true;
+      } catch (error) {
+        showDialogError(
+          bodyEl,
+          error?.code === "DUPLICATE"
+            ? "Another feed already uses this address."
+            : feedErrorMessage(error),
+        );
+        return false;
+      }
+    },
   });
+  return confirmed ? saved : null;
 }

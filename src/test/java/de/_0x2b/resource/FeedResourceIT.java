@@ -85,4 +85,24 @@ class FeedResourceIT {
                 .body("code", equalTo("BLOCKED"))
                 .body("message", equalTo("Host not allowed"));
     }
+
+    @Test
+    @TestSecurity(user = "alice")
+    void checkFeed_privateAddressIsRejectedWithCode() {
+        given().queryParam("url", "http://127.0.0.1/")
+                .when().get("/api/feed/check")
+                .then().statusCode(422)
+                .contentType(ContentType.JSON)
+                .body("code", equalTo("BLOCKED"));
+    }
+
+    @Test
+    @TestSecurity(user = "alice")
+    void checkFeed_overlongUrlIsBadRequest() {
+        given().queryParam("url", "https://example.com/" + "a".repeat(FeedResource.MAX_URL_LENGTH))
+                .when().get("/api/feed/check")
+                .then().statusCode(400)
+                .contentType(ContentType.JSON)
+                .body("code", equalTo("BAD_REQUEST"));
+    }
 }
