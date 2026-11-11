@@ -24,8 +24,6 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -211,9 +209,9 @@ class FeedServiceTest {
     void checkFeedUrl_whenContentTypeIsRss_returnsDirectFeed() {
         String url = "https://example.com/rss.xml";
         URI uri = URI.create(url);
-        when(outboundHttpClient.fetchFeed(uri)).thenReturn(Optional.of(new FetchResult(
+        when(outboundHttpClient.fetchFeedDetailed(uri)).thenReturn(new FetchResult(
                 uri, uri, 200, "application/rss+xml; charset=utf-8",
-                "<rss version=\"2.0\"></rss>".getBytes(StandardCharsets.UTF_8))));
+                "<rss version=\"2.0\"></rss>".getBytes(StandardCharsets.UTF_8)));
 
         List<Feed> feeds = sut.checkFeedUrl(url);
 
@@ -232,8 +230,8 @@ class FeedServiceTest {
                   <link rel="alternate" type="application/rss+xml" title="FeedHTTPS" href="feed:https://example.com/x.rss"/>
                 </head></html>
                 """;
-        when(outboundHttpClient.fetchFeed(uri)).thenReturn(Optional.of(new FetchResult(
-                uri, uri, 200, "text/html; charset=utf-8", html.getBytes(StandardCharsets.UTF_8))));
+        when(outboundHttpClient.fetchFeedDetailed(uri)).thenReturn(new FetchResult(
+                uri, uri, 200, "text/html; charset=utf-8", html.getBytes(StandardCharsets.UTF_8)));
 
         List<Feed> feeds = sut.checkFeedUrl(url);
 
@@ -251,19 +249,63 @@ class FeedServiceTest {
     }
 
     @Test
-    void checkFeedUrl_whenFetchFails_returnsEmptyList() {
+    void checkFeedUrl_whenFetchFails_throwsWithFailureKind() {
         URI uri = URI.create("https://example.com");
-        when(outboundHttpClient.fetchFeed(uri)).thenReturn(Optional.empty());
+        when(outboundHttpClient.fetchFeedDetailed(uri)).thenReturn(FetchFailure.unreachable("Host not found"));
 
-        assertTrue(sut.checkFeedUrl(uri.toString()).isEmpty());
+        InvalidFeedException e = assertThrows(InvalidFeedException.class, () -> sut.checkFeedUrl(uri.toString()));
+
+        assertEquals("UNREACHABLE", e.getCode());
+        assertEquals("Host not found", e.getMessage());
     }
 
     @Test
-    void checkFeedUrl_whenMalformedUrl_returnsEmptyList() {
+    void checkFeedUrl_whenRelativeUrl_throwsInvalidUrl() {
         // Relative / opaque URIs are rejected by the outbound client.
-        when(outboundHttpClient.fetchFeed(any())).thenReturn(Optional.empty());
+        when(outboundHttpClient.fetchFeedDetailed(any())).thenReturn(FetchFailure.invalidUrl());
 
-        assertTrue(sut.checkFeedUrl("notaurl").isEmpty());
+        InvalidFeedException e = assertThrows(InvalidFeedException.class, () -> sut.checkFeedUrl("notaurl"));
+
+        assertEquals("INVALID_URL", e.getCode());
+    }
+
+    @Test
+    void checkFeedUrl_whenUnparseableUrl_throwsInvalidUrlWithoutFetching() {
+        InvalidFeedException e = assertThrows(InvalidFeedException.class,
+                () -> sut.checkFeedUrl("https://exa mple.com/"));
+
+        assertEquals("INVALID_URL", e.getCode());
+        verifyNoInteractions(outboundHttpClient);
+    }
+
+    @Test
+    void checkFeedUrl_whenPageHasNoFeedLinks_throwsNotAFeed() {
+        URI uri = URI.create("https://example.com");
+        when(outboundHttpClient.fetchFeedDetailed(uri)).thenReturn(new FetchResult(
+                uri, uri, 200, "text/html", "<html><head></head></html>".getBytes(StandardCharsets.UTF_8)));
+
+        InvalidFeedException e = assertThrows(InvalidFeedException.class, () -> sut.checkFeedUrl(uri.toString()));
+
+        assertEquals("NOT_A_FEED", e.getCode());
+    }
+
+    @Test
+    void checkFeedUrl_skipsMalformedLinksAndCapsTheList() {
+        URI uri = URI.create("https://example.com");
+        StringBuilder html = new StringBuilder("<html><head>");
+        html.append("<link rel=\"alternate\" type=\"application/rss+xml\" href=\"https://exa mple.com/bad\"/>");
+        for (int i = 0; i < 30; i++) {
+            html.append("<link rel=\"alternate\" type=\"application/rss+xml\" href=\"/feed")
+                    .append(i).append(".xml\"/>");
+        }
+        html.append("</head></html>");
+        when(outboundHttpClient.fetchFeedDetailed(uri)).thenReturn(new FetchResult(
+                uri, uri, 200, "text/html", html.toString().getBytes(StandardCharsets.UTF_8)));
+
+        List<Feed> feeds = sut.checkFeedUrl(uri.toString());
+
+        assertEquals(FeedService.MAX_DISCOVERED_FEEDS, feeds.size());
+        assertEquals(URI.create("https://example.com/feed0.xml"), feeds.getFirst().getFeedUrl());
     }
 
     @Test

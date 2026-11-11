@@ -29,7 +29,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -42,6 +41,8 @@ public class FeedService {
     private static final Logger logger = LoggerFactory.getLogger(FeedService.class);
     static final String NOT_A_FEED = "NOT_A_FEED";
     static final String NOT_A_FEED_MESSAGE = "Not an RSS or Atom feed";
+    /** Feed links offered from one page; keeps the chooser and response small. */
+    static final int MAX_DISCOVERED_FEEDS = 20;
 
     @Inject
     OutboundHttpClient outboundHttpClient;
@@ -298,25 +299,25 @@ public class FeedService {
      * Fetches through {@link OutboundHttpClient} (SSRF guard + size limit).
      *
      * @param url URL to check
-     * @return List of valid feeds found
+     * @return the feed itself, or the feeds a web page links to (never empty)
+     * @throws InvalidFeedException with code {@code INVALID_URL}, a
+     *                              {@link FetchFailure.Kind} name, or
+     *                              {@code NOT_A_FEED} when nothing usable
+     *                              was found
      */
     public List<Feed> checkFeedUrl(String url) {
         List<Feed> validFeeds = new ArrayList<>();
 
         URI requestUri;
         try {
-            requestUri = URI.create(url);
+            requestUri = URI.create(url.strip());
         } catch (IllegalArgumentException e) {
             logger.warn("Malformed or non-absolute URL provided: {}", url);
-            return Collections.emptyList();
+            throw invalidFeed(FetchFailure.invalidUrl());
         }
 
-        var fetched = outboundHttpClient.fetchFeed(requestUri);
-        if (fetched.isEmpty()) {
-            return Collections.emptyList();
-        }
-        FetchResult result = fetched.get();
-        String body = new String(result.body(), charsetFromContentType(result.contentType()));
+        FetchResult result = fetchFeedOrThrow(requestUri);
+        String body = decodeBody(result);
         String contentType = result.contentType();
         String baseUri = result.finalUri().toString();
 
@@ -329,15 +330,26 @@ public class FeedService {
                     "link[rel=alternate][type=application/rss+xml], link[rel=alternate][type=application/atom+xml]");
 
             for (Element link : links) {
+                if (validFeeds.size() >= MAX_DISCOVERED_FEEDS) {
+                    break;
+                }
                 String feedUrl = extractFeedUrl(link);
                 String feedName = link.attr("title");
-                if (!feedUrl.isBlank()) {
+                if (feedUrl.isBlank()) {
+                    continue;
+                }
+                try {
                     validFeeds.add(new Feed(-1, null, feedName.isBlank() ? feedUrl : feedName,
                             result.finalUri(), URI.create(feedUrl)));
+                } catch (IllegalArgumentException e) {
+                    logger.debug("Skipping malformed feed link {} on {}", feedUrl, baseUri);
                 }
             }
         }
 
+        if (validFeeds.isEmpty()) {
+            throw notAFeed();
+        }
         return validFeeds;
     }
 

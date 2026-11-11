@@ -20,6 +20,8 @@ import jakarta.ws.rs.core.Response;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class FeedResource {
+    /** Matches the {@code feed.feed_url} column. */
+    static final int MAX_URL_LENGTH = 2048;
 
     @Inject
     FeedService feedService;
@@ -92,6 +94,9 @@ public class FeedResource {
     public Response checkFeedUrl(@QueryParam("url") String url) {
         if (url == null || url.isBlank()) {
             throw new BadRequestException("url query parameter is required");
+        }
+        if (url.length() > MAX_URL_LENGTH) {
+            throw new BadRequestException("url must be at most " + MAX_URL_LENGTH + " characters");
         }
         var result = feedService.checkFeedUrl(url);
         return Response.ok(result).build();
