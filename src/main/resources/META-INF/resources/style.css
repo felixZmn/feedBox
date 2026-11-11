@@ -423,10 +423,10 @@ button {
 }
 
 .tree-entry-icon {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   object-fit: contain;
-  flex: 0 0 16px;
+  flex: 0 0 20px;
   display: inline-block;
 }
 
@@ -506,8 +506,10 @@ button {
   border-radius: var(--radius-sm);
 }
 
+/* Nested feeds share the same icon column as folders / All Feeds;
+   hierarchy is the open folder group, not a second left gutter. */
 .folder-container {
-  margin: 0 0 0 18px;
+  margin: 0;
 }
 
 /* articles list: header stays fixed; list scrolls. Matching
@@ -781,7 +783,25 @@ button {
 }
 
 .feeds-list .column-header {
+  /* Same outer inset as tree rows: .column margin + row margin-inline */
+  padding-inline: calc(var(--default-space) + var(--list-inset));
   background-color: var(--surface-sidebar);
+}
+
+/* Refresh glyph lines up with tree icons; ⋯ with .tree-options */
+.feeds-list .column-header .item-spacer {
+  padding-inline: 0;
+}
+
+.feeds-list .column-header .left .item-spacer {
+  justify-content: flex-start;
+  padding-left: var(--default-space);
+}
+
+.feeds-list .column-header .right .item-spacer {
+  width: 34px;
+  box-sizing: border-box;
+  justify-content: center;
 }
 
 .articles-list .column-header {
@@ -1742,6 +1762,11 @@ dialog::backdrop {
     align-items: center;
     justify-content: center;
     box-sizing: border-box;
+  }
+
+  .feeds-list .column-header .right .item-spacer {
+    width: 44px;
+    min-width: 44px;
   }
 
   .feeds-ul li,
