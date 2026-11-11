@@ -2,39 +2,77 @@
 
 import { dom, itemType, state } from "./state.js";
 
-function showContextMenuGroup(groupClass, x, y) {
+/** @type {HTMLElement | null} */
+let menuTrigger = null;
+
+function showContextMenuGroup(groupClass, x, y, trigger) {
   document.querySelectorAll(".context-menu-item").forEach((element) => {
     element.classList.add("d-none");
   });
   document.querySelectorAll(`.${groupClass}`).forEach((element) => {
     element.classList.remove("d-none");
   });
-  openContextMenu(x, y);
+  openContextMenu(x, y, trigger);
 }
 
-export function openAddContextMenu(x, y) {
-  showContextMenuGroup("context-add", x, y);
+/**
+ * @param {number} x
+ * @param {number} y
+ * @param {EventTarget | null} [trigger]
+ */
+export function openAddContextMenu(x, y, trigger) {
+  showContextMenuGroup("context-add", x, y, trigger);
 }
 
-export function feedContextMenu(x, y, feed) {
+/**
+ * @param {number} x
+ * @param {number} y
+ * @param {object} feed
+ * @param {EventTarget | null} [trigger]
+ */
+export function feedContextMenu(x, y, feed, trigger) {
   state.lastClickedItem.type = itemType.FEED;
   state.lastClickedItem.obj = feed;
-  showContextMenuGroup("context-feed", x, y);
+  showContextMenuGroup("context-feed", x, y, trigger);
 }
 
-export function folderContextMenu(x, y, folder) {
+/**
+ * @param {number} x
+ * @param {number} y
+ * @param {object} folder
+ * @param {EventTarget | null} [trigger]
+ */
+export function folderContextMenu(x, y, folder, trigger) {
   state.lastClickedItem.type = itemType.FOLDER;
   state.lastClickedItem.obj = folder;
-  showContextMenuGroup("context-folder", x, y);
+  showContextMenuGroup("context-folder", x, y, trigger);
 }
 
-export function allFeedsContextMenu(x, y) {
+/**
+ * @param {number} x
+ * @param {number} y
+ * @param {EventTarget | null} [trigger]
+ */
+export function allFeedsContextMenu(x, y, trigger) {
   state.lastClickedItem.type = itemType.ALL;
   state.lastClickedItem.obj = null;
-  showContextMenuGroup("context-all", x, y);
+  showContextMenuGroup("context-all", x, y, trigger);
 }
 
-export function openContextMenu(x, y) {
+/**
+ * @param {number} x
+ * @param {number} y
+ * @param {EventTarget | null} [trigger]
+ */
+export function openContextMenu(x, y, trigger) {
+  const el =
+    trigger instanceof HTMLElement
+      ? trigger
+      : document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+  menuTrigger = el;
+
   const menu = dom.contextMenu;
   menu.classList.add("is-open");
   const { innerWidth, innerHeight } = window;
@@ -44,8 +82,19 @@ export function openContextMenu(x, y) {
   getVisibleContextMenuItems()[0]?.focus();
 }
 
-export function hideContextMenu() {
+/**
+ * @param {{ restoreFocus?: boolean }} [options]
+ */
+export function hideContextMenu({ restoreFocus = false } = {}) {
   dom.contextMenu.classList.remove("is-open");
+  if (restoreFocus) restoreMenuTriggerFocus();
+}
+
+/** Return focus to the control that opened the menu. */
+export function restoreMenuTriggerFocus() {
+  const el = menuTrigger;
+  menuTrigger = null;
+  el?.focus?.();
 }
 
 export function getVisibleContextMenuItems() {
@@ -55,8 +104,17 @@ export function getVisibleContextMenuItems() {
 }
 
 export function initContextMenuListeners() {
-  document.addEventListener("click", () => {
-    hideContextMenu();
+  document.addEventListener("click", (e) => {
+    const onItem = e.target.closest("#context-menu .context-menu-item");
+    if (onItem) {
+      hideContextMenu({ restoreFocus: false });
+      queueMicrotask(() => {
+        const dialog = document.getElementById("generic-modal");
+        if (!dialog?.open) restoreMenuTriggerFocus();
+      });
+      return;
+    }
+    hideContextMenu({ restoreFocus: true });
   });
 
   dom.contextMenu.addEventListener("keydown", (e) => {
@@ -81,7 +139,7 @@ export function initContextMenuListeners() {
         break;
       case "Escape":
         e.preventDefault();
-        hideContextMenu();
+        hideContextMenu({ restoreFocus: true });
         break;
     }
   });
