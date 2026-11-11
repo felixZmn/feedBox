@@ -29,6 +29,8 @@ export const state = {
     isRefreshing: false,
     isLoadingArticles: false,
     hasMoreArticles: true,
+    /** Soft cap for auto infinite-scroll; raised when the user chooses Load more. */
+    listSoftCap: ARTICLES_LIST_MAX,
   },
   selectedArticle: null,
   savedCount: 0,

@@ -113,12 +113,27 @@ export async function loadArticle(article) {
 export async function navigateArticle(direction) {
   if (!state.selectedArticle) return;
 
-  const idx = state.articles.findIndex(
+  let idx = state.articles.findIndex(
     (a) => a.id === state.selectedArticle.id,
   );
   if (idx === -1) return;
 
-  const nextIdx = idx + direction;
+  let nextIdx = idx + direction;
+  if (
+    direction > 0 &&
+    nextIdx >= state.articles.length &&
+    state.status.hasMoreArticles
+  ) {
+    const { loadMoreArticles } = await import("./articles.js");
+    const loaded = await loadMoreArticles();
+    if (!loaded) return;
+    idx = state.articles.findIndex(
+      (a) => a.id === state.selectedArticle.id,
+    );
+    if (idx === -1) return;
+    nextIdx = idx + direction;
+  }
+
   if (nextIdx >= 0 && nextIdx < state.articles.length) {
     const next = state.articles[nextIdx];
     await loadArticle(next);

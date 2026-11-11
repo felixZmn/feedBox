@@ -939,6 +939,21 @@ li:hover,
   font-style: italic;
 }
 
+.list-footer {
+  text-align: center;
+  color: var(--font-color-muted);
+  padding: 1.25rem var(--default-space) 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.list-footer-label {
+  margin: 0;
+  font-size: var(--font-size-small);
+}
+
 /* ############## */
 /* modal dialog */
 dialog {
