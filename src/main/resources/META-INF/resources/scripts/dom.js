@@ -451,7 +451,18 @@ function createArticleElement(article) {
   ageSpan.className = "age";
 
   sourceSpan.textContent = article.feedName || "Unknown";
-  ageSpan.textContent = getRelativeTime(article.published) || "";
+  const age = getRelativeTime(article.published) || "";
+  if (article.publishedEstimated && age) {
+    // The feed gave no date; this age counts from when we first saw the article.
+    ageSpan.textContent = `~${age}`;
+    ageSpan.title = `Date unknown (first seen ${parseDate(article.published)})`;
+    const hint = document.createElement("span");
+    hint.className = "visually-hidden";
+    hint.textContent = " (estimated)";
+    ageSpan.appendChild(hint);
+  } else {
+    ageSpan.textContent = age;
+  }
 
   body.appendChild(titleLink);
 
@@ -548,9 +559,10 @@ export function renderReaderView(article) {
     content.innerHTML = sanitizeHTML(body) || "No Content";
   }
   if (isSummaryOnly(article)) content.appendChild(createSummaryHint(article.link));
-  date.textContent = `${parseDate(article.published) || "Unknown"} by ${
-    article.authors || "Unknown"
-  }`;
+  const when = article.publishedEstimated
+    ? `Date unknown (first seen ${parseDate(article.published) || "unknown"})`
+    : parseDate(article.published) || "Unknown";
+  date.textContent = `${when} by ${article.authors || "Unknown"}`;
   publisher.textContent = article.feedName || "";
 
   if (article.link && isSafeHttpUrl(article.link)) {
