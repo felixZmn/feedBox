@@ -384,38 +384,57 @@ button {
 }
 
 /*#############*/
-details,
-.details {
-  margin-bottom: var(--default-space);
-}
-
-summary,
-.summary {
+.details,
+.folder-row {
   display: flex;
   align-items: center;
   gap: var(--default-space);
-  cursor: pointer;
-  list-style: none;
-  outline: none;
+  margin-bottom: var(--default-space);
   padding-left: var(--default-space);
   margin-inline: var(--list-inset);
   border-radius: var(--radius-sm);
+  cursor: pointer;
 }
 
-summary::-webkit-details-marker {
-  display: none;
+.folder {
+  margin-bottom: var(--default-space);
 }
 
-summary::marker {
-  content: none;
+.folder-row {
+  margin-bottom: 0;
 }
 
-details summary img {
+.tree-link {
+  display: flex;
+  align-items: center;
+  gap: var(--default-space);
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  outline: none;
+}
+
+.folder-toggle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: var(--radius-sm);
+}
+
+.folder-toggle img {
   content: url("icons/folder.svg");
 }
 
-details[open] summary img {
+.folder-toggle[aria-expanded="true"] img {
   content: url("icons/folder_open.svg");
+}
+
+#trigger-add {
+  width: calc(100% - 2 * var(--list-inset));
+  text-align: left;
 }
 
 .icon {
@@ -437,7 +456,6 @@ details[open] summary img {
   padding-top: calc(var(--default-space) / 2);
   padding-left: var(--default-space);
   margin-inline: var(--list-inset);
-  cursor: pointer;
   border-radius: var(--radius-sm);
 }
 
@@ -805,7 +823,7 @@ details[open] summary img {
   margin-top: calc(var(--default-space) * 2);
 }
 
-summary:hover,
+.folder-row:hover,
 li:hover,
 .details:hover {
   background-color: var(--hover-bg);
@@ -814,7 +832,7 @@ li:hover,
 
 #feeds-list .selected,
 #feeds-list li.selected,
-#feeds-list summary.selected,
+#feeds-list .folder-row.selected,
 #feeds-list .details.selected {
   background-color: var(--selected-bg);
   border-radius: var(--radius-sm);
@@ -822,7 +840,7 @@ li:hover,
 
 #feeds-list .selected:hover,
 #feeds-list li.selected:hover,
-#feeds-list summary.selected:hover,
+#feeds-list .folder-row.selected:hover,
 #feeds-list .details.selected:hover {
   background-color: var(--selected-bg);
 }

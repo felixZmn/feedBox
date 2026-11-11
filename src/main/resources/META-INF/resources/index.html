@@ -135,7 +135,7 @@
     </ul>
 
     <div class="layout">
-      <aside id="feeds-list" class="feeds-list border-right">
+      <nav id="feeds-list" class="feeds-list border-right" aria-label="Feeds">
         <div class="column-header">
           <div class="left">
             <button
@@ -184,37 +184,39 @@
           </div>
         </div>
         <div class="column" id="feeds-col">
-          <div class="details" id="trigger-show-all-feeds" tabindex="0">
-            <div class="summary">
+          <div class="details" id="trigger-show-all-feeds">
+            <a class="tree-link" href="/">
               <img src="icons/package.svg" class="icon f-base" alt="" /><span
                 class="tree-name"
                 >All Feeds</span
-              ><span class="tree-unread" id="all-feeds-unread" hidden></span
-              ><span
-                class="tree-options"
-                role="button"
-                tabindex="0"
-                aria-label="All feeds options"
-                >⋮</span
               >
-            </div>
+            </a>
+            <span class="tree-unread" id="all-feeds-unread" hidden></span>
+            <button
+              type="button"
+              class="tree-options"
+              aria-haspopup="menu"
+              aria-label="All feeds options"
+            >
+              ⋮
+            </button>
           </div>
-          <div class="details" id="trigger-show-unread" tabindex="0">
-            <div class="summary">
+          <div class="details" id="trigger-show-unread">
+            <a class="tree-link" href="/unread">
               <img src="icons/circle-check.svg" class="icon f-base" alt="" /><span
                 class="tree-name"
                 >Unread</span
               >
-            </div>
+            </a>
           </div>
-          <div class="details" id="trigger-show-saved" tabindex="0">
-            <div class="summary">
+          <div class="details" id="trigger-show-saved">
+            <a class="tree-link" href="/saved">
               <img src="icons/bookmark.svg" class="icon f-base" alt="" /><span
                 class="tree-name"
                 >Saved</span
-              ><span class="tree-unread" id="saved-count" hidden></span
-              ><span class="tree-options" aria-hidden="true"></span>
-            </div>
+              >
+            </a>
+            <span class="tree-unread" id="saved-count" hidden></span>
           </div>
           <div id="feeds-loading" class="feeds-spinner">
             <img
@@ -228,14 +230,12 @@
             <!-- Folders will be injected here -->
           </div>
           <script src="./scripts/boot-cache.js"></script>
-          <div class="details space-top" id="trigger-add">
-            <div class="summary">
-              <img src="icons/feed_add.svg" class="icon f-grey" alt="" />
-              <span class="tree-name">Add</span>
-            </div>
-          </div>
+          <button type="button" class="details space-top" id="trigger-add">
+            <img src="icons/feed_add.svg" class="icon f-grey" alt="" />
+            <span class="tree-name">Add</span>
+          </button>
         </div>
-      </aside>
+      </nav>
 
       <main id="articles-list" class="articles-list border-right">
         <div class="column-header">
