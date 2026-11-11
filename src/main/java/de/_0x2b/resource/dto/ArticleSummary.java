@@ -20,5 +20,6 @@ public record ArticleSummary(
         String authors,
         String imageUrl,
         boolean read,
-        boolean saved) {
+        boolean saved,
+        boolean publishedEstimated) {
 }

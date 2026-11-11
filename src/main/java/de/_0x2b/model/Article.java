@@ -19,19 +19,28 @@ public record Article(
         String imageUrl,
         String categories,
         boolean read,
-        boolean saved) {
+        boolean saved,
+        boolean publishedEstimated) {
 
     /** Convenience when guid defaults to link. */
     public Article(long id, int feedId, String feedName, String title, String description, String content, String link,
             Instant published, String authors, String imageUrl, String categories) {
         this(id, feedId, feedName, title, description, content, link, link, published, authors, imageUrl, categories,
-                false, false);
+                false, false, false);
     }
 
     public Article(long id, int feedId, String feedName, String title, String description, String content, String link,
             String guid, Instant published, String authors, String imageUrl, String categories) {
         this(id, feedId, feedName, title, description, content, link, guid, published, authors, imageUrl, categories,
-                false, false);
+                false, false, false);
+    }
+
+    /** Full-row constructor for rows read back from the database. */
+    public Article(long id, int feedId, String feedName, String title, String description, String content, String link,
+            String guid, Instant published, String authors, String imageUrl, String categories, boolean read,
+            boolean saved) {
+        this(id, feedId, feedName, title, description, content, link, guid, published, authors, imageUrl, categories,
+                read, saved, false);
     }
 
     public long getId() {
@@ -88,5 +97,9 @@ public record Article(
 
     public boolean isSaved() {
         return saved;
+    }
+
+    public boolean isPublishedEstimated() {
+        return publishedEstimated;
     }
 }

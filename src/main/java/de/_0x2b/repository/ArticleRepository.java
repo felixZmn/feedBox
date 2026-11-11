@@ -28,14 +28,15 @@ public class ArticleRepository extends AbstractRepository {
     /** Full row for the reader ({@code GET /api/article/{id}}). */
     private static final String SELECT_DETAIL_COLS = """
             SELECT a.id, a.feed_id, f.name AS publisher, a.title, a.description,
-                   a.content, a.link, a.guid, a.published, a.authors, a.image_url, a.categories,
+                   a.content, a.link, a.guid, a.published, a.published_estimated, a.authors, a.image_url,
+                   a.categories,
                    """ + EFFECTIVE_READ + """
                    AS read, a.saved
             """;
     /** List/pagination projection — no HTML bodies. */
     private static final String SELECT_LIST_COLS = """
             SELECT a.id, a.feed_id, f.name AS publisher, a.title,
-                   a.link, a.published, a.authors, a.image_url,
+                   a.link, a.published, a.published_estimated, a.authors, a.image_url,
                    """ + EFFECTIVE_READ + """
                    AS read, a.saved
             """;
@@ -45,22 +46,28 @@ public class ArticleRepository extends AbstractRepository {
             CROSS JOIN reader_state rs
             """;
     private static final String JOIN_FOLDER = " JOIN folder fo on fo.id = f.folder_id ";
-    // The pagination cursor is now a real TIMESTAMPTZ. Articles with NULL
-    // pubDate are excluded from the read query entirely (see WHERE clause
-    // below) so we don't need NULLS FIRST/LAST gymnastics here.
+    // The pagination cursor is a real TIMESTAMPTZ. Undated articles get an
+    // estimated date at insert time (published_estimated), so ordering never
+    // needs NULLS FIRST/LAST gymnastics.
     private static final String WHERE_PAGINATION = " AND ((a.published < ?) OR (a.published = ? AND a.id < ?)) ";
     private static final String ORDER_LIMIT = " ORDER BY a.published DESC, a.id DESC LIMIT 25";
     private static final String SEARCH_TOKEN_CLAUSE =
             " AND (a.title ILIKE ? ESCAPE '\\' OR a.description ILIKE ? ESCAPE '\\') ";
     private static final String INSERT_SQL = """
-            INSERT INTO article (feed_id, title, description, content, link, guid, published, authors, image_url, categories)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO article (feed_id, title, description, content, link, guid, published, published_estimated,
+                                 authors, image_url, categories)
+            VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, now()), ?, ?, ?, ?)
             ON CONFLICT (feed_id, guid) DO UPDATE SET
                 title = EXCLUDED.title,
                 description = EXCLUDED.description,
                 content = EXCLUDED.content,
                 link = EXCLUDED.link,
-                published = EXCLUDED.published,
+                -- A refresh without a feed date must not overwrite a known (or earlier
+                -- estimated) date; a real date always wins and clears the flag.
+                published = CASE WHEN EXCLUDED.published_estimated THEN article.published
+                                 ELSE EXCLUDED.published END,
+                published_estimated = CASE WHEN EXCLUDED.published_estimated THEN article.published_estimated
+                                           ELSE false END,
                 authors = EXCLUDED.authors,
                 image_url = EXCLUDED.image_url,
                 categories = EXCLUDED.categories
@@ -119,12 +126,13 @@ public class ArticleRepository extends AbstractRepository {
     private final RowMapper<Article> articleMapper = rs -> new Article(rs.getLong("id"), rs.getInt("feed_id"),
             rs.getString("publisher"), rs.getString("title"), rs.getString("description"), rs.getString("content"),
             rs.getString("link"), rs.getString("guid"), readPublished(rs), rs.getString("authors"),
-            rs.getString("image_url"), rs.getString("categories"), rs.getBoolean("read"), rs.getBoolean("saved"));
+            rs.getString("image_url"), rs.getString("categories"), rs.getBoolean("read"), rs.getBoolean("saved"),
+            rs.getBoolean("published_estimated"));
 
     private final RowMapper<ArticleSummary> summaryMapper = rs -> new ArticleSummary(
             rs.getLong("id"), rs.getInt("feed_id"), rs.getString("publisher"), rs.getString("title"),
-            rs.getString("link"), readPublished(rs), rs.getString("authors"),             rs.getString("image_url"),
-            rs.getBoolean("read"), rs.getBoolean("saved"));
+            rs.getString("link"), readPublished(rs), rs.getString("authors"), rs.getString("image_url"),
+            rs.getBoolean("read"), rs.getBoolean("saved"), rs.getBoolean("published_estimated"));
 
     private static Instant readPublished(java.sql.ResultSet rs) throws SQLException {
         Timestamp ts = rs.getTimestamp("published", UTC);
@@ -294,9 +302,10 @@ public class ArticleRepository extends AbstractRepository {
                 } else {
                     stmt.setNull(7, Types.TIMESTAMP_WITH_TIMEZONE);
                 }
-                stmt.setString(8, a.getAuthors());
-                stmt.setString(9, a.getImageUrl());
-                stmt.setString(10, a.getCategories());
+                stmt.setBoolean(8, a.getPublished() == null || a.isPublishedEstimated());
+                stmt.setString(9, a.getAuthors());
+                stmt.setString(10, a.getImageUrl());
+                stmt.setString(11, a.getCategories());
                 stmt.addBatch();
 
                 if (++count % 500 == 0)
@@ -310,7 +319,7 @@ public class ArticleRepository extends AbstractRepository {
 
     private List<ArticleSummary> findInternal(String whereClause, List<Object> initialParams, Long pagId,
             Instant pagPublished, boolean joinFolder, String q) {
-        // NULL pubDate excluded: pagination cursor needs chronological order.
+        // Legacy NULL dates are excluded; new rows always carry an (estimated) date.
         return queryWhere(
                 SELECT_LIST_COLS + FROM_JOIN,
                 joinFolder ? JOIN_FOLDER : null,
