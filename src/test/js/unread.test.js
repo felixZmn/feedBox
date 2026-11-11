@@ -164,3 +164,67 @@ test("setFeedUnreadBadge is a no-op without matching DOM", () => {
   };
   assert.doesNotThrow(() => setFeedUnreadBadge(99, 2));
 });
+
+test("setFolderUnreadBadge targets the folder-row selector", async () => {
+  const { setFolderUnreadBadge } = await import(
+    "../../main/resources/META-INF/resources/scripts/unread.js"
+  );
+  const options = { className: "tree-options", parentNode: null };
+  const row = {
+    children: [options],
+    querySelector(sel) {
+      if (sel === ":scope > .tree-unread") {
+        return this.children.find((c) => c.className === "tree-unread") ?? null;
+      }
+      if (sel === ":scope > .tree-options") return options;
+      return null;
+    },
+    appendChild(el) {
+      this.children.push(el);
+      el.parentNode = this;
+      return el;
+    },
+    insertBefore(el, ref) {
+      const idx = this.children.indexOf(ref);
+      if (idx >= 0) this.children.splice(idx, 0, el);
+      else this.children.push(el);
+      el.parentNode = this;
+      return el;
+    },
+  };
+  options.parentNode = row;
+  const folderEl = {
+    querySelector(sel) {
+      if (sel === ":scope > .folder-row") return row;
+      return null;
+    },
+  };
+  globalThis.document = {
+    querySelector(sel) {
+      if (sel.includes("[data-folder-id=")) return folderEl;
+      return null;
+    },
+    createElement(tag) {
+      return {
+        tagName: tag,
+        className: "",
+        textContent: "",
+        attrs: {},
+        parentNode: null,
+        setAttribute(k, v) {
+          this.attrs[k] = v;
+        },
+        remove() {
+          const i = row.children.indexOf(this);
+          if (i >= 0) row.children.splice(i, 1);
+          this.parentNode = null;
+        },
+      };
+    },
+  };
+
+  setFolderUnreadBadge(7, 4);
+  const badge = row.querySelector(":scope > .tree-unread");
+  assert.ok(badge);
+  assert.equal(badge.textContent, "4");
+});

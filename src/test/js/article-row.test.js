@@ -3,8 +3,14 @@ import test from "node:test";
 
 import {
   articleMarkState,
+  articleReadSuffix,
   articleStarState,
 } from "../../main/resources/META-INF/resources/scripts/article-row.js";
+
+test("article read suffix names unread and read state", () => {
+  assert.equal(articleReadSuffix(false), ", unread");
+  assert.equal(articleReadSuffix(true), ", read");
+});
 
 test("unread mark is a filled circle named Mark as read", () => {
   assert.deepEqual(articleMarkState(false), {

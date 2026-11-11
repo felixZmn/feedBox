@@ -1,6 +1,15 @@
 "use strict";
 
 /**
+ * Visually-hidden read-state suffix for the article title link.
+ * @param {boolean} read
+ * @returns {string}
+ */
+export function articleReadSuffix(read) {
+  return read ? ", read" : ", unread";
+}
+
+/**
  * Status mark. Outline means still unread; filled means read.
  * @param {boolean} read
  * @returns {{ src: string, label: string }}

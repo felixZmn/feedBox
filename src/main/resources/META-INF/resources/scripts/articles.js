@@ -517,12 +517,23 @@ function applySavedLocally(article, saved) {
   }
 }
 
+/**
+ * True for clicks that should keep the browser's default link behaviour.
+ * @param {MouseEvent} e
+ */
+function isModifiedLinkClick(e) {
+  return (
+    e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey
+  );
+}
+
 export function registerArticlesDelegatedEvents(onArticleActivate) {
   const articlesList = document.getElementById("articles-list");
 
   articlesList?.addEventListener("click", (e) => {
     const mark = e.target.closest(".article-mark");
     if (mark && articlesList.contains(mark)) {
+      e.preventDefault();
       e.stopPropagation();
       const article = articleFromRow(articlesList, mark);
       if (article && !article.read) void markArticleAsRead(article);
@@ -530,25 +541,34 @@ export function registerArticlesDelegatedEvents(onArticleActivate) {
     }
     const star = e.target.closest(".article-star");
     if (star && articlesList.contains(star)) {
+      e.preventDefault();
       e.stopPropagation();
       const article = articleFromRow(articlesList, star);
       if (article) void toggleArticleSaved(article);
       return;
     }
     if (e.target.closest("button")) return;
+
+    const link = e.target.closest("a.article-link");
+    if (link && articlesList.contains(link)) {
+      if (isModifiedLinkClick(e)) return;
+      e.preventDefault();
+      const article = articleFromRow(articlesList, link);
+      if (article) onArticleActivate(article);
+      return;
+    }
+
     const article = articleFromRow(articlesList, e.target);
     if (article) onArticleActivate(article);
   });
 
   articlesList?.addEventListener("keydown", (e) => {
-    if (e.key !== "Enter" && e.key !== " ") return;
+    if (e.key !== " ") return;
     if (e.target.closest("button")) return;
-    const articleEl = e.target.closest(".article[data-article-id]");
-    if (!articleEl || articleEl !== e.target || !articlesList.contains(articleEl)) return;
+    const link = e.target.closest("a.article-link");
+    if (!link || !articlesList.contains(link)) return;
     e.preventDefault();
-    const article = state.articles.find(
-      (a) => a.id === Number(articleEl.dataset.articleId),
-    );
+    const article = articleFromRow(articlesList, link);
     if (article) onArticleActivate(article);
   });
 }
