@@ -117,15 +117,19 @@ public class FeedService {
     }
 
     /**
-     * Get all feeds in the database, with per-feed unread article counts.
+     * Get all feeds in the database, with per-feed unread counts and latest
+     * article ids.
      *
      * @return all feeds
      */
     public List<Feed> findAll() {
         List<Feed> feeds = feedRepository.findAll();
         var unreadCounts = articleRepository.countUnreadByFeed();
+        var latestIds = articleRepository.latestArticleIdByFeed();
         return feeds.stream()
-                .map(feed -> feed.withUnreadCount(unreadCounts.getOrDefault(feed.getId(), 0)))
+                .map(feed -> feed
+                        .withUnreadCount(unreadCounts.getOrDefault(feed.getId(), 0))
+                        .withLatestArticleId(latestIds.getOrDefault(feed.getId(), 0L)))
                 .toList();
     }
 
@@ -144,13 +148,15 @@ public class FeedService {
 
     /**
      * Advance this feed's read horizon to its current max article id.
+     * When {@code throughId} is set, only articles up to that id (capped at
+     * the feed's max) are marked.
      *
      * @param feedId feed primary key
      * @throws NotFoundException when the feed does not exist
      */
-    public void markRead(int feedId) {
+    public void markRead(int feedId, Long throughId) {
         try {
-            int updated = articleRepository.markReadByFeed(feedId);
+            int updated = articleRepository.markReadByFeed(feedId, throughId);
             if (updated == 0) {
                 throw new NotFoundException("Feed not found: " + feedId);
             }

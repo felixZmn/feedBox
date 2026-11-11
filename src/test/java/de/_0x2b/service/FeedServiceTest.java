@@ -187,13 +187,14 @@ class FeedServiceTest {
     }
 
     @Test
-    void findAll_attachesUnreadCountsFromArticleRepository() {
+    void findAll_attachesUnreadCountsAndLatestArticleIds() {
         Feed withUnread = new Feed(1, 1, "n", URI.create("https://site.example"),
                 URI.create("https://site.example/rss"));
         Feed withoutUnread = new Feed(2, 1, "m", URI.create("https://other.example"),
                 URI.create("https://other.example/rss"));
         when(feedRepository.findAll()).thenReturn(List.of(withUnread, withoutUnread));
         when(articleRepository.countUnreadByFeed()).thenReturn(java.util.Map.of(1, 5));
+        when(articleRepository.latestArticleIdByFeed()).thenReturn(java.util.Map.of(1, 42L));
 
         List<Feed> result = sut.findAll();
 
@@ -201,8 +202,11 @@ class FeedServiceTest {
         assertEquals(2, result.get(1).getId());
         assertEquals(5, result.get(0).getUnreadCount());
         assertEquals(0, result.get(1).getUnreadCount());
+        assertEquals(42L, result.get(0).getLatestArticleId());
+        assertEquals(0L, result.get(1).getLatestArticleId());
         verify(feedRepository).findAll();
         verify(articleRepository).countUnreadByFeed();
+        verify(articleRepository).latestArticleIdByFeed();
     }
 
     @Test

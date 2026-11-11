@@ -77,11 +77,21 @@ class ArticleServiceTest {
 
     @Test
     void markAllRead_delegatesToRepository() throws Exception {
-        when(articleRepository.markAllRead()).thenReturn(12);
+        when(articleRepository.markAllRead(null)).thenReturn(12);
 
-        service.markAllRead();
+        service.markAllRead(null);
 
-        verify(articleRepository).markAllRead();
+        verify(articleRepository).markAllRead(null);
+        verifyNoMoreInteractions(articleRepository);
+    }
+
+    @Test
+    void markAllRead_withThroughId_forwardsBound() throws Exception {
+        when(articleRepository.markAllRead(99L)).thenReturn(1);
+
+        service.markAllRead(99L);
+
+        verify(articleRepository).markAllRead(99L);
         verifyNoMoreInteractions(articleRepository);
     }
 

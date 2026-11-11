@@ -81,11 +81,12 @@ public class ArticleService {
 
     /**
      * Advance the global read horizon so every existing article counts as read.
-     * New inserts (higher ids) stay unread.
+     * New inserts (higher ids) stay unread. When {@code throughId} is set, only
+     * articles up to that id (capped at the current max) are marked.
      */
-    public void markAllRead() {
+    public void markAllRead(Long throughId) {
         try {
-            articleRepository.markAllRead();
+            articleRepository.markAllRead(throughId);
         } catch (SQLException e) {
             throw new DataAccessException("Failed to mark all articles read", e);
         }

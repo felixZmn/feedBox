@@ -87,6 +87,13 @@ public class ArticleRepository extends AbstractRepository {
                 COALESCE((SELECT MAX(id) FROM article), 0))
             WHERE id = 1
             """;
+    private static final String MARK_READ_ALL_THROUGH_SQL = """
+            UPDATE reader_state
+            SET mark_read_through_id = GREATEST(
+                mark_read_through_id,
+                LEAST(?, COALESCE((SELECT MAX(id) FROM article), 0)))
+            WHERE id = 1
+            """;
     private static final String MARK_READ_BY_FEED_SQL = """
             UPDATE feed
             SET mark_read_through_id = GREATEST(
@@ -94,11 +101,25 @@ public class ArticleRepository extends AbstractRepository {
                 COALESCE((SELECT MAX(id) FROM article WHERE feed_id = feed.id), 0))
             WHERE id = ?
             """;
+    private static final String MARK_READ_BY_FEED_THROUGH_SQL = """
+            UPDATE feed
+            SET mark_read_through_id = GREATEST(
+                mark_read_through_id,
+                LEAST(?, COALESCE((SELECT MAX(id) FROM article WHERE feed_id = feed.id), 0)))
+            WHERE id = ?
+            """;
     private static final String MARK_READ_BY_FOLDER_SQL = """
             UPDATE feed
             SET mark_read_through_id = GREATEST(
                 mark_read_through_id,
                 COALESCE((SELECT MAX(id) FROM article WHERE feed_id = feed.id), 0))
+            WHERE folder_id = ?
+            """;
+    private static final String MARK_READ_BY_FOLDER_THROUGH_SQL = """
+            UPDATE feed
+            SET mark_read_through_id = GREATEST(
+                mark_read_through_id,
+                LEAST(?, COALESCE((SELECT MAX(id) FROM article WHERE feed_id = feed.id), 0)))
             WHERE folder_id = ?
             """;
     private static final String COUNT_UNREAD_BY_FEED_SQL = """
@@ -111,6 +132,12 @@ public class ArticleRepository extends AbstractRepository {
               AND a.id > rs.mark_read_through_id
               AND a.id > f.mark_read_through_id
             GROUP BY a.feed_id
+            """;
+    /** Uses article_feed_id_idx; feeds with no articles are omitted (caller defaults to 0). */
+    private static final String LATEST_ARTICLE_ID_BY_FEED_SQL = """
+            SELECT feed_id, MAX(id) AS latest_article_id
+            FROM article
+            GROUP BY feed_id
             """;
     // The PostgreSQL JDBC driver does NOT support
     // ResultSet.getObject(int, Class) for java.time.Instant on a
@@ -236,7 +263,21 @@ public class ArticleRepository extends AbstractRepository {
      * @return number of reader_state rows updated (0 or 1)
      */
     public int markAllRead() throws SQLException {
-        return super.update(MARK_READ_ALL_SQL, List.of());
+        return markAllRead(null);
+    }
+
+    /**
+     * Advance the global read horizon. When {@code throughId} is set, the
+     * horizon moves to {@code GREATEST(existing, LEAST(throughId, maxId))};
+     * otherwise it moves to the current max article id.
+     *
+     * @return number of reader_state rows updated (0 or 1)
+     */
+    public int markAllRead(Long throughId) throws SQLException {
+        if (throughId == null) {
+            return super.update(MARK_READ_ALL_SQL, List.of());
+        }
+        return super.update(MARK_READ_ALL_THROUGH_SQL, List.of(throughId));
     }
 
     /**
@@ -245,7 +286,20 @@ public class ArticleRepository extends AbstractRepository {
      * @return number of feed rows updated (0 if the feed id does not exist)
      */
     public int markReadByFeed(int feedId) throws SQLException {
-        return super.update(MARK_READ_BY_FEED_SQL, List.of(feedId));
+        return markReadByFeed(feedId, null);
+    }
+
+    /**
+     * Advance the feed read horizon. When {@code throughId} is set, the
+     * horizon moves to {@code GREATEST(existing, LEAST(throughId, maxId))}.
+     *
+     * @return number of feed rows updated (0 if the feed id does not exist)
+     */
+    public int markReadByFeed(int feedId, Long throughId) throws SQLException {
+        if (throughId == null) {
+            return super.update(MARK_READ_BY_FEED_SQL, List.of(feedId));
+        }
+        return super.update(MARK_READ_BY_FEED_THROUGH_SQL, List.of(throughId, feedId));
     }
 
     /**
@@ -254,7 +308,21 @@ public class ArticleRepository extends AbstractRepository {
      * @return number of feed rows updated
      */
     public int markReadByFolder(int folderId) throws SQLException {
-        return super.update(MARK_READ_BY_FOLDER_SQL, List.of(folderId));
+        return markReadByFolder(folderId, null);
+    }
+
+    /**
+     * Advance each feed's read horizon for feeds in the folder. When
+     * {@code throughId} is set, each feed is capped the same way as
+     * {@link #markReadByFeed(int, Long)}.
+     *
+     * @return number of feed rows updated
+     */
+    public int markReadByFolder(int folderId, Long throughId) throws SQLException {
+        if (throughId == null) {
+            return super.update(MARK_READ_BY_FOLDER_SQL, List.of(folderId));
+        }
+        return super.update(MARK_READ_BY_FOLDER_THROUGH_SQL, List.of(throughId, folderId));
     }
 
     /**
@@ -272,6 +340,23 @@ public class ArticleRepository extends AbstractRepository {
             return counts;
         } catch (SQLException e) {
             throw new DataAccessException("Query failed: " + COUNT_UNREAD_BY_FEED_SQL, e);
+        }
+    }
+
+    /**
+     * Max article id per feed. Feeds with no articles are omitted.
+     */
+    public Map<Integer, Long> latestArticleIdByFeed() {
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(LATEST_ARTICLE_ID_BY_FEED_SQL);
+                ResultSet rs = stmt.executeQuery()) {
+            Map<Integer, Long> latest = new HashMap<>();
+            while (rs.next()) {
+                latest.put(rs.getInt("feed_id"), rs.getLong("latest_article_id"));
+            }
+            return latest;
+        } catch (SQLException e) {
+            throw new DataAccessException("Query failed: " + LATEST_ARTICLE_ID_BY_FEED_SQL, e);
         }
     }
 
