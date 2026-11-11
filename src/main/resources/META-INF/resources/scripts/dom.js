@@ -1,8 +1,13 @@
 "use strict";
 
-import { articleMarkState, articleStarState } from "./article-row.js";
+import {
+  articleMarkState,
+  articleReadSuffix,
+  articleStarState,
+} from "./article-row.js";
 import { FOLDER_STATE_KEY } from "./data.js";
 import { savedBadgePresentation } from "./saved.js";
+import { pathForSelection } from "./state.js";
 import { unreadBadgeHtml, totalUnreadCount } from "./unread.js";
 import { html, getRelativeTime, parseDate, sanitizeHTML, isSafeHttpUrl } from "./util.js";
 
@@ -47,8 +52,8 @@ export function setArticleReadState(articleId, read) {
   );
   if (!el) return;
   el.classList.toggle("unread", !read);
-  const title = el.querySelector(".article-title")?.textContent || "No Title";
-  el.setAttribute("aria-label", `${title}, ${read ? "Read" : "Unread"}`);
+  const suffix = el.querySelector(".article-read-state");
+  if (suffix) suffix.textContent = articleReadSuffix(read);
   const button = el.querySelector(".article-mark");
   if (!button) return;
   paintFlag(button, articleMarkState(read));
@@ -405,18 +410,16 @@ function createArticleElement(article) {
   const articleDiv = document.createElement("div");
   const headerDiv = document.createElement("div");
   const imageDiv = document.createElement("div");
-  const titleDiv = document.createElement("div");
+  const titleLink = document.createElement("a");
+  const titleText = document.createElement("span");
+  const readState = document.createElement("span");
   const sourceSpan = document.createElement("span");
   const ageSpan = document.createElement("span");
   const title = article.title || "No Title";
 
   articleDiv.className = "article";
+  articleDiv.setAttribute("role", "listitem");
   articleDiv.dataset.articleId = String(article.id);
-  articleDiv.tabIndex = 0;
-  articleDiv.setAttribute(
-    "aria-label",
-    `${title}, ${article.read ? "Read" : "Unread"}`,
-  );
   if (!article.read) {
     articleDiv.classList.add("unread");
   }
@@ -430,15 +433,19 @@ function createArticleElement(article) {
   body.className = "article-body";
   headerDiv.className = "article-header";
   imageDiv.className = "article-image";
-  titleDiv.className = "article-title";
+  titleLink.className = "article-link article-title";
+  titleLink.href = pathForSelection(article.id);
+  titleText.textContent = title;
+  readState.className = "visually-hidden article-read-state";
+  readState.textContent = articleReadSuffix(!!article.read);
+  titleLink.append(titleText, readState);
   sourceSpan.className = "source";
   ageSpan.className = "age";
 
-  titleDiv.textContent = title;
   sourceSpan.textContent = article.feedName || "Unknown";
   ageSpan.textContent = getRelativeTime(article.published) || "";
 
-  body.appendChild(titleDiv);
+  body.appendChild(titleLink);
 
   if (article.imageUrl && isSafeHttpUrl(article.imageUrl)) {
     const image = document.createElement("img");
