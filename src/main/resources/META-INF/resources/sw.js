@@ -32,6 +32,7 @@ const SHELL = [
   "/scripts/article-context.js",
   "/scripts/article-row.js",
   "/scripts/saved.js",
+  "/scripts/shortcuts.js",
   "/scripts/vendor/purify.es.mjs",
   "/icons/maskable_icon_x192.png",
   "/icons/maskable_icon_x512.png",

@@ -1143,6 +1143,40 @@ dialog::backdrop {
   font-size: var(--font-size-small);
 }
 
+.shortcut-toggle {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  font-size: var(--font-size-small);
+}
+
+.shortcut-table {
+  grid-column: 1 / -1;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-small);
+}
+
+.shortcut-table th,
+.shortcut-table td {
+  text-align: left;
+  padding: 0.35rem 0.5rem 0.35rem 0;
+  vertical-align: top;
+}
+
+.shortcut-table th {
+  font-weight: 600;
+  white-space: nowrap;
+  padding-right: 1rem;
+}
+
+.shortcut-table kbd {
+  font-family: var(--font-sans-serif);
+  font-weight: 600;
+}
+
 .dialog-stack {
   grid-column: 1 / -1;
   display: flex;
