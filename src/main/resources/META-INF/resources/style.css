@@ -1,3 +1,13 @@
+/*
+ * Control language (app shell — not the login gate):
+ * - Type: body/actions 400; chrome labels muted small 400; titles 600 only.
+ * - Actions: ghost/text by default (no border); soft filled primary; filled
+ *   danger only for irreversible confirms (Delete Feed/Folder).
+ * - Radius: chrome 8px (--radius-sm); overlays (dialog, menu, toast) 12px
+ *   (--radius-md).
+ * - Emphasis: selection/hover = accent tint; login pill is a deliberate
+ *   exception and does not set the in-app button language.
+ */
 :root {
   color-scheme: light dark;
   --font-serif: Cambria, Georgia, Times, "Times New Roman", serif;
@@ -16,6 +26,9 @@
   --border-color: rgba(0, 0, 0, 0.1);
   --hover-bg: rgba(0, 94, 131, 0.08);
   --selected-bg: rgba(0, 94, 131, 0.16);
+  --btn-primary-soft: rgba(0, 94, 131, 0.14);
+  --btn-primary-soft-hover: rgba(0, 94, 131, 0.22);
+  --btn-primary-fg: var(--accent);
   --btn-primary-bg: var(--accent);
   --control-bg: rgba(0, 0, 0, 0.06);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.12);
@@ -79,10 +92,13 @@
     --background-color: #1c1c1e;
     --surface-sidebar: #2c2c2e;
     --surface-list: #1c1c1e;
-    --surface-reader: #000000;
+    --surface-reader: #1c1c1e;
     --border-color: rgba(255, 255, 255, 0.12);
     --hover-bg: rgba(93, 173, 226, 0.12);
     --selected-bg: rgba(93, 173, 226, 0.22);
+    --btn-primary-soft: rgba(93, 173, 226, 0.2);
+    --btn-primary-soft-hover: rgba(93, 173, 226, 0.3);
+    --btn-primary-fg: #8ec8ea;
     --btn-primary-bg: #005e83;
     --control-bg: rgba(255, 255, 255, 0.1);
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
@@ -361,6 +377,10 @@ button {
   border-radius: var(--radius-sm);
 }
 
+.tree-options:hover {
+  background-color: var(--hover-bg);
+}
+
 .tree-unread {
   flex: 0 0 auto;
   font-size: 0.8rem;
@@ -403,10 +423,10 @@ button {
 }
 
 .tree-entry-icon {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   object-fit: contain;
-  flex: 0 0 16px;
+  flex: 0 0 20px;
   display: inline-block;
 }
 
@@ -486,8 +506,9 @@ button {
   border-radius: var(--radius-sm);
 }
 
+/* Soft nest: one icon-width step so hierarchy reads without eating labels. */
 .folder-container {
-  margin: 0 0 0 18px;
+  margin: 0 0 0 20px;
 }
 
 /* articles list: header stays fixed; list scrolls. Matching
@@ -584,7 +605,8 @@ button {
 .article-star::after {
   content: "";
   position: absolute;
-  inset: -12px -2px;
+  /* Expand the hit box to ≥44×44 without growing the glyph */
+  inset: -12px -12px;
 }
 
 .article-mark {
@@ -647,7 +669,7 @@ button {
 
 .reader .title {
   font-size: var(--font-size-large);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.2;
   margin-bottom: var(--default-space);
@@ -761,7 +783,32 @@ button {
 }
 
 .feeds-list .column-header {
+  /* Same outer inset as tree rows: .column margin + row margin-inline */
+  padding-inline: calc(var(--default-space) + var(--list-inset));
   background-color: var(--surface-sidebar);
+  /* Match .feeds-list .column so the tree doesn’t shift under the header */
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.feeds-list .column {
+  scrollbar-gutter: stable;
+}
+
+/* Refresh glyph lines up with tree icons; ⋯ with .tree-options */
+.feeds-list .column-header .item-spacer {
+  padding-inline: 0;
+}
+
+.feeds-list .column-header .left .item-spacer {
+  justify-content: flex-start;
+  padding-left: var(--default-space);
+}
+
+.feeds-list .column-header .right .item-spacer {
+  width: 34px;
+  box-sizing: border-box;
+  justify-content: center;
 }
 
 .articles-list .column-header {
@@ -782,20 +829,20 @@ button {
   min-height: 2.75rem;
   border: none;
   border-radius: var(--radius-md);
-  background-color: var(--btn-primary-bg);
-  color: #ffffff;
+  background-color: var(--btn-primary-soft);
+  color: var(--btn-primary-fg);
   font: inherit;
   font-size: var(--font-size-small);
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
   position: sticky;
   top: 0;
   z-index: 2;
-  box-shadow: var(--shadow-sm);
 }
 
 .new-articles-pill:hover {
-  filter: brightness(1.06);
+  background-color: var(--btn-primary-soft-hover);
+  filter: none;
 }
 
 .new-articles-pill:focus-visible {
@@ -1044,6 +1091,17 @@ li:hover,
   }
 }
 
+@keyframes dialog-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes menu-in {
   from {
     opacity: 0;
@@ -1127,7 +1185,6 @@ li:hover,
 
 .empty-state-message {
   margin: 0;
-  font-style: italic;
 }
 
 .empty-state-actions {
@@ -1225,7 +1282,7 @@ dialog::backdrop {
 
 .modal-body .field {
   font-size: var(--font-size-small);
-  font-weight: 500;
+  font-weight: 400;
   color: var(--font-color-muted);
 }
 
@@ -1404,7 +1461,7 @@ dialog::backdrop {
   padding: 0;
   margin: 0 0 0.15rem;
   font-size: var(--font-size-small);
-  font-weight: 500;
+  font-weight: 400;
   color: var(--font-color-muted);
   line-height: 1.35;
 }
@@ -1427,33 +1484,38 @@ dialog::backdrop {
 }
 
 .btn {
-  border: 1px solid var(--border-color);
+  border: none;
+  background-color: transparent;
   color: var(--font-color);
   outline: none;
   padding: 0.5rem 1rem;
   border-radius: var(--radius-sm);
-  font-weight: 500;
+  font-weight: 400;
   min-height: 2.25rem;
 }
 
+.btn:hover {
+  background-color: var(--hover-bg);
+}
+
 .btn-primary {
-  background-color: var(--btn-primary-bg);
-  color: white;
-  border: none;
+  background-color: var(--btn-primary-soft);
+  color: var(--btn-primary-fg);
 }
 
 .btn-primary:hover {
-  filter: brightness(1.08);
+  background-color: var(--btn-primary-soft-hover);
+  filter: none;
 }
 
 .btn-danger {
   background-color: var(--danger);
   color: var(--on-danger);
-  border: none;
+  font-weight: 400;
 }
 
 .btn-danger:hover {
-  filter: brightness(1.08);
+  filter: brightness(1.06);
 }
 
 .btn:disabled {
@@ -1464,6 +1526,14 @@ dialog::backdrop {
 .btn-danger:hover:disabled,
 .btn-primary:hover:disabled {
   filter: none;
+}
+
+.btn-primary:hover:disabled {
+  background-color: var(--btn-primary-soft);
+}
+
+.btn-danger:hover:disabled {
+  background-color: var(--danger);
 }
 
 .btn-secondary {
@@ -1506,7 +1576,7 @@ dialog::backdrop {
   background-color: transparent;
   color: inherit;
   font: inherit;
-  font-weight: 600;
+  font-weight: 400;
   text-decoration: underline;
   cursor: pointer;
 }
@@ -1571,7 +1641,7 @@ dialog::backdrop {
   background: transparent;
   color: inherit;
   font: inherit;
-  font-weight: 600;
+  font-weight: 400;
   text-decoration: underline;
   cursor: pointer;
 }
@@ -1601,20 +1671,23 @@ dialog::backdrop {
 }
 
 /* ######################### */
-/* click menu */
+/* click menu — same material language as the sidebar tree */
 .context-menu {
   position: absolute;
   background: var(--surface-reader);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   list-style: none;
-  padding: 0.35rem;
+  padding: 0.25rem;
   margin: 0;
-  width: 168px;
+  min-width: 10.5rem;
+  width: max-content;
+  max-width: min(18rem, calc(100vw - 1rem));
   display: none;
   z-index: 1000;
   overflow: hidden;
+  font-weight: 400;
 }
 
 .context-menu.is-open {
@@ -1623,10 +1696,11 @@ dialog::backdrop {
 }
 
 .context-menu li {
-  padding: 0.55rem 0.75rem;
+  padding: 0.4rem 0.65rem;
   cursor: pointer;
   border-radius: var(--radius-sm);
   margin: 0;
+  font-weight: 400;
 }
 
 .context-menu li:hover {
@@ -1643,11 +1717,12 @@ dialog::backdrop {
 
 .context-menu li.context-menu-status {
   cursor: default;
-  padding: 0.35rem 0.75rem 0.5rem;
-  margin-bottom: 0.25rem;
+  padding: 0.35rem 0.65rem 0.45rem;
+  margin-bottom: 0.2rem;
   border-bottom: 1px solid var(--border-color);
   border-radius: 0;
   font-size: var(--font-size-small);
+  font-weight: 400;
   color: var(--font-color-muted);
   overflow-wrap: anywhere;
 }
@@ -1704,6 +1779,16 @@ dialog::backdrop {
     align-items: center;
     justify-content: center;
     box-sizing: border-box;
+  }
+
+  .feeds-list .column-header .right .item-spacer {
+    width: 44px;
+    min-width: 44px;
+  }
+
+  .search-clear {
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .feeds-ul li,
@@ -1797,8 +1882,37 @@ dialog::backdrop {
   }
 
   dialog {
-    width: calc(100vw - 1.5rem);
-    max-width: 400px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    max-height: 90dvh;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+  }
+
+  dialog[open] {
+    display: flex;
+    flex-direction: column;
+    animation: dialog-sheet-in 0.22s ease-out;
+  }
+
+  dialog form {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  dialog .modal-body {
+    overflow-y: auto;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
