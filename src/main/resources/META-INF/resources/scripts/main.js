@@ -74,13 +74,14 @@ import {
 import {
   initContextMenuListeners,
   openAddContextMenu,
+  openChromeContextMenu,
   feedContextMenu,
   folderContextMenu,
   allFeedsContextMenu,
   restoreMenuTriggerFocus,
   hideContextMenu,
 } from "./menu.js";
-import { initShortcuts } from "./shortcuts.js";
+import { initShortcuts, showShortcutsHelp } from "./shortcuts.js";
 import { initSearchUi } from "./search-ui.js";
 
 setReloadArticlesForCurrentContext(
@@ -258,11 +259,19 @@ function initEventListeners() {
     openAddContextMenu(e.clientX, e.clientY, e.currentTarget);
   });
   dom.button.refresh.addEventListener("click", () => refreshFeeds());
-  dom.button.export.addEventListener("click", async (event) => {
+  dom.button.headerMenu?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    openChromeContextMenu(rect.left, rect.bottom + 4, e.currentTarget);
+  });
+  dom.button.export?.addEventListener("click", async (event) => {
     event.preventDefault();
     await exportFeeds();
   });
-  dom.button.import.addEventListener("click", () => importFeeds());
+  dom.button.import?.addEventListener("click", () => importFeeds());
+  dom.button.shortcutsHelp?.addEventListener("click", () => {
+    void showShortcutsHelp();
+  });
   dom.button.addFolder.addEventListener("click", async () => {
     try {
       const newFolder = await showAddFolderDialog();

@@ -70,6 +70,8 @@ export const dom = {
     deleteFolder: document.getElementById("trigger-folder-delete"),
     markFolderRead: document.getElementById("trigger-folder-mark-read"),
     logout: document.getElementById("trigger-logout"),
+    headerMenu: document.getElementById("trigger-header-menu"),
+    shortcutsHelp: document.getElementById("trigger-shortcuts-help"),
   },
 };
 
