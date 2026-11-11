@@ -1,7 +1,9 @@
 "use strict";
 
 import { toast } from "./toast.js";
+import { isAppPath } from "./router.js";
 
+const RETURN_TO_KEY = "returnTo";
 const OFFLINE_HEADER = "X-FeedBox-Offline";
 const FOLDER_TREE_CACHE_KEY = "folder-tree-cache";
 const FOLDER_STATE_KEY = "folder-state";
@@ -28,14 +30,23 @@ export function onSessionLoss(handler) {
   sessionLossHandler = typeof handler === "function" ? handler : null;
 }
 
+const LOGIN_REASONS = {
+  expired: "Your session ended. Sign in to pick up where you left off.",
+  session: "Your session ended. Sign in to pick up where you left off.",
+  "signed-out-elsewhere":
+    "You signed out in another tab. Sign in again to continue.",
+};
+
 export function isLoggedOut() {
   return loggedOut;
 }
 
 /**
  * Switch the shell to the unauthenticated login panel. Does not navigate.
+ * @param {"expired" | "session" | "signed-out-elsewhere"} [reason]
+ *   Why the session ended; omit on a first visit.
  */
-export function enterLoggedOut() {
+export function enterLoggedOut(reason) {
   if (loggedOut) {
     return;
   }
@@ -50,12 +61,22 @@ export function enterLoggedOut() {
   if (loginPanel) {
     loginPanel.hidden = false;
   }
+  setLoginReason(reason);
   void loadAuthProviders();
   try {
     sessionLossHandler?.();
   } catch (err) {
     console.error("[auth] session-loss handler failed", err);
   }
+}
+
+/** @param {string | undefined} reason */
+function setLoginReason(reason) {
+  const el = document.getElementById("login-reason");
+  if (!el) return;
+  const text = (reason && LOGIN_REASONS[reason]) || "";
+  el.textContent = text;
+  el.hidden = text === "";
 }
 
 /**
@@ -72,6 +93,7 @@ export function enterLoggedIn() {
   if (loginPanel) {
     loginPanel.hidden = true;
   }
+  setLoginReason(undefined);
 }
 
 /**
@@ -164,11 +186,57 @@ export async function apiFetch(url, options = {}) {
   }
 
   if (isAuthFailure(response)) {
-    enterLoggedOut();
+    enterLoggedOut("expired");
     throw new Error("Session expired");
   }
 
   return response;
+}
+
+/**
+ * Remember where the user was so sign-in can bring them back to it.
+ * @param {string} pathname
+ * @param {Storage} [storage]
+ */
+export function rememberReturnTo(pathname, storage = globalThis.sessionStorage) {
+  try {
+    if (isAppPath(pathname)) {
+      storage?.setItem(RETURN_TO_KEY, pathname);
+    }
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/**
+ * Read and clear the remembered deep link. Only returns a path when the page
+ * landed on the root (post-login) and the stored value is an app route.
+ * @param {string} currentPathname
+ * @param {Storage} [storage]
+ * @returns {string | null}
+ */
+export function takeReturnTo(currentPathname, storage = globalThis.sessionStorage) {
+  try {
+    const stored = storage?.getItem(RETURN_TO_KEY);
+    if (stored == null) return null;
+    storage.removeItem(RETURN_TO_KEY);
+    if (currentPathname === "/" && stored !== "/" && isAppPath(stored)) {
+      return stored;
+    }
+  } catch {
+    /* storage unavailable */
+  }
+  return null;
+}
+
+/** Record the current deep link when the user heads to the identity provider. */
+export function initReturnToCapture() {
+  document.addEventListener("click", (event) => {
+    const link = event.target?.closest?.(".login-providers a");
+    if (link) {
+      rememberReturnTo(window.location.pathname);
+    }
+  });
 }
 
 /** End the Quarkus OIDC session (httpOnly cookie cleared server-side). */
