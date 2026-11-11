@@ -55,6 +55,7 @@ import {
   markFeedAsRead,
   markFolderAsRead,
   initMarkReadFlush,
+  initNewArticlesProbe,
   setupScrollObserver,
   loadArticles,
   clearArticles,
@@ -127,6 +128,7 @@ function initApp() {
   restoreFolderCache();
   initContextMenuListeners();
   initMarkReadFlush();
+  initNewArticlesProbe();
   initEventListeners();
   registerFeedsDelegatedEvents({
     onSelectAll: () => selectAndLoadArticles(itemType.ALL, null),

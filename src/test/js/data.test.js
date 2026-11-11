@@ -77,6 +77,24 @@ test("waitForJob reports every snapshot until the job finishes", async (t) => {
   assert.deepEqual(seen, [1, 2, 3]);
 });
 
+test("countArticles sends since_id and scope query params", async (t) => {
+  const seen = [];
+  t.mock.method(globalThis, "fetch", async (url) => {
+    seen.push(String(url));
+    return jsonResponse(200, { count: 3 });
+  });
+
+  const result = await dataService.countArticles({
+    sinceId: 40,
+    feed: 7,
+  });
+
+  assert.equal(result.count, 3);
+  assert.match(seen[0], /\/api\/article\/count\?/);
+  assert.match(seen[0], /since_id=40/);
+  assert.match(seen[0], /feed=7/);
+});
+
 test("normalizeFeed keeps lastRefreshedAt and latestArticleId but the tree fingerprint ignores them", () => {
   const feed = {
     id: 1,
