@@ -24,6 +24,8 @@ import {
   setFolderOpenState,
 } from "./dom.js";
 import { html } from "./util.js";
+import { toast } from "./toast.js";
+import { jobProgressText, refreshSummaryText } from "./feed-health.js";
 import { apiFetch } from "./auth.js";
 import {
   state,
@@ -65,6 +67,26 @@ function importJobSummaryHtml(job) {
     );
   }
   return parts.join("");
+}
+
+const JOB_PROGRESS_TOAST = "job-progress";
+
+/**
+ * In-place progress toast for a background job ("Refreshing 120 of 300…").
+ * @param {"Refreshing"|"Importing"} verb
+ * @param {{ total?: number, completed?: number, failed?: number }} initial
+ * @returns {{ update: (job: object) => void, dismiss: () => void }}
+ */
+function showJobProgress(verb, initial) {
+  const show = (job) =>
+    toast(jobProgressText(verb, job), { id: JOB_PROGRESS_TOAST, timeoutMs: 0 });
+  const handle = show(initial);
+  return {
+    update: (job) => {
+      if (job.status !== "COMPLETED" && job.status !== "FAILED") show(job);
+    },
+    dismiss: () => handle.dismiss(),
+  };
 }
 
 /**
@@ -187,6 +209,7 @@ export async function refreshFolders({ background = true } = {}) {
       state.unfiledFeeds = tree.unfiledFeeds;
       selectionInvalidated = resolveLastClickedItem();
       updateNavSelection(state.lastClickedItem.type, state.lastClickedItem.obj);
+      scheduleFolderTreeCacheSave();
     }
     state.restoredFromCache = true;
     await refreshSavedCount();
@@ -413,7 +436,15 @@ export async function importFeeds() {
         }
 
         const started = await response.json();
-        const job = await dataService.waitForJob(started.id);
+        const progress = showJobProgress("Importing", started);
+        let job;
+        try {
+          job = await dataService.waitForJob(started.id, {
+            onProgress: progress.update,
+          });
+        } finally {
+          progress.dismiss();
+        }
         if (job.status === "FAILED") {
           await modal.show({
             title: "Error",
@@ -423,15 +454,20 @@ export async function importFeeds() {
           return;
         }
 
-        await modal.show({
-          title: "Import complete",
-          content: importJobSummaryHtml(job),
-          type: "alert",
-        });
-
         await refreshFolders({ background: false });
         const { reloadArticlesForCurrentContext } = await import("./state.js");
         await reloadArticlesForCurrentContext();
+
+        if ((job.failed ?? 0) > 0) {
+          await modal.show({
+            title: "Import finished with problems",
+            content: importJobSummaryHtml(job),
+            type: "alert",
+          });
+        } else {
+          const n = job.completed ?? 0;
+          toast(`Imported ${n} ${n === 1 ? "feed" : "feeds"}.`);
+        }
       } catch (error) {
         console.error("[app] OPML import failed:", error);
         await modal.show({
@@ -496,7 +532,15 @@ export async function refreshFeeds() {
   dom.refreshSpinner.classList.add("spinner");
   try {
     const started = await dataService.refreshFeeds();
-    const job = await dataService.waitForJob(started.id);
+    const progress = showJobProgress("Refreshing", started);
+    let job;
+    try {
+      job = await dataService.waitForJob(started.id, {
+        onProgress: progress.update,
+      });
+    } finally {
+      progress.dismiss();
+    }
     if (job.status === "FAILED") {
       await modal.show({
         title: "Error",
@@ -508,6 +552,8 @@ export async function refreshFeeds() {
     await refreshFolders({ background: false });
     const { reloadArticlesForCurrentContext } = await import("./state.js");
     await reloadArticlesForCurrentContext();
+    const summary = refreshSummaryText(job);
+    if (summary) toast(summary, { timeoutMs: 8000 });
   } catch (error) {
     console.error("[app] Feed refresh failed:", error);
     await modal.show({

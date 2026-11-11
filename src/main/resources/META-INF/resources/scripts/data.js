@@ -60,8 +60,9 @@ class DataService {
 
   /**
    * Poll until the job reaches COMPLETED or FAILED.
+   * `onProgress` receives every snapshot, the final one included.
    * @param {string} jobId
-   * @param {{ intervalMs?: number, maxIntervalMs?: number, timeoutMs?: number, signal?: AbortSignal }} [options]
+   * @param {{ intervalMs?: number, maxIntervalMs?: number, timeoutMs?: number, signal?: AbortSignal, onProgress?: (job: {status: string, total: number, completed: number, failed: number}) => void }} [options]
    */
   async waitForJob(
     jobId,
@@ -70,6 +71,7 @@ class DataService {
       maxIntervalMs = 5000,
       timeoutMs = 10 * 60 * 1000,
       signal,
+      onProgress,
     } = {},
   ) {
     const startedAt = Date.now();
@@ -86,6 +88,7 @@ class DataService {
         throw err;
       }
       const job = await this.getJob(jobId);
+      onProgress?.(job);
       if (job.status === "COMPLETED" || job.status === "FAILED") {
         return job;
       }
@@ -218,7 +221,7 @@ export function parseApiError(text) {
 }
 
 /**
- * Normalize a feed to stable UI fields (excludes volatile lastRefreshedAt).
+ * Normalize a feed to the fields the UI uses.
  * @param {Feed} feed
  */
 export function normalizeFeed(feed) {
@@ -228,9 +231,20 @@ export function normalizeFeed(feed) {
     name: feed.name ?? "",
     url: feed.url ?? null,
     feedUrl: feed.feedUrl ?? "",
+    lastRefreshedAt: feed.lastRefreshedAt ?? null,
     lastError: feed.lastError ?? null,
     unreadCount: Number(feed.unreadCount) || 0,
   };
+}
+
+/**
+ * Feed fields that change the rendered tree. `lastRefreshedAt` moves on
+ * every refresh but is only read when the feed menu opens.
+ * @param {Feed} feed
+ */
+function renderedFeedFields(feed) {
+  const { lastRefreshedAt: _volatile, ...rest } = normalizeFeed(feed);
+  return rest;
 }
 
 /**
@@ -268,13 +282,17 @@ export function buildFolderTree(folders, feeds) {
 }
 
 /**
- * Stable fingerprint for equality checks (ignores HTML cache payload).
+ * Stable fingerprint for "does the tree need re-rendering" checks
+ * (ignores lastRefreshedAt).
  * @param {{ folders?: Folder[], unfiledFeeds?: Feed[] }} tree
  */
 export function folderTreeFingerprint(tree) {
   return JSON.stringify({
-    folders: (tree?.folders ?? []).map(normalizeFolder),
-    unfiledFeeds: (tree?.unfiledFeeds ?? []).map(normalizeFeed),
+    folders: (tree?.folders ?? []).map((folder) => ({
+      ...normalizeFolder(folder),
+      feeds: (folder.feeds ?? []).map(renderedFeedFields),
+    })),
+    unfiledFeeds: (tree?.unfiledFeeds ?? []).map(renderedFeedFields),
   });
 }
 

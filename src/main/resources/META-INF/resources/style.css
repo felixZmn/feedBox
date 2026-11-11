@@ -377,9 +377,16 @@ button {
 
 .feed-error {
   flex: 0 0 auto;
-  font-weight: bold;
+  display: inline-grid;
+  place-items: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  box-sizing: border-box;
+  font-size: 0.7rem;
+  font-weight: 700;
   color: #b45309;
-  padding: 0 0.25rem;
   line-height: 1;
 }
 
@@ -1357,6 +1364,31 @@ dialog::backdrop {
 
 .context-menu-item:not(.d-none) {
   display: block;
+}
+
+.context-menu li.context-menu-status {
+  cursor: default;
+  padding: 0.35rem 0.75rem 0.5rem;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+  font-size: var(--font-size-small);
+  color: var(--font-color-muted);
+  overflow-wrap: anywhere;
+}
+
+.context-menu li.context-menu-status:hover {
+  background: none;
+}
+
+.context-menu-status.is-error {
+  color: #b45309;
+}
+
+@media (prefers-color-scheme: dark) {
+  .context-menu-status.is-error {
+    color: #fbbf24;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

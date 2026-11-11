@@ -16,7 +16,7 @@ function installStoragePolyfill() {
 }
 
 installStoragePolyfill();
-const { dataService, parseApiError } = await import(
+const { dataService, parseApiError, normalizeFeed, folderTreesEqual } = await import(
   "../../main/resources/META-INF/resources/scripts/data.js"
 );
 
@@ -54,4 +54,55 @@ test("_request exposes status, code and detail on API errors", async (t) => {
     assert.equal(error.detail, "No feed at this address");
     return true;
   });
+});
+
+test("waitForJob reports every snapshot until the job finishes", async (t) => {
+  const snapshots = [
+    { id: "j", status: "RUNNING", total: 3, completed: 1, failed: 0 },
+    { id: "j", status: "RUNNING", total: 3, completed: 2, failed: 0 },
+    { id: "j", status: "COMPLETED", total: 3, completed: 2, failed: 1 },
+  ];
+  t.mock.method(globalThis, "fetch", async () =>
+    jsonResponse(200, snapshots.shift()),
+  );
+
+  const seen = [];
+  const job = await dataService.waitForJob("j", {
+    intervalMs: 1,
+    maxIntervalMs: 1,
+    onProgress: (snapshot) => seen.push(snapshot.completed + snapshot.failed),
+  });
+
+  assert.equal(job.status, "COMPLETED");
+  assert.deepEqual(seen, [1, 2, 3]);
+});
+
+test("normalizeFeed keeps lastRefreshedAt but the tree fingerprint ignores it", () => {
+  const feed = {
+    id: 1,
+    folderId: null,
+    name: "Blog",
+    feedUrl: "https://example.com/rss",
+    lastRefreshedAt: "2026-11-11T10:00:00Z",
+  };
+  assert.equal(normalizeFeed(feed).lastRefreshedAt, "2026-11-11T10:00:00Z");
+
+  const tree = (refreshed, error = null) => ({
+    folders: [
+      {
+        id: 10,
+        name: "F",
+        feeds: [{ ...feed, folderId: 10, lastRefreshedAt: refreshed, lastError: error }],
+      },
+    ],
+    unfiledFeeds: [{ ...feed, id: 2, lastRefreshedAt: refreshed }],
+  });
+  assert.equal(
+    folderTreesEqual(tree("2026-11-11T10:00:00Z"), tree("2026-11-11T11:00:00Z")),
+    true,
+  );
+  assert.equal(
+    folderTreesEqual(tree("2026-11-11T10:00:00Z"), tree("2026-11-11T10:00:00Z", "HTTP 404")),
+    false,
+  );
 });

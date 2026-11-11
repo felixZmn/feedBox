@@ -40,6 +40,7 @@ export const state = {
 
 export const dom = {
   contextMenu: document.getElementById("context-menu"),
+  feedHealth: document.getElementById("feed-health"),
   refreshSpinner: document.getElementById("refresh-spinner"),
   searchForm: document.getElementById("search-form"),
   searchInput: document.getElementById("search-input"),
