@@ -1130,6 +1130,90 @@ dialog::backdrop {
 }
 
 /* ######################### */
+/* toasts: fixed at the bottom, never block the pane underneath */
+.toast-region {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 1rem;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: min(420px, 100%);
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--radius-md);
+  background-color: var(--font-color);
+  color: var(--surface-reader);
+  box-shadow: var(--shadow-md);
+  font-size: var(--font-size-small);
+  pointer-events: auto;
+  transition:
+    opacity 0.18s ease-out,
+    transform 0.18s ease-out;
+}
+
+.toast.is-entering {
+  animation: toast-in 0.18s ease-out;
+}
+
+.toast.is-leaving {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.toast-message {
+  overflow-wrap: anywhere;
+}
+
+.toast-action {
+  flex: none;
+  min-height: 2rem;
+  padding: 0 0.5rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.toast-action:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast,
+  .toast.is-entering {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* ######################### */
 /* click menu */
 .context-menu {
   position: absolute;
