@@ -115,16 +115,42 @@ class DataService {
     return this._request(`./api/article/${articleId}/read`, { method: "POST" });
   }
 
-  async markAllArticlesRead() {
-    return this._request("./api/article/read", { method: "POST" });
+  /**
+   * @param {number|null|undefined} throughId
+   * @param {{ keepalive?: boolean }} [options]
+   */
+  async markAllArticlesRead(throughId, { keepalive = false } = {}) {
+    return this._request("./api/article/read", {
+      method: "POST",
+      body: markReadBody(throughId),
+      keepalive,
+    });
   }
 
-  async markFeedRead(feedId) {
-    return this._request(`./api/feed/${feedId}/read`, { method: "POST" });
+  /**
+   * @param {number} feedId
+   * @param {number|null|undefined} throughId
+   * @param {{ keepalive?: boolean }} [options]
+   */
+  async markFeedRead(feedId, throughId, { keepalive = false } = {}) {
+    return this._request(`./api/feed/${feedId}/read`, {
+      method: "POST",
+      body: markReadBody(throughId),
+      keepalive,
+    });
   }
 
-  async markFolderRead(folderId) {
-    return this._request(`./api/folder/${folderId}/read`, { method: "POST" });
+  /**
+   * @param {number} folderId
+   * @param {number|null|undefined} throughId
+   * @param {{ keepalive?: boolean }} [options]
+   */
+  async markFolderRead(folderId, throughId, { keepalive = false } = {}) {
+    return this._request(`./api/folder/${folderId}/read`, {
+      method: "POST",
+      body: markReadBody(throughId),
+      keepalive,
+    });
   }
 
   async saveArticle(articleId) {
@@ -363,6 +389,17 @@ export function clearFolderTreeCache() {
   } catch (err) {
     console.warn("Could not clear folder tree cache", err);
   }
+}
+
+/**
+ * @param {number|null|undefined} throughId
+ * @returns {{ throughId: number } | undefined}
+ */
+function markReadBody(throughId) {
+  if (throughId == null || !Number.isFinite(Number(throughId))) {
+    return undefined;
+  }
+  return { throughId: Number(throughId) };
 }
 
 export const dataService = new DataService();

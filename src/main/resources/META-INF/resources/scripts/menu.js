@@ -41,6 +41,7 @@ export function feedContextMenu(x, y, feed, trigger) {
     dom.feedHealth.textContent = text;
     dom.feedHealth.classList.toggle("is-error", isError);
   }
+  setMarkReadMenuLabel(dom.button.markFeedRead, Number(feed?.unreadCount) || 0);
   showContextMenuGroup("context-feed", x, y, trigger);
 }
 
@@ -53,6 +54,12 @@ export function feedContextMenu(x, y, feed, trigger) {
 export function folderContextMenu(x, y, folder, trigger) {
   state.lastClickedItem.type = itemType.FOLDER;
   state.lastClickedItem.obj = folder;
+  const live = state.folders.find((f) => f.id === folder?.id) ?? folder;
+  const count = (live?.feeds ?? []).reduce(
+    (sum, feed) => sum + (Number(feed.unreadCount) || 0),
+    0,
+  );
+  setMarkReadMenuLabel(dom.button.markFolderRead, count);
   showContextMenuGroup("context-folder", x, y, trigger);
 }
 
@@ -64,7 +71,27 @@ export function folderContextMenu(x, y, folder, trigger) {
 export function allFeedsContextMenu(x, y, trigger) {
   state.lastClickedItem.type = itemType.ALL;
   state.lastClickedItem.obj = null;
+  let count = 0;
+  for (const folder of state.folders) {
+    for (const feed of folder.feeds ?? []) {
+      count += Number(feed.unreadCount) || 0;
+    }
+  }
+  for (const feed of state.unfiledFeeds) {
+    count += Number(feed.unreadCount) || 0;
+  }
+  setMarkReadMenuLabel(dom.button.markAllRead, count);
   showContextMenuGroup("context-all", x, y, trigger);
+}
+
+/**
+ * @param {HTMLElement | null | undefined} el
+ * @param {number} count
+ */
+function setMarkReadMenuLabel(el, count) {
+  if (!el) return;
+  el.textContent =
+    count > 0 ? `Mark ${count} as read` : "Mark as read";
 }
 
 /**

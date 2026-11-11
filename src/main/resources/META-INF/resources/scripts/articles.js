@@ -173,88 +173,210 @@ export async function markArticleAsRead(article) {
   }
 }
 
-export async function markAllAsRead() {
-  const previousCounts = [];
-  for (const folder of state.folders) {
-    for (const feed of folder.feeds ?? []) {
-      previousCounts.push({ feed, unreadCount: Number(feed.unreadCount) || 0 });
-      feed.unreadCount = 0;
+const MARK_READ_UNDO_MS = 6000;
+const MARK_READ_TOAST_ID = "mark-read";
+
+/**
+ * @typedef {{
+ *   timer: ReturnType<typeof setTimeout>,
+ *   commit: (opts?: { keepalive?: boolean }) => Promise<void>,
+ *   rollback: () => void,
+ * }} PendingMarkRead
+ */
+
+/** @type {PendingMarkRead | null} */
+let pendingMarkRead = null;
+
+/** Flush a deferred bulk mark-read before the page goes away. */
+export function initMarkReadFlush() {
+  window.addEventListener("pagehide", () => {
+    flushPendingMarkRead({ keepalive: true });
+  });
+}
+
+/**
+ * @param {{ keepalive?: boolean }} [options]
+ */
+function flushPendingMarkRead({ keepalive = false } = {}) {
+  if (!pendingMarkRead) return;
+  const pending = pendingMarkRead;
+  pendingMarkRead = null;
+  clearTimeout(pending.timer);
+  void pending.commit({ keepalive });
+}
+
+/**
+ * Commit any prior deferred mark-read, then schedule a new one with Undo.
+ * @param {{
+ *   count: number,
+ *   apply: () => void,
+ *   rollback: () => void,
+ *   commit: (opts?: { keepalive?: boolean }) => Promise<void>,
+ * }} args
+ */
+function deferMarkRead({ count, apply, rollback, commit }) {
+  flushPendingMarkRead();
+  apply();
+  syncUnreadBadgesFromState();
+
+  const runCommit = async ({ keepalive = false } = {}) => {
+    try {
+      await commit({ keepalive });
+    } catch (error) {
+      console.error("[app] Failed to mark articles read:", error);
+      rollback();
+      syncUnreadBadgesFromState();
+      toast("Couldn't mark as read. Check your connection.");
     }
+  };
+
+  const timer = setTimeout(() => {
+    if (pendingMarkRead?.timer !== timer) return;
+    pendingMarkRead = null;
+    void runCommit();
+  }, MARK_READ_UNDO_MS);
+
+  pendingMarkRead = {
+    timer,
+    commit: runCommit,
+    rollback,
+  };
+
+  toast(`Marked ${count} as read`, {
+    action: "Undo",
+    onAction: () => {
+      if (!pendingMarkRead || pendingMarkRead.timer !== timer) return;
+      clearTimeout(pendingMarkRead.timer);
+      pendingMarkRead = null;
+      rollback();
+      syncUnreadBadgesFromState();
+    },
+    timeoutMs: MARK_READ_UNDO_MS,
+    id: MARK_READ_TOAST_ID,
+  });
+}
+
+/** @returns {Iterable<import("./types.js").Feed>} */
+function allFeedsInState() {
+  const feeds = [];
+  for (const folder of state.folders) {
+    for (const feed of folder.feeds ?? []) feeds.push(feed);
   }
-  for (const feed of state.unfiledFeeds) {
-    previousCounts.push({ feed, unreadCount: Number(feed.unreadCount) || 0 });
-    feed.unreadCount = 0;
+  for (const feed of state.unfiledFeeds) feeds.push(feed);
+  return feeds;
+}
+
+/** Max latestArticleId across the given feeds (0 when empty). */
+function maxLatestArticleId(feeds) {
+  let max = 0;
+  for (const feed of feeds) {
+    const id = Number(feed.latestArticleId) || 0;
+    if (id > max) max = id;
   }
+  return max;
+}
+
+export async function markAllAsRead() {
+  const feeds = [...allFeedsInState()];
+  const count = feeds.reduce((sum, f) => sum + (Number(f.unreadCount) || 0), 0);
+  if (count === 0) return;
+
+  const previousCounts = feeds.map((feed) => ({
+    feed,
+    unreadCount: Number(feed.unreadCount) || 0,
+  }));
   const previousArticleReads = state.articles.map((a) => ({
     article: a,
     read: !!a.read,
   }));
+  const selectedWasUnread = state.selectedArticle
+    ? !state.selectedArticle.read
+    : false;
+  const throughId = maxLatestArticleId(feeds);
 
-  for (const article of state.articles) {
-    article.read = true;
-    setArticleReadState(article.id, true);
-  }
-  if (state.selectedArticle) state.selectedArticle.read = true;
-  syncUnreadBadgesFromState();
-
-  try {
-    await dataService.markAllArticlesRead();
-  } catch (error) {
-    console.error("[app] Failed to mark all articles read:", error);
-    for (const { feed, unreadCount } of previousCounts) {
-      feed.unreadCount = unreadCount;
-    }
-    for (const { article, read } of previousArticleReads) {
-      article.read = read;
-      setArticleReadState(article.id, read);
-    }
-    syncUnreadBadgesFromState();
-  }
+  deferMarkRead({
+    count,
+    apply: () => {
+      for (const feed of feeds) feed.unreadCount = 0;
+      for (const article of state.articles) {
+        article.read = true;
+        setArticleReadState(article.id, true);
+      }
+      if (state.selectedArticle) state.selectedArticle.read = true;
+    },
+    rollback: () => {
+      for (const { feed, unreadCount } of previousCounts) {
+        feed.unreadCount = unreadCount;
+      }
+      for (const { article, read } of previousArticleReads) {
+        article.read = read;
+        setArticleReadState(article.id, read);
+      }
+      if (state.selectedArticle && selectedWasUnread) {
+        state.selectedArticle.read = false;
+      }
+    },
+    commit: ({ keepalive } = {}) =>
+      dataService.markAllArticlesRead(throughId, { keepalive }),
+  });
 }
 
 /**
- * @param {Feed} feed
+ * @param {import("./types.js").Feed} feed
  */
 export async function markFeedAsRead(feed) {
   if (!feed) return;
   const target = findFeedMutable(feed.id) ?? feed;
-  const previousCount = Number(target.unreadCount) || 0;
+  const count = Number(target.unreadCount) || 0;
+  if (count === 0) return;
+
+  const previousCount = count;
   const previousArticleReads = state.articles
     .filter((a) => a.feedId === feed.id)
     .map((a) => ({ article: a, read: !!a.read }));
+  const selectedWasUnread =
+    state.selectedArticle?.feedId === feed.id && !state.selectedArticle.read;
+  const throughId = Number(target.latestArticleId) || 0;
 
-  target.unreadCount = 0;
-  for (const article of state.articles) {
-    if (article.feedId === feed.id) {
-      article.read = true;
-      setArticleReadState(article.id, true);
-    }
-  }
-  if (state.selectedArticle?.feedId === feed.id) {
-    state.selectedArticle.read = true;
-  }
-  syncUnreadBadgesFromState();
-
-  try {
-    await dataService.markFeedRead(feed.id);
-  } catch (error) {
-    console.error("[app] Failed to mark feed read:", error);
-    target.unreadCount = previousCount;
-    for (const { article, read } of previousArticleReads) {
-      article.read = read;
-      setArticleReadState(article.id, read);
-    }
-    syncUnreadBadgesFromState();
-  }
+  deferMarkRead({
+    count,
+    apply: () => {
+      target.unreadCount = 0;
+      for (const article of state.articles) {
+        if (article.feedId === feed.id) {
+          article.read = true;
+          setArticleReadState(article.id, true);
+        }
+      }
+      if (state.selectedArticle?.feedId === feed.id) {
+        state.selectedArticle.read = true;
+      }
+    },
+    rollback: () => {
+      target.unreadCount = previousCount;
+      for (const { article, read } of previousArticleReads) {
+        article.read = read;
+        setArticleReadState(article.id, read);
+      }
+      if (state.selectedArticle && selectedWasUnread) {
+        state.selectedArticle.read = false;
+      }
+    },
+    commit: ({ keepalive } = {}) =>
+      dataService.markFeedRead(feed.id, throughId, { keepalive }),
+  });
 }
 
 /**
- * @param {Folder} folder
+ * @param {import("./types.js").Folder} folder
  */
 export async function markFolderAsRead(folder) {
   if (!folder) return;
   const live = state.folders.find((f) => f.id === folder.id) ?? folder;
   const feeds = live.feeds ?? [];
+  const count = feeds.reduce((sum, f) => sum + (Number(f.unreadCount) || 0), 0);
+  if (count === 0) return;
+
   const previousCounts = feeds.map((f) => ({
     feed: f,
     unreadCount: Number(f.unreadCount) || 0,
@@ -263,34 +385,41 @@ export async function markFolderAsRead(folder) {
   const previousArticleReads = state.articles
     .filter((a) => feedIds.has(a.feedId))
     .map((a) => ({ article: a, read: !!a.read }));
+  const selectedWasUnread =
+    !!state.selectedArticle &&
+    feedIds.has(state.selectedArticle.feedId) &&
+    !state.selectedArticle.read;
+  const throughId = maxLatestArticleId(feeds);
 
-  for (const feed of feeds) {
-    feed.unreadCount = 0;
-  }
-  for (const article of state.articles) {
-    if (feedIds.has(article.feedId)) {
-      article.read = true;
-      setArticleReadState(article.id, true);
-    }
-  }
-  if (state.selectedArticle && feedIds.has(state.selectedArticle.feedId)) {
-    state.selectedArticle.read = true;
-  }
-  syncUnreadBadgesFromState();
-
-  try {
-    await dataService.markFolderRead(folder.id);
-  } catch (error) {
-    console.error("[app] Failed to mark folder read:", error);
-    for (const { feed, unreadCount } of previousCounts) {
-      feed.unreadCount = unreadCount;
-    }
-    for (const { article, read } of previousArticleReads) {
-      article.read = read;
-      setArticleReadState(article.id, read);
-    }
-    syncUnreadBadgesFromState();
-  }
+  deferMarkRead({
+    count,
+    apply: () => {
+      for (const feed of feeds) feed.unreadCount = 0;
+      for (const article of state.articles) {
+        if (feedIds.has(article.feedId)) {
+          article.read = true;
+          setArticleReadState(article.id, true);
+        }
+      }
+      if (state.selectedArticle && feedIds.has(state.selectedArticle.feedId)) {
+        state.selectedArticle.read = true;
+      }
+    },
+    rollback: () => {
+      for (const { feed, unreadCount } of previousCounts) {
+        feed.unreadCount = unreadCount;
+      }
+      for (const { article, read } of previousArticleReads) {
+        article.read = read;
+        setArticleReadState(article.id, read);
+      }
+      if (state.selectedArticle && selectedWasUnread) {
+        state.selectedArticle.read = false;
+      }
+    },
+    commit: ({ keepalive } = {}) =>
+      dataService.markFolderRead(folder.id, throughId, { keepalive }),
+  });
 }
 
 export function setupScrollObserver() {
