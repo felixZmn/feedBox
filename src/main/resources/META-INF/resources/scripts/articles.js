@@ -43,6 +43,7 @@ import {
   syncUnreadBadgesFromState,
   refreshFolders,
 } from "./feeds.js";
+import { updateSearchChrome } from "./search-ui.js";
 
 const NEW_ARTICLES_CHECK_THROTTLE_MS = 5 * 60 * 1000;
 let lastNewArticlesCheckAt = 0;
@@ -53,6 +54,7 @@ export function clearSearchFilter() {
   if (dom.searchInput) {
     dom.searchInput.value = "";
   }
+  updateSearchChrome();
 }
 
 /**
@@ -67,6 +69,7 @@ export async function submitSearch() {
     state.filter.isActive = true;
     state.filter.term = term;
   }
+  updateSearchChrome();
   await reloadArticlesForCurrentContext();
 }
 
@@ -247,6 +250,7 @@ export async function selectAndLoadArticles(type, obj, options = {}) {
   clearSearchFilter();
   state.lastClickedItem = { type, obj };
   updateNavSelection(type, obj);
+  updateSearchChrome();
   setArticleHistoryPushed(false);
 
   const path = pathForSelection(null);
