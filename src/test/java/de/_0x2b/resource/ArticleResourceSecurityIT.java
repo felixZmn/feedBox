@@ -81,6 +81,44 @@ class ArticleResourceSecurityIT {
     }
 
     @Test
+    void anonymousCountSince_isUnauthorized() {
+        given().queryParam("since_id", 1).when().get("/api/article/count").then().statusCode(401);
+    }
+
+    @Test
+    @TestSecurity(user = "alice")
+    void authenticatedCountSince_requiresSinceId_andReturnsCount() throws Exception {
+        given().when().get("/api/article/count").then().statusCode(400);
+
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        int folderId = folderRepository.create(new Folder(-1, "sec-count-" + suffix, null, "f-base"));
+        int feedId = feedRepository.create(new Feed(-1, folderId, "sec-count-feed-" + suffix,
+                URI.create("https://count.example/" + suffix),
+                URI.create("https://count.example/" + suffix + "/rss")));
+        Instant published = Instant.parse("2026-05-01T10:00:00Z");
+        articleRepository.create(List.of(new Article(-1, feedId, "sec-count-feed-" + suffix, "Counted",
+                "d", "<p>body</p>", "https://count.example/a", "https://count.example/a",
+                published, "", "", "[]")));
+        long id = articleRepository.findByFeed(feedId, "").getFirst().id();
+
+        given()
+                .queryParam("since_id", id - 1)
+                .queryParam("feed", feedId)
+                .when().get("/api/article/count")
+                .then()
+                .statusCode(200)
+                .body("count", equalTo(1));
+
+        given()
+                .queryParam("since_id", id)
+                .queryParam("feed", feedId)
+                .when().get("/api/article/count")
+                .then()
+                .statusCode(200)
+                .body("count", equalTo(0));
+    }
+
+    @Test
     @TestSecurity(user = "alice")
     void authenticatedSave_roundTrip_doesNotChangeRead() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 8);

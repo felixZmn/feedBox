@@ -341,6 +341,41 @@ class ArticleRepositoryIT {
         assertFalse(articleRepository.findById(afterId).isRead());
     }
 
+    @Test
+    void countSince_scopesByFeedFolderUnreadAndSaved() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        int folderId = folderRepository.create(new Folder(-1, "it-count-" + suffix, null, "f-base"));
+        int feedId = feedRepository.create(new Feed(-1, folderId, "it-count-feed-" + suffix,
+                URI.create("https://count.example/" + suffix),
+                URI.create("https://count.example/" + suffix + "/rss")));
+        int otherFeedId = feedRepository.create(new Feed(-1, folderId, "it-count-other-" + suffix,
+                URI.create("https://count-other.example/" + suffix),
+                URI.create("https://count-other.example/" + suffix + "/rss")));
+
+        Instant older = Instant.parse("2026-08-01T00:00:00Z");
+        Instant newer = Instant.parse("2026-09-01T00:00:00Z");
+        articleRepository.create(List.of(
+                new Article(-1, feedId, "f", "Older", "", "", "https://count.example/old",
+                        "https://count.example/old", older, "", "", "[]"),
+                new Article(-1, feedId, "f", "Newer", "", "", "https://count.example/new",
+                        "https://count.example/new", newer, "", "", "[]"),
+                new Article(-1, otherFeedId, "f", "Other", "", "", "https://count-other.example/a",
+                        "https://count-other.example/a", newer, "", "", "[]")));
+        long olderId = idByTitle(feedId, "Older");
+        long newerId = idByTitle(feedId, "Newer");
+
+        assertEquals(1, articleRepository.countSince(olderId, feedId, null, false, false));
+        assertEquals(0, articleRepository.countSince(newerId, feedId, null, false, false));
+        assertEquals(2, articleRepository.countSince(0L, feedId, null, false, false));
+        assertTrue(articleRepository.countSince(0L, null, folderId, false, false) >= 3);
+
+        assertEquals(1, articleRepository.save(newerId));
+        assertEquals(1, articleRepository.countSince(olderId, null, null, false, true));
+        assertEquals(1, articleRepository.markRead(newerId));
+        assertEquals(0, articleRepository.countSince(olderId, feedId, null, true, false));
+        assertEquals(1, articleRepository.countSince(0L, feedId, null, true, false));
+    }
+
     private long idByTitle(int feedId, String title) {
         return articleRepository.findByFeed(feedId, "").stream()
                 .filter(a -> title.equals(a.title()))

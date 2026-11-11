@@ -3,6 +3,7 @@ package de._0x2b.resource;
 import java.util.List;
 
 import de._0x2b.exception.NotFoundException;
+import de._0x2b.resource.dto.ArticleCount;
 import de._0x2b.resource.dto.MarkReadRequest;
 import de._0x2b.resource.dto.PaginationCursor;
 import de._0x2b.resource.dto.SavedCount;
@@ -59,6 +60,27 @@ public class ArticleResource {
             @QueryParam("folder") Integer folderId) {
         validateSavedCountScope(feedId, folderId);
         return new SavedCount(articleService.countSaved(feedId, folderId));
+    }
+
+    /**
+     * Count dated articles with id greater than {@code since_id} in the current
+     * list scope. Cap is 1000.
+     */
+    @GET
+    @Path("/count")
+    public ArticleCount countSince(
+            @QueryParam("since_id") Long sinceId,
+            @QueryParam("folder") Integer folderId,
+            @QueryParam("feed") Integer feedId,
+            @QueryParam("view") String view) {
+        if (sinceId == null) {
+            throw new BadRequestException("since_id is required");
+        }
+        ListView listView = resolveListView(folderId, feedId, view);
+        boolean unreadOnly = listView == ListView.UNREAD;
+        boolean savedOnly = listView == ListView.SAVED;
+        return new ArticleCount(
+                articleService.countSince(sinceId, feedId, folderId, unreadOnly, savedOnly));
     }
 
     /** @throws BadRequestException when feed and folder are both set */

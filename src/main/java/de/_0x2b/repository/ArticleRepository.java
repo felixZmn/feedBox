@@ -91,6 +91,23 @@ public class ArticleRepository extends AbstractRepository {
             JOIN feed f ON f.id = a.feed_id
             WHERE a.saved = true AND a.published IS NOT NULL AND f.folder_id = ?
             """;
+    /**
+     * New-article probe: {@code id > sinceId} is a primary-key range scan, so
+     * no extra index is needed. Cap at 1000 so a stale client cannot force a
+     * full table count.
+     */
+    private static final String COUNT_SINCE_SELECT = """
+            SELECT LEAST(COUNT(*), 1000)::int AS article_count
+            """;
+    private static final String COUNT_SINCE_FROM = """
+            FROM article a
+            JOIN feed f ON f.id = a.feed_id
+            """;
+    private static final String COUNT_SINCE_FROM_WITH_READER = """
+            FROM article a
+            JOIN feed f ON f.id = a.feed_id
+            CROSS JOIN reader_state rs
+            """;
     private static final String MARK_READ_ALL_SQL = """
             UPDATE reader_state
             SET mark_read_through_id = GREATEST(
@@ -280,6 +297,44 @@ public class ArticleRepository extends AbstractRepository {
             params = List.of(folderId);
         }
         List<Integer> rows = super.query(sql, rs -> rs.getInt("saved_count"), params);
+        return rows.isEmpty() ? 0 : rows.getFirst();
+    }
+
+    /**
+     * Count dated articles with {@code id > sinceId} under the same scope rules
+     * as the list endpoint (all / feed / folder / unread / saved). Result is
+     * capped at 1000. The {@code id >} predicate is a primary-key range — no
+     * new index is needed.
+     */
+    public int countSince(long sinceId, Integer feedId, Integer folderId, boolean unreadOnly,
+            boolean savedOnly) {
+        if (feedId != null && folderId != null) {
+            throw new IllegalArgumentException("Specify at most one of feedId or folderId");
+        }
+        if (unreadOnly && savedOnly) {
+            throw new IllegalArgumentException("unreadOnly and savedOnly are mutually exclusive");
+        }
+        String from = unreadOnly ? COUNT_SINCE_FROM_WITH_READER : COUNT_SINCE_FROM;
+        StringBuilder sql = new StringBuilder(COUNT_SINCE_SELECT).append(from);
+        List<Object> params = new ArrayList<>();
+        if (folderId != null) {
+            sql.append(JOIN_FOLDER);
+        }
+        sql.append(" WHERE a.published IS NOT NULL AND a.id > ?");
+        params.add(sinceId);
+        if (feedId != null) {
+            sql.append(" AND f.id = ?");
+            params.add(feedId);
+        } else if (folderId != null) {
+            sql.append(" AND fo.id = ?");
+            params.add(folderId);
+        }
+        if (unreadOnly) {
+            sql.append(" AND NOT ").append(EFFECTIVE_READ);
+        } else if (savedOnly) {
+            sql.append(" AND a.saved = true");
+        }
+        List<Integer> rows = super.query(sql.toString(), rs -> rs.getInt("article_count"), params);
         return rows.isEmpty() ? 0 : rows.getFirst();
     }
 

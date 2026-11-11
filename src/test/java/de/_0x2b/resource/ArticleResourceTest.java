@@ -80,6 +80,11 @@ class ArticleResourceTest {
     }
 
     @Test
+    void resolveListView_forCountEndpoint_acceptsFeedWithoutView() {
+        assertEquals(ArticleResource.ListView.ALL, ArticleResource.resolveListView(null, 5, null));
+    }
+
+    @Test
     void normalizeSearch_capsOverlongQuery() {
         String tooLong = "a".repeat(MAX_SEARCH_LENGTH + 20);
 
