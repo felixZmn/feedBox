@@ -42,6 +42,8 @@ Feature highlights include:
 - Fully self-hostable
 - Automatic dark mode
 - Mobile and desktop views
+- Unread and saved article views
+- Keyboard shortcuts (press `?` in the app)
 - Import and export feeds as OPML
 - Organize feeds into folders
 - Periodic background refresh

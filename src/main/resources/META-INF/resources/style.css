@@ -22,9 +22,9 @@
   --shadow-md: 0 8px 28px rgba(0, 0, 0, 0.18);
   --radius-sm: 8px;
   --radius-md: 12px;
-  --font-size-base: 16px;
-  --font-size-small: 13px;
-  --font-size-large: 30px;
+  --font-size-base: 1rem;
+  --font-size-small: 0.8125rem;
+  --font-size-large: 1.875rem;
   --default-space: 0.5rem;
   --column-width: 350px;
   --list-inset: 0.35rem;
