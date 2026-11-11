@@ -726,6 +726,12 @@ button {
   overflow-x: auto;
 }
 
+.reader .content .summary-hint {
+  margin-top: 1.5rem;
+  color: var(--font-color-muted);
+  font-size: var(--font-size-small);
+}
+
 .column-header {
   position: relative;
   display: flex;

@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   resolveContentUrl,
   resolveSrcset,
+  isSummaryOnly,
 } from "../../main/resources/META-INF/resources/scripts/util.js";
 
 const BASE = "https://example.com/blog/post/1?x=1";
@@ -38,4 +39,14 @@ test("resolveSrcset handles commas inside URLs and bare candidates", () => {
   );
   assert.equal(resolveSrcset("a.png, b.png", BASE), "https://example.com/blog/post/a.png, https://example.com/blog/post/b.png");
   assert.equal(resolveSrcset("", BASE), "");
+});
+
+test("isSummaryOnly needs a safe link and no full content", () => {
+  const link = "https://example.com/a";
+  assert.equal(isSummaryOnly({ link, description: "teaser" }), true);
+  assert.equal(isSummaryOnly({ link, content: "  ", description: "teaser" }), true);
+  assert.equal(isSummaryOnly({ link, content: "<p>full</p>" }), false);
+  assert.equal(isSummaryOnly({ content: "", description: "teaser" }), false);
+  assert.equal(isSummaryOnly({ link: "javascript:alert(1)" }), false);
+  assert.equal(isSummaryOnly(null), false);
 });
