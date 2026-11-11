@@ -91,18 +91,81 @@ class FeedServiceTest {
         Feed enriched = new Feed(-1, -1, "Feed Title", URI.create("https://example.com"),
                 URI.create("https://example.com/rss"));
         Icon icon = new Icon(-1, -1, new byte[]{1}, "image/png", "f.png");
+        FetchResult fetched = new FetchResult(input.getFeedUrl(), input.getFeedUrl(), 200,
+                "application/rss+xml", "<rss/>".getBytes(StandardCharsets.UTF_8));
 
-        doReturn(enriched).when(spy).getFeedMetadata(input);
+        when(outboundHttpClient.fetchFeedDetailed(input.getFeedUrl())).thenReturn(fetched);
+        doReturn(enriched).when(spy).getFeedMetadata(input, fetched);
         when(iconService.findIcon(enriched)).thenReturn(icon);
         when(feedRepository.create(enriched)).thenReturn(99);
 
         int id = spy.create(input);
 
         assertEquals(99, id);
-        verify(spy).getFeedMetadata(input);
+        verify(spy).getFeedMetadata(input, fetched);
         verify(iconService).findIcon(enriched);
         verify(feedRepository).create(enriched);
         verify(iconService).create(icon.withFeedId(99));
+    }
+
+    @Test
+    void create_storesArticlesFromTheSameFetch() throws Exception {
+        URI feedUrl = URI.create("https://example.com/rss");
+        Feed input = new Feed(-1, null, "", null, feedUrl);
+        String rss = """
+                <?xml version="1.0"?>
+                <rss version="2.0"><channel>
+                  <title>Example</title><link>https://example.com</link>
+                  <item><title>One</title><link>https://example.com/1</link></item>
+                </channel></rss>
+                """;
+        when(outboundHttpClient.fetchFeedDetailed(feedUrl)).thenReturn(new FetchResult(
+                feedUrl, feedUrl, 200, "application/rss+xml", rss.getBytes(StandardCharsets.UTF_8)));
+        when(outboundHttpClient.userAgent()).thenReturn("Test");
+        when(feedRepository.create(any())).thenReturn(12);
+        MediaRssItem item = mock(MediaRssItem.class);
+        when(mediaRssParser.parse(any())).thenReturn(List.of(item));
+        Article article = new Article(-1, 12, "Example", "One", "", "", "https://example.com/1",
+                null, "", "", "");
+        ArgumentCaptor<Feed> mapped = ArgumentCaptor.forClass(Feed.class);
+        when(articleMapper.toArticle(mapped.capture(), eq(item))).thenReturn(article);
+
+        int id = sut.create(input);
+
+        assertEquals(12, id);
+        assertEquals(12, mapped.getValue().getId(), "articles are mapped against the new feed id");
+        assertEquals("Example", mapped.getValue().getName());
+        verify(outboundHttpClient, times(1)).fetchFeedDetailed(feedUrl);
+        verify(articleRepository).create(List.of(article));
+        verify(feedRepository).markRefreshSuccess(eq(12), isNull());
+    }
+
+    @Test
+    void create_whenStoringArticlesFails_keepsFeedAndRecordsError() throws Exception {
+        URI feedUrl = URI.create("https://example.com/rss");
+        String rss = "<rss version=\"2.0\"><channel><title>T</title></channel></rss>";
+        when(outboundHttpClient.fetchFeedDetailed(feedUrl)).thenReturn(new FetchResult(
+                feedUrl, feedUrl, 200, "application/rss+xml", rss.getBytes(StandardCharsets.UTF_8)));
+        when(outboundHttpClient.userAgent()).thenReturn("Test");
+        when(feedRepository.create(any())).thenReturn(3);
+        when(mediaRssParser.parse(any())).thenReturn(List.of());
+        doThrow(new SQLException("down")).when(feedRepository).markRefreshSuccess(eq(3), any());
+
+        assertEquals(3, sut.create(new Feed(-1, null, "", null, feedUrl)));
+
+        verify(feedRepository).markRefreshError(3, "Could not store articles");
+    }
+
+    @Test
+    void create_whenFetchFails_throwsAndStoresNothing() {
+        URI feedUrl = URI.create("https://example.com/rss");
+        when(outboundHttpClient.fetchFeedDetailed(feedUrl)).thenReturn(FetchFailure.timeout());
+
+        InvalidFeedException e = assertThrows(InvalidFeedException.class,
+                () -> sut.create(new Feed(-1, null, "", null, feedUrl)));
+
+        assertEquals("TIMEOUT", e.getCode());
+        verifyNoInteractions(feedRepository, iconService, articleRepository);
     }
 
     @Test
@@ -251,11 +314,11 @@ class FeedServiceTest {
     }
 
     @Test
-    void getFeedMetadata_whenFetchFails_throwsWithFailureCode() {
+    void create_whenHttpError_throwsWithFailureCode() {
         Feed feed = new Feed(-1, null, "", null, URI.create("https://example.com/rss"));
         when(outboundHttpClient.fetchFeedDetailed(feed.getFeedUrl())).thenReturn(FetchFailure.httpStatus(404));
 
-        InvalidFeedException e = assertThrows(InvalidFeedException.class, () -> sut.getFeedMetadata(feed));
+        InvalidFeedException e = assertThrows(InvalidFeedException.class, () -> sut.create(feed));
 
         assertEquals("HTTP_STATUS", e.getCode());
         assertEquals("HTTP 404", e.getMessage());
@@ -264,11 +327,10 @@ class FeedServiceTest {
     @Test
     void getFeedMetadata_whenHtmlPage_throwsNotAFeed() {
         Feed feed = new Feed(-1, null, "", null, URI.create("https://example.com/"));
-        when(outboundHttpClient.fetchFeedDetailed(feed.getFeedUrl())).thenReturn(new FetchResult(
-                feed.getFeedUrl(), feed.getFeedUrl(), 200, "text/html",
-                "<!doctype html><html><head><title>x</title></head></html>".getBytes(StandardCharsets.UTF_8)));
+        FetchResult page = new FetchResult(feed.getFeedUrl(), feed.getFeedUrl(), 200, "text/html",
+                "<!doctype html><html><head><title>x</title></head></html>".getBytes(StandardCharsets.UTF_8));
 
-        InvalidFeedException e = assertThrows(InvalidFeedException.class, () -> sut.getFeedMetadata(feed));
+        InvalidFeedException e = assertThrows(InvalidFeedException.class, () -> sut.getFeedMetadata(feed, page));
 
         assertEquals("NOT_A_FEED", e.getCode());
     }

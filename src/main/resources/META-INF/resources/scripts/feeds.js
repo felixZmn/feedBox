@@ -423,7 +423,8 @@ export async function importFeeds() {
         });
 
         await refreshFolders({ background: false });
-        await refreshFeeds();
+        const { reloadArticlesForCurrentContext } = await import("./state.js");
+        await reloadArticlesForCurrentContext();
       } catch (error) {
         console.error("[app] OPML import failed:", error);
         await modal.show({

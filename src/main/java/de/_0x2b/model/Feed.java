@@ -20,6 +20,10 @@ public record Feed(
         this(id, folderId, name, url, feedUrl, null, null, 0);
     }
 
+    public Feed withId(int id) {
+        return new Feed(id, folderId, name, url, feedUrl, lastRefreshedAt, lastError, unreadCount);
+    }
+
     public Feed withFolderId(Integer folderId) {
         return new Feed(id, folderId, name, url, feedUrl, lastRefreshedAt, lastError, unreadCount);
     }
