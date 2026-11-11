@@ -168,11 +168,13 @@ class DataService {
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => "");
+        const { code, detail } = parseApiError(errorText);
         const error = new Error(
-          `HTTP ${response.status}: ${errorText || response.statusText}`,
+          `HTTP ${response.status}: ${detail || response.statusText}`,
         );
         error.status = response.status;
-        error.serverMessage = errorText;
+        error.code = code;
+        error.detail = detail;
         throw error;
       }
 
@@ -186,9 +188,33 @@ class DataService {
         { cause: error },
       );
       if (error.status != null) wrapped.status = error.status;
+      if (error.code != null) wrapped.code = error.code;
+      if (error.detail != null) wrapped.detail = error.detail;
       throw wrapped;
     }
   }
+}
+
+/**
+ * Read the server's `{ code, message }` error body. Non-JSON bodies (proxies,
+ * older servers) yield no code and the raw text as detail.
+ * @param {string} text
+ * @returns {{ code: string|null, detail: string|null }}
+ */
+export function parseApiError(text) {
+  if (!text) return { code: null, detail: null };
+  try {
+    const body = JSON.parse(text);
+    if (body && typeof body === "object") {
+      return {
+        code: typeof body.code === "string" ? body.code : null,
+        detail: typeof body.message === "string" ? body.message : null,
+      };
+    }
+  } catch {
+    // Not JSON.
+  }
+  return { code: null, detail: text.length > 200 ? null : text };
 }
 
 /**

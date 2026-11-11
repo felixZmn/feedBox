@@ -1,5 +1,7 @@
 package de._0x2b.exception;
 
+import de._0x2b.resource.dto.ApiError;
+import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.ExceptionMapper;
 import jakarta.ws.rs.ext.Provider;
@@ -13,6 +15,9 @@ public class NotFoundExceptionMapper implements ExceptionMapper<NotFoundExceptio
     @Override
     public Response toResponse(NotFoundException e) {
         logger.debug("Not found: {}", e.getMessage());
-        return Response.status(Response.Status.NOT_FOUND).build();
+        return Response.status(Response.Status.NOT_FOUND)
+                .type(MediaType.APPLICATION_JSON)
+                .entity(new ApiError("NOT_FOUND", e.getMessage()))
+                .build();
     }
 }
