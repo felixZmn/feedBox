@@ -97,26 +97,26 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-window.addEventListener("DOMContentLoaded", async () => {
-  onSessionLoss(() => {
-    hideFeedsSpinner();
-    removeSkeletons();
-  });
+const connectivityBanner = {
+  el: () => document.getElementById("connectivity-banner"),
+  show() {
+    const el = this.el();
+    if (el) el.hidden = false;
+  },
+  hide() {
+    const el = this.el();
+    if (el) el.hidden = true;
+  },
+};
 
-  let signedIn = false;
-  try {
-    signedIn = await probeSession();
-  } catch (error) {
-    console.warn("[app] Session probe failed:", error);
-    signedIn = false;
-  }
+let appInitialized = false;
+let dataObserversReady = false;
+let retrying = false;
 
-  if (!signedIn) {
-    enterLoggedOut();
-    return;
-  }
-
-  enterLoggedIn();
+/** Wire the shell once; safe to call again after a retry. */
+function initApp() {
+  if (appInitialized) return;
+  appInitialized = true;
   restoreFolderCache();
   initContextMenuListeners();
   initEventListeners();
@@ -135,10 +135,16 @@ window.addEventListener("DOMContentLoaded", async () => {
       folderContextMenu(x, y, folder, trigger),
   });
   registerArticlesDelegatedEvents(articleClickListener);
+}
 
+/** Fetch the folder tree and apply the route; needs a live session. */
+async function loadApp() {
   try {
-    setLazyLoadObserver(setupScrollObserver());
-    window.addEventListener("popstate", onPopState);
+    if (!dataObserversReady) {
+      dataObserversReady = true;
+      setLazyLoadObserver(setupScrollObserver());
+      window.addEventListener("popstate", onPopState);
+    }
 
     await refreshFolders({ background: true });
     if (isLoggedOut()) return;
@@ -158,6 +164,61 @@ window.addEventListener("DOMContentLoaded", async () => {
       type: "alert",
     });
   }
+}
+
+/** Probe the session and move the UI to the matching state. */
+async function startSession() {
+  let status = "unavailable";
+  try {
+    status = await probeSession();
+  } catch (error) {
+    console.warn("[app] Session probe failed:", error);
+  }
+
+  if (status === "signed-out") {
+    connectivityBanner.hide();
+    enterLoggedOut();
+    return;
+  }
+
+  enterLoggedIn();
+  initApp();
+
+  if (status === "unavailable") {
+    // Not a sign-out: keep the cached tree and let the user retry.
+    connectivityBanner.show();
+    return;
+  }
+
+  connectivityBanner.hide();
+  await loadApp();
+}
+
+async function retryConnection() {
+  if (retrying || isLoggedOut()) return;
+  retrying = true;
+  try {
+    await startSession();
+  } finally {
+    retrying = false;
+  }
+}
+
+window.addEventListener("DOMContentLoaded", async () => {
+  onSessionLoss(() => {
+    connectivityBanner.hide();
+    hideFeedsSpinner();
+    removeSkeletons();
+  });
+
+  document
+    .getElementById("connectivity-retry")
+    ?.addEventListener("click", () => retryConnection());
+  window.addEventListener("online", () => {
+    if (!connectivityBanner.el()?.hidden) retryConnection();
+  });
+
+  await startSession();
 });
 
 function initEventListeners() {
