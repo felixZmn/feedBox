@@ -12,7 +12,7 @@ public record FetchResult(
         URI finalUri,
         int statusCode,
         String contentType,
-        byte[] body) {
+        byte[] body) implements FetchOutcome {
 
     public InputStream bodyStream() {
         return new ByteArrayInputStream(body != null ? body : new byte[0]);

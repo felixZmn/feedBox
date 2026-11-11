@@ -102,6 +102,20 @@ class UrlSafetyTest {
     }
 
     @Test
+    void rejections_carryAReason() {
+        assertEquals(UnsafeUrlException.Reason.INVALID_URL, assertThrows(UnsafeUrlException.class,
+                () -> UrlSafety.requireSafeOutbound(URI.create("ftp://example.com/a"))).getReason());
+        assertEquals(UnsafeUrlException.Reason.INVALID_URL, assertThrows(UnsafeUrlException.class,
+                () -> UrlSafety.requireSafeOutbound(URI.create("/relative"))).getReason());
+        assertEquals(UnsafeUrlException.Reason.BLOCKED, assertThrows(UnsafeUrlException.class,
+                () -> UrlSafety.requireSafeOutbound(URI.create("http://127.0.0.1/"))).getReason());
+        assertEquals(UnsafeUrlException.Reason.BLOCKED, assertThrows(UnsafeUrlException.class,
+                () -> UrlSafety.requireSafeOutbound(URI.create("https://example.com:8443/x"))).getReason());
+        assertEquals(UnsafeUrlException.Reason.UNRESOLVED, assertThrows(UnsafeUrlException.class,
+                () -> UrlSafety.requireSafeOutbound(URI.create("https://feedbox-test.invalid/"))).getReason());
+    }
+
+    @Test
     void isSafeOutbound_falseForLocalhostHostname() {
         assertFalse(UrlSafety.isSafeOutbound(URI.create("http://localhost/")));
     }

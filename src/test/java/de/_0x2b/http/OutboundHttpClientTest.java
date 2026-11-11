@@ -12,6 +12,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -133,6 +134,118 @@ class OutboundHttpClientTest {
 
         assertTrue(sut.fetch(start, 1024).isEmpty());
         verify(httpClient, times(1)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
+
+    @Test
+    void fetchDetailed_when404_reportsHttpStatus() throws Exception {
+        stubResponse(404, new byte[0], null, null);
+
+        FetchFailure failure = assertInstanceOf(FetchFailure.class,
+                sut.fetchDetailed(URI.create("https://example.com/missing"), 1024));
+
+        assertEquals(FetchFailure.Kind.HTTP_STATUS, failure.kind());
+        assertEquals(404, failure.statusCode());
+        assertEquals("HTTP 404", failure.message());
+    }
+
+    @Test
+    void fetchDetailed_whenTimedOut_reportsTimeout() throws Exception {
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenThrow(new HttpTimeoutException("request timed out"));
+
+        FetchFailure failure = assertInstanceOf(FetchFailure.class,
+                sut.fetchDetailed(URI.create("https://example.com/slow"), 1024));
+
+        assertEquals(FetchFailure.Kind.TIMEOUT, failure.kind());
+        assertEquals("Timed out", failure.message());
+    }
+
+    @Test
+    void fetchDetailed_whenConnectionFails_reportsUnreachable() throws Exception {
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenThrow(new IOException("Connection refused"));
+
+        FetchFailure failure = assertInstanceOf(FetchFailure.class,
+                sut.fetchDetailed(URI.create("https://example.com/io"), 1024));
+
+        assertEquals(FetchFailure.Kind.UNREACHABLE, failure.kind());
+        assertEquals("Could not connect", failure.message());
+    }
+
+    @Test
+    void fetchDetailed_whenBodyExceedsLimit_reportsTooLarge() throws Exception {
+        stubResponse(200, new byte[2048], "application/octet-stream", null);
+
+        FetchFailure failure = assertInstanceOf(FetchFailure.class,
+                sut.fetchDetailed(URI.create("https://example.com/big"), 1024));
+
+        assertEquals(FetchFailure.Kind.TOO_LARGE, failure.kind());
+    }
+
+    @Test
+    void fetchDetailed_whenPrivateAddress_reportsBlockedWithoutLeakingIt() {
+        FetchFailure failure = assertInstanceOf(FetchFailure.class,
+                sut.fetchDetailed(URI.create("http://127.0.0.1/secret"), 1024));
+
+        assertEquals(FetchFailure.Kind.BLOCKED, failure.kind());
+        assertEquals("Host not allowed", failure.message());
+        verifyNoInteractions(httpClient);
+    }
+
+    @Test
+    void fetchDetailed_whenSchemeIsNotHttp_reportsInvalidUrl() {
+        FetchFailure failure = assertInstanceOf(FetchFailure.class,
+                sut.fetchDetailed(URI.create("ftp://example.com/feed"), 1024));
+
+        assertEquals(FetchFailure.Kind.INVALID_URL, failure.kind());
+    }
+
+    @Test
+    void fetchDetailed_whenRelativeUrl_reportsInvalidUrl() {
+        FetchFailure failure = assertInstanceOf(FetchFailure.class,
+                sut.fetchDetailed(URI.create("notaurl"), 1024));
+
+        assertEquals(FetchFailure.Kind.INVALID_URL, failure.kind());
+    }
+
+    @Test
+    void fetchDetailed_whenHostDoesNotResolve_reportsHostNotFound() {
+        FetchFailure failure = assertInstanceOf(FetchFailure.class,
+                sut.fetchDetailed(URI.create("https://feedbox-test.invalid/feed"), 1024));
+
+        assertEquals(FetchFailure.Kind.UNREACHABLE, failure.kind());
+        assertEquals("Host not found", failure.message());
+    }
+
+    @Test
+    void fetchDetailed_whenHttpsDowngrades_reportsBlocked() throws Exception {
+        stubResponse(302, new byte[0], null, "http://example.com/b");
+
+        FetchFailure failure = assertInstanceOf(FetchFailure.class,
+                sut.fetchDetailed(URI.create("https://example.com/a"), 1024));
+
+        assertEquals(FetchFailure.Kind.BLOCKED, failure.kind());
+    }
+
+    @Test
+    void fetchDetailed_whenRedirectLoops_reportsTooManyRedirects() throws Exception {
+        stubResponse(302, new byte[0], null, "https://example.com/loop");
+
+        FetchFailure failure = assertInstanceOf(FetchFailure.class,
+                sut.fetchDetailed(URI.create("https://example.com/loop"), 1024));
+
+        assertEquals(FetchFailure.Kind.UNREACHABLE, failure.kind());
+        assertEquals("Too many redirects", failure.message());
+    }
+
+    @Test
+    void fetchFeedDetailed_returnsResultOnSuccess() throws Exception {
+        URI uri = URI.create("https://example.com/feed.xml");
+        stubResponse(200, "<rss/>".getBytes(), "application/rss+xml", null);
+
+        FetchResult result = assertInstanceOf(FetchResult.class, sut.fetchFeedDetailed(uri));
+
+        assertEquals(uri, result.finalUri());
     }
 
     private void stubResponse(int status, byte[] body, String contentType, String location)

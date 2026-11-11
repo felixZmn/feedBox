@@ -14,6 +14,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -22,6 +23,8 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import javax.net.ssl.SSLException;
 
 /**
  * Single outbound HTTP stack for feed discovery, refresh, and favicon fetch.
@@ -92,6 +95,11 @@ public class OutboundHttpClient {
         return fetch(uri, feedMaxBytes);
     }
 
+    /** Like {@link #fetchFeed(URI)} but says why the fetch failed. */
+    public FetchOutcome fetchFeedDetailed(URI uri) {
+        return fetchDetailed(uri, feedMaxBytes);
+    }
+
     public Optional<FetchResult> fetchIcon(URI uri) {
         return fetch(uri, iconMaxBytes);
     }
@@ -102,12 +110,22 @@ public class OutboundHttpClient {
      * non-2xx finals, oversized bodies, or unsafe URLs/redirects.
      */
     public Optional<FetchResult> fetch(URI uri, long maxBytes) {
+        return fetchDetailed(uri, maxBytes) instanceof FetchResult result
+                ? Optional.of(result)
+                : Optional.empty();
+    }
+
+    /**
+     * Same guarded GET as {@link #fetch(URI, long)}, returning a
+     * {@link FetchFailure} instead of empty when there is no usable body.
+     */
+    public FetchOutcome fetchDetailed(URI uri, long maxBytes) {
         URI current;
         try {
             current = uri.toURL().toURI(); // normalise
         } catch (Exception e) {
             logger.warn("Malformed outbound URL: {}", uri);
-            return Optional.empty();
+            return FetchFailure.invalidUrl();
         }
 
         try {
@@ -131,12 +149,12 @@ public class OutboundHttpClient {
                         drainQuietly(response.body(), DRAIN_MAX_BYTES);
                         if (location.isEmpty() || location.get().isBlank()) {
                             logger.warn("Redirect without Location from {}", current);
-                            return Optional.empty();
+                            return FetchFailure.unreachable("Redirect without a target");
                         }
                         URI next = current.resolve(location.get().trim());
                         if (isHttpsToHttpDowngrade(current, next)) {
                             logger.warn("Refusing https→http redirect: {} → {}", current, next);
-                            return Optional.empty();
+                            return FetchFailure.blocked("Insecure redirect");
                         }
                         current = next;
                         continue;
@@ -145,31 +163,44 @@ public class OutboundHttpClient {
                     if (status < 200 || status >= 300) {
                         drainQuietly(response.body(), DRAIN_MAX_BYTES);
                         logger.warn("Cannot fetch {}; status code {}", current, status);
-                        return Optional.empty();
+                        return FetchFailure.httpStatus(status);
                     }
 
                     byte[] body = readLimited(response.body(), maxBytes);
                     String contentType = response.headers().firstValue("content-type").orElse(null);
-                    return Optional.of(new FetchResult(uri, current, status, contentType, body));
+                    return new FetchResult(uri, current, status, contentType, body);
                 } finally {
                     PinnedDns.unpin(host);
                 }
             }
             logger.warn("Too many redirects fetching {}", uri);
-            return Optional.empty();
+            return FetchFailure.unreachable("Too many redirects");
         } catch (UnsafeUrlException e) {
             logger.warn("Blocked unsafe outbound URL {}: {}", uri, e.getMessage());
-            return Optional.empty();
+            return switch (e.getReason()) {
+                case INVALID_URL -> FetchFailure.invalidUrl();
+                case UNRESOLVED -> FetchFailure.unreachable("Host not found");
+                case BLOCKED -> FetchFailure.blocked("Host not allowed");
+            };
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid outbound URL {}: {}", uri, e.getMessage());
+            return FetchFailure.invalidUrl();
         } catch (ResponseTooLargeException e) {
             logger.warn("Response too large (limit {} bytes) for {}", maxBytes, uri);
-            return Optional.empty();
+            return FetchFailure.tooLarge();
+        } catch (HttpTimeoutException e) {
+            logger.debug("Timed out fetching URI {}: {}", uri, e.toString());
+            return FetchFailure.timeout();
+        } catch (SSLException e) {
+            logger.debug("TLS failure fetching URI {}: {}", uri, e.toString());
+            return FetchFailure.unreachable("Secure connection failed");
         } catch (IOException e) {
             logger.debug("Could not fetch URI {}: {}", uri, e.toString());
-            return Optional.empty();
+            return FetchFailure.unreachable("Could not connect");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             logger.warn("Interrupted fetching URI: {}", uri);
-            return Optional.empty();
+            return FetchFailure.unreachable("Interrupted");
         } finally {
             PinnedDns.clear();
         }

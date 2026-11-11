@@ -1,9 +1,11 @@
 package de._0x2b.service;
 
 import com.apptasticsoftware.rssreader.RssReader;
+import com.apptasticsoftware.rssreader.module.mediarss.MediaRssItem;
 import de._0x2b.exception.DataAccessException;
 import de._0x2b.exception.InvalidFeedException;
 import de._0x2b.exception.NotFoundException;
+import de._0x2b.http.FetchFailure;
 import de._0x2b.http.FetchResult;
 import de._0x2b.http.OutboundHttpClient;
 import de._0x2b.job.ProgressCallback;
@@ -38,6 +40,8 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 @ApplicationScoped
 public class FeedService {
     private static final Logger logger = LoggerFactory.getLogger(FeedService.class);
+    static final String NOT_A_FEED = "NOT_A_FEED";
+    static final String NOT_A_FEED_MESSAGE = "Not an RSS or Atom feed";
 
     @Inject
     OutboundHttpClient outboundHttpClient;
@@ -215,14 +219,16 @@ public class FeedService {
      */
     public Feed getFeedMetadata(Feed feed) {
         try {
-            var fetched = outboundHttpClient.fetchFeed(feed.getFeedUrl());
-            if (fetched.isEmpty()) {
-                throw new InvalidFeedException(
-                        "Feed not reachable or not a valid RSS/Atom feed: " + feed.getFeedUrl());
-            }
+            FetchResult fetched = switch (outboundHttpClient.fetchFeedDetailed(feed.getFeedUrl())) {
+                case FetchResult result -> result;
+                case FetchFailure failure -> throw invalidFeed(failure);
+            };
             RssReader rssReader = new RssReader();
             rssReader.setUserAgent(outboundHttpClient.userAgent());
-            var items = rssReader.read(fetched.get().bodyStream()).toList();
+            var items = rssReader.read(fetched.bodyStream()).toList();
+            if (items.isEmpty() && !isFeed(fetched.contentType(), decodeBody(fetched))) {
+                throw notAFeed();
+            }
             if (!items.isEmpty()) {
                 var channel = items.getFirst().getChannel();
                 String link = channel.getLink();
@@ -247,10 +253,25 @@ public class FeedService {
             throw e;
         } catch (Exception e) {
             logger.warn("Error querying feed [{}]: {}", feed.getFeedUrl(), e.getMessage());
-            throw new InvalidFeedException(
-                    "Feed not reachable or not a valid RSS/Atom feed: " + feed.getFeedUrl(), e);
+            throw new InvalidFeedException(NOT_A_FEED, NOT_A_FEED_MESSAGE, e);
         }
         return feed;
+    }
+
+    /**
+     * 422 for a fetch that produced no body; the code is the failure kind
+     * (e.g. {@code TIMEOUT}, {@code HTTP_STATUS}) so the client can explain it.
+     */
+    static InvalidFeedException invalidFeed(FetchFailure failure) {
+        return new InvalidFeedException(failure.kind().name(), failure.message());
+    }
+
+    static InvalidFeedException notAFeed() {
+        return new InvalidFeedException(NOT_A_FEED, NOT_A_FEED_MESSAGE);
+    }
+
+    private static String decodeBody(FetchResult result) {
+        return new String(result.body(), charsetFromContentType(result.contentType()));
     }
 
     private static String fallbackFeedName(URI feedUrl) {
@@ -392,27 +413,31 @@ public class FeedService {
      * {@code last_refreshed_at} is left untouched (preserves the
      * "last seen working" timestamp).</li>
      * </ul>
-     * A missing HTTP response (404, network error, etc.) is treated as a
-     * "no new data" condition, not a failure - the timestamp is updated
-     * and any previous error is cleared.
+     * The error is short readable text from {@link FetchFailure#message()}
+     * (e.g. "HTTP 404", "Timed out", "Host not allowed") or a parse/storage
+     * category, never an exception dump.
      *
      * @param feed
      * @return {@code true} when the feed was refreshed successfully
      */
     boolean parseFeed(Feed feed) { // package-private for direct testing
-        var optional = outboundHttpClient.fetchFeed(feed.getFeedUrl());
-        if (optional.isEmpty()) {
-            // Unsafe URL, network error, non-2xx, or oversized body.
-            try {
-                feedRepository.markRefreshError(feed.getId(), "No successful HTTP response");
-            } catch (SQLException e) {
-                logger.warn("Failed to record refresh error for feed [{}]", feed.getFeedUrl(), e);
+        FetchResult response;
+        switch (outboundHttpClient.fetchFeedDetailed(feed.getFeedUrl())) {
+            case FetchResult result -> response = result;
+            case FetchFailure failure -> {
+                markRefreshError(feed, failure.message());
+                return false;
             }
-            return false;
         }
 
-        var response = optional.get();
-        var items = mediaRssParser.parse(response.bodyStream());
+        List<MediaRssItem> items;
+        try {
+            items = mediaRssParser.parse(response.bodyStream());
+        } catch (Exception e) {
+            logger.warn("Could not parse feed [{}]: {}", feed.getFeedUrl(), e.getMessage());
+            markRefreshError(feed, NOT_A_FEED_MESSAGE);
+            return false;
+        }
 
         var articles = new java.util.ArrayList<de._0x2b.model.Article>(items.size());
         int skipped = 0;
@@ -435,12 +460,16 @@ public class FeedService {
             return true;
         } catch (Exception e) {
             logger.warn("Refresh failed for feed [{}]: {}", feed.getFeedUrl(), e.getMessage());
-            try {
-                feedRepository.markRefreshError(feed.getId(), "Could not store articles");
-            } catch (SQLException markEx) {
-                logger.warn("Failed to record refresh error for feed [{}]", feed.getFeedUrl(), markEx);
-            }
+            markRefreshError(feed, "Could not store articles");
             return false;
+        }
+    }
+
+    private void markRefreshError(Feed feed, String message) {
+        try {
+            feedRepository.markRefreshError(feed.getId(), message);
+        } catch (SQLException e) {
+            logger.warn("Failed to record refresh error for feed [{}]", feed.getFeedUrl(), e);
         }
     }
 

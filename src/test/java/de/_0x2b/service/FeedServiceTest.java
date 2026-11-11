@@ -2,7 +2,9 @@ package de._0x2b.service;
 
 import com.apptasticsoftware.rssreader.module.mediarss.MediaRssItem;
 import de._0x2b.exception.DataAccessException;
+import de._0x2b.exception.InvalidFeedException;
 import de._0x2b.exception.NotFoundException;
+import de._0x2b.http.FetchFailure;
 import de._0x2b.http.FetchResult;
 import de._0x2b.http.OutboundHttpClient;
 import de._0x2b.model.Article;
@@ -206,7 +208,7 @@ class FeedServiceTest {
         Feed feed = new Feed(1, 1, "n", URI.create("https://example.com"), URI.create("https://example.com/rss"));
 
         when(feedRepository.findAll()).thenReturn(List.of(feed));
-        when(outboundHttpClient.fetchFeed(feed.getFeedUrl())).thenReturn(Optional.empty());
+        when(outboundHttpClient.fetchFeedDetailed(feed.getFeedUrl())).thenReturn(FetchFailure.httpStatus(404));
 
         sut.refresh();
 
@@ -215,14 +217,60 @@ class FeedServiceTest {
     }
 
     @Test
-    void parseFeed_whenFetchEmpty_doesNothing_andMarksError() throws SQLException {
+    void parseFeed_whenFetchFails_doesNothing_andMarksReadableError() throws SQLException {
         Feed feed = new Feed(1, 1, "Feed", URI.create("https://example.com"), URI.create("https://example.com/rss"));
-        when(outboundHttpClient.fetchFeed(feed.getFeedUrl())).thenReturn(Optional.empty());
+        when(outboundHttpClient.fetchFeedDetailed(feed.getFeedUrl())).thenReturn(FetchFailure.httpStatus(404));
 
-        sut.parseFeed(feed);
+        assertFalse(sut.parseFeed(feed));
 
         verifyNoInteractions(mediaRssParser, articleMapper, articleRepository);
-        verify(feedRepository).markRefreshError(eq(1), anyString());
+        verify(feedRepository).markRefreshError(1, "HTTP 404");
+    }
+
+    @Test
+    void parseFeed_whenTimedOut_marksTimedOut() throws SQLException {
+        Feed feed = new Feed(1, 1, "Feed", URI.create("https://example.com"), URI.create("https://example.com/rss"));
+        when(outboundHttpClient.fetchFeedDetailed(feed.getFeedUrl())).thenReturn(FetchFailure.timeout());
+
+        assertFalse(sut.parseFeed(feed));
+
+        verify(feedRepository).markRefreshError(1, "Timed out");
+    }
+
+    @Test
+    void parseFeed_whenBodyIsNotAFeed_marksNotAFeed() throws SQLException {
+        Feed feed = new Feed(1, 1, "Feed", URI.create("https://example.com"), URI.create("https://example.com/rss"));
+        when(outboundHttpClient.fetchFeedDetailed(feed.getFeedUrl())).thenReturn(new FetchResult(
+                feed.getFeedUrl(), feed.getFeedUrl(), 200, "text/html", "<html>".getBytes(StandardCharsets.UTF_8)));
+        when(mediaRssParser.parse(any())).thenThrow(new RuntimeException("not xml"));
+
+        assertFalse(sut.parseFeed(feed));
+
+        verify(feedRepository).markRefreshError(1, "Not an RSS or Atom feed");
+        verifyNoInteractions(articleRepository);
+    }
+
+    @Test
+    void getFeedMetadata_whenFetchFails_throwsWithFailureCode() {
+        Feed feed = new Feed(-1, null, "", null, URI.create("https://example.com/rss"));
+        when(outboundHttpClient.fetchFeedDetailed(feed.getFeedUrl())).thenReturn(FetchFailure.httpStatus(404));
+
+        InvalidFeedException e = assertThrows(InvalidFeedException.class, () -> sut.getFeedMetadata(feed));
+
+        assertEquals("HTTP_STATUS", e.getCode());
+        assertEquals("HTTP 404", e.getMessage());
+    }
+
+    @Test
+    void getFeedMetadata_whenHtmlPage_throwsNotAFeed() {
+        Feed feed = new Feed(-1, null, "", null, URI.create("https://example.com/"));
+        when(outboundHttpClient.fetchFeedDetailed(feed.getFeedUrl())).thenReturn(new FetchResult(
+                feed.getFeedUrl(), feed.getFeedUrl(), 200, "text/html",
+                "<!doctype html><html><head><title>x</title></head></html>".getBytes(StandardCharsets.UTF_8)));
+
+        InvalidFeedException e = assertThrows(InvalidFeedException.class, () -> sut.getFeedMetadata(feed));
+
+        assertEquals("NOT_A_FEED", e.getCode());
     }
 
     @Test
@@ -230,7 +278,7 @@ class FeedServiceTest {
         Feed feed = new Feed(5, 1, "MyFeed", URI.create("https://example.com"), URI.create("https://example.com/rss"));
         byte[] body = "<rss/>".getBytes(StandardCharsets.UTF_8);
         FetchResult result = new FetchResult(feed.getFeedUrl(), feed.getFeedUrl(), 200, "application/rss+xml", body);
-        when(outboundHttpClient.fetchFeed(feed.getFeedUrl())).thenReturn(Optional.of(result));
+        when(outboundHttpClient.fetchFeedDetailed(feed.getFeedUrl())).thenReturn(result);
 
         MediaRssItem item1 = mock(MediaRssItem.class);
         MediaRssItem item2 = mock(MediaRssItem.class);
@@ -267,7 +315,7 @@ class FeedServiceTest {
         Feed feed = new Feed(5, 1, "MyFeed", URI.create("https://example.com"), URI.create("https://example.com/rss"));
         FetchResult result = new FetchResult(feed.getFeedUrl(), feed.getFeedUrl(), 200, "application/rss+xml",
                 "<rss/>".getBytes(StandardCharsets.UTF_8));
-        when(outboundHttpClient.fetchFeed(feed.getFeedUrl())).thenReturn(Optional.of(result));
+        when(outboundHttpClient.fetchFeedDetailed(feed.getFeedUrl())).thenReturn(result);
 
         MediaRssItem bad = mock(MediaRssItem.class);
         MediaRssItem good = mock(MediaRssItem.class);
@@ -295,7 +343,7 @@ class FeedServiceTest {
         Feed feed = new Feed(5, 1, "MyFeed", URI.create("https://example.com"), URI.create("https://example.com/rss"));
         FetchResult result = new FetchResult(feed.getFeedUrl(), feed.getFeedUrl(), 200, "application/rss+xml",
                 "<rss/>".getBytes(StandardCharsets.UTF_8));
-        when(outboundHttpClient.fetchFeed(feed.getFeedUrl())).thenReturn(Optional.of(result));
+        when(outboundHttpClient.fetchFeedDetailed(feed.getFeedUrl())).thenReturn(result);
 
         MediaRssItem item = mock(MediaRssItem.class);
         when(mediaRssParser.parse(any())).thenReturn(List.of(item));
