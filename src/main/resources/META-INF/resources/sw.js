@@ -54,7 +54,11 @@ const SHELL = [
 ];
 
 function offline(message = "Offline") {
-  return new Response(message, { status: 503 });
+  // Marker so the page can tell "no network" from "signed out" or a real 503.
+  return new Response(message, {
+    status: 503,
+    headers: { "X-FeedBox-Offline": "1" },
+  });
 }
 
 function isAuthFailure(response) {

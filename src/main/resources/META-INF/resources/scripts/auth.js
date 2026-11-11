@@ -1,5 +1,8 @@
 "use strict";
 
+import { toast } from "./toast.js";
+
+const OFFLINE_HEADER = "X-FeedBox-Offline";
 const FOLDER_TREE_CACHE_KEY = "folder-tree-cache";
 const FOLDER_STATE_KEY = "folder-state";
 
@@ -72,25 +75,61 @@ export function enterLoggedIn() {
 }
 
 /**
+ * @param {Response | null | undefined} response
+ * @returns {boolean} true for 401/499/redirects (the server says "sign in").
+ */
+function isAuthFailure(response) {
+  return (
+    response.status === 401 ||
+    response.status === 499 ||
+    // SW / browser may surface auth redirects as opaque or 3xx with redirect:manual.
+    response.type === "opaqueredirect" ||
+    (response.status >= 300 && response.status < 400)
+  );
+}
+
+/** @param {Response} response */
+function isOfflineResponse(response) {
+  return Boolean(response.headers?.get?.(OFFLINE_HEADER));
+}
+
+function notifyOffline() {
+  try {
+    toast("Can't reach FeedBox. Check your connection.", {
+      id: "offline",
+      timeoutMs: 4000,
+    });
+  } catch {
+    /* no DOM (tests) */
+  }
+}
+
+/**
  * Probe for an active OIDC session without following IdP redirects.
- * @returns {Promise<boolean>}
+ * Only an explicit auth answer counts as signed out; a network failure or a
+ * server error says nothing about the session and must not wipe the UI.
+ * @returns {Promise<"signed-in" | "signed-out" | "unavailable">}
  */
 export async function probeSession() {
-  const response = await fetch("./api/folder", {
-    method: "GET",
-    credentials: "same-origin",
-    redirect: "manual",
-    headers: { Accept: "application/json" },
-  });
+  let response;
+  try {
+    response = await fetch("./api/folder", {
+      method: "GET",
+      credentials: "same-origin",
+      redirect: "manual",
+      headers: { Accept: "application/json" },
+    });
+  } catch {
+    return "unavailable";
+  }
 
-  if (response.status === 401 || response.status === 499) {
-    return false;
+  if (isOfflineResponse(response)) {
+    return "unavailable";
   }
-  // SW / browser may surface auth redirects as opaque or 3xx with redirect:manual.
-  if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
-    return false;
+  if (isAuthFailure(response)) {
+    return "signed-out";
   }
-  return response.ok;
+  return response.ok ? "signed-in" : "unavailable";
 }
 
 /**
@@ -105,18 +144,26 @@ export async function apiFetch(url, options = {}) {
     throw new Error("Session expired");
   }
 
-  const response = await fetch(url, {
-    ...options,
-    credentials: "same-origin",
-    redirect: "manual",
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      credentials: "same-origin",
+      redirect: "manual",
+    });
+  } catch (err) {
+    if (err instanceof TypeError) {
+      notifyOffline();
+    }
+    throw err;
+  }
 
-  if (
-    response.status === 401 ||
-    response.status === 499 ||
-    response.type === "opaqueredirect" ||
-    (response.status >= 300 && response.status < 400)
-  ) {
+  if (isOfflineResponse(response)) {
+    notifyOffline();
+    return response;
+  }
+
+  if (isAuthFailure(response)) {
     enterLoggedOut();
     throw new Error("Session expired");
   }

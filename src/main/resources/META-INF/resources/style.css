@@ -1154,6 +1154,48 @@ dialog::backdrop {
 }
 
 /* ######################### */
+/* connectivity banner: reachable-but-offline, distinct from the login panel */
+.connectivity-banner {
+  position: fixed;
+  top: env(safe-area-inset-top, 0px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: min(420px, calc(100% - 1rem));
+  padding: 0.5rem 0.5rem 0.5rem 0.9rem;
+  border-radius: var(--radius-md);
+  background-color: var(--font-color);
+  color: var(--surface-reader);
+  box-shadow: var(--shadow-md);
+  font-size: var(--font-size-small);
+}
+
+.connectivity-banner[hidden] {
+  display: none;
+}
+
+.connectivity-retry {
+  min-height: 2.75rem;
+  padding: 0 0.9rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.connectivity-retry:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* ######################### */
 /* toasts: fixed at the bottom, never block the pane underneath */
 .toast-region {
   position: fixed;
