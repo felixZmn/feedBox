@@ -33,8 +33,6 @@ export function updateSearchChrome() {
     state.lastClickedItem.type,
     state.lastClickedItem.obj,
   );
-  const title = document.getElementById("articles-context-title");
-  if (title) title.textContent = name;
 
   const input = dom.searchInput;
   if (input) {
