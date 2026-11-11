@@ -1,14 +1,17 @@
 "use strict";
 
 import { dom, itemType, state } from "./state.js";
+import { feedHealth } from "./feed-health.js";
 
 /** @type {HTMLElement | null} */
 let menuTrigger = null;
 
 function showContextMenuGroup(groupClass, x, y, trigger) {
-  document.querySelectorAll(".context-menu-item").forEach((element) => {
-    element.classList.add("d-none");
-  });
+  dom.contextMenu
+    .querySelectorAll(".context-menu-item, .context-menu-status")
+    .forEach((element) => {
+      element.classList.add("d-none");
+    });
   document.querySelectorAll(`.${groupClass}`).forEach((element) => {
     element.classList.remove("d-none");
   });
@@ -33,6 +36,11 @@ export function openAddContextMenu(x, y, trigger) {
 export function feedContextMenu(x, y, feed, trigger) {
   state.lastClickedItem.type = itemType.FEED;
   state.lastClickedItem.obj = feed;
+  if (dom.feedHealth) {
+    const { text, isError } = feedHealth(feed);
+    dom.feedHealth.textContent = text;
+    dom.feedHealth.classList.toggle("is-error", isError);
+  }
   showContextMenuGroup("context-feed", x, y, trigger);
 }
 
@@ -114,6 +122,7 @@ export function initContextMenuListeners() {
       });
       return;
     }
+    if (e.target.closest("#context-menu .context-menu-status")) return;
     hideContextMenu({ restoreFocus: true });
   });
 

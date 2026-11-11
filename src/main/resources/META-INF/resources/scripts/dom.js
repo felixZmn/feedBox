@@ -203,7 +203,7 @@ export function updateAllFeedsUnreadBadge(count) {
  */
 function feedHtml(feed) {
   const error = feed.lastError
-    ? html`<span class="feed-error" title="${feed.lastError}" aria-label="Feed error: ${feed.lastError}">!</span>`
+    ? html`<span class="feed-error" aria-hidden="true" title="Couldn’t update: ${feed.lastError}">!</span><span class="visually-hidden">, couldn’t update: ${feed.lastError}</span>`
     : "";
   // Icons require auth — hydrate via loadFeedIcons() after paint (cookie
   // credentials on fetch; placeholder until then).
@@ -211,10 +211,10 @@ function feedHtml(feed) {
     html`<li data-feed-id="${feed.id}">
     <a class="tree-link" href="/feed/${feed.id}">
       <img class="tree-entry-icon" src="icons/rss.svg" alt="" data-feed-icon="${feed.id}" />
-      <span class="tree-name">${feed.name || ""}</span>
-    </a>
-    ` +
+      <span class="tree-name">${feed.name || ""}</span>` +
     error +
+    html`</a>
+    ` +
     unreadBadgeHtml(feed.unreadCount) +
     html`<button type="button" class="tree-options" aria-haspopup="menu" aria-label="Feed options">⋮</button>
   </li>`
