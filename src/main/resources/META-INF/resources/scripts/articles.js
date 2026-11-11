@@ -5,9 +5,11 @@ import { modal } from "./modal.js";
 import {
   appendArticlesList,
   clearArticlesList,
+  clearListFooter,
   removeSkeletons,
   renderSkeletons,
   renderEmptyState,
+  renderListFooter,
   setArticleReadState,
   setArticleSavedState,
   syncReaderSaveButton,
@@ -67,6 +69,7 @@ export function clearArticles() {
   state.articles = [];
   articleDetailCache.clear();
   clearArticlesList();
+  clearListFooter();
   removeSkeletons();
   document.querySelector("#articles-list .column").scrollTop = 0;
 }
@@ -75,6 +78,28 @@ export function resetPagination() {
   state.pagination.id = null;
   state.pagination.published = null;
   state.status.hasMoreArticles = true;
+  state.status.listSoftCap = ARTICLES_LIST_MAX;
+}
+
+/**
+ * Raise the soft cap and fetch the next page (used by the list footer and reader next).
+ * @returns {Promise<boolean>} true when at least one new article was loaded
+ */
+export async function loadMoreArticles() {
+  if (state.status.isLoadingArticles) return false;
+  if (!state.status.hasMoreArticles) return false;
+  const before = state.articles.length;
+  if (before >= state.status.listSoftCap) {
+    state.status.listSoftCap = before + ARTICLES_LIST_MAX;
+  }
+  clearListFooter();
+  try {
+    await loadArticles();
+  } catch (error) {
+    await showArticleLoadError(error);
+    return false;
+  }
+  return state.articles.length > before;
 }
 
 export async function showArticleLoadError(error) {
@@ -355,23 +380,38 @@ export async function loadArticles() {
           emptyMessage = "No saved articles";
         }
         renderEmptyState(emptyMessage);
+      } else {
+        renderListFooter({ kind: "caught-up" });
       }
       return;
     }
 
     state.articles.push(...newArticles);
-    state.status.hasMoreArticles =
-      newArticles.length >= ARTICLES_PAGE_SIZE &&
-      state.articles.length < ARTICLES_LIST_MAX;
+    state.status.hasMoreArticles = newArticles.length >= ARTICLES_PAGE_SIZE;
 
     const lastArticle = newArticles[newArticles.length - 1];
     state.pagination.id = lastArticle.id;
     state.pagination.published = lastArticle.published;
 
     appendArticlesList(newArticles, state.selectedArticle?.id ?? null);
-    if (state.status.hasMoreArticles) {
-      scheduleVisiblePageLoad();
+
+    if (!state.status.hasMoreArticles) {
+      renderListFooter({ kind: "caught-up" });
+      return;
     }
+
+    if (state.articles.length >= state.status.listSoftCap) {
+      renderListFooter({
+        kind: "load-more",
+        count: state.articles.length,
+        onLoadMore: () => {
+          void loadMoreArticles();
+        },
+      });
+      return;
+    }
+
+    scheduleVisiblePageLoad();
   } catch (error) {
     if (error.name === "AbortError" || error.cause?.name === "AbortError") {
       return;

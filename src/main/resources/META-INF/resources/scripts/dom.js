@@ -571,6 +571,42 @@ export function renderEmptyState(message = "No articles found") {
   articlesContainer.appendChild(div);
 }
 
+/**
+ * Remove the list end footer (caught-up / load-more).
+ */
+export function clearListFooter() {
+  articlesContainer
+    ?.querySelectorAll(".list-footer")
+    .forEach((el) => el.remove());
+}
+
+/**
+ * @param {{ kind: 'caught-up' | 'load-more', count?: number, onLoadMore?: () => void }} options
+ */
+export function renderListFooter({ kind, count = 0, onLoadMore }) {
+  clearListFooter();
+  if (!articlesContainer) return;
+  const footer = document.createElement("div");
+  footer.className = "list-footer";
+  if (kind === "caught-up") {
+    footer.textContent = "You're all caught up";
+  } else {
+    const label = document.createElement("p");
+    label.className = "list-footer-label";
+    label.textContent = `Showing the newest ${count}`;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "btn btn-secondary list-footer-load-more";
+    button.textContent = "Load more";
+    button.addEventListener("click", () => {
+      onLoadMore?.();
+    });
+    footer.appendChild(label);
+    footer.appendChild(button);
+  }
+  articlesContainer.appendChild(footer);
+}
+
 export function showFeedsSpinner() {
   const el = document.getElementById("feeds-loading");
   if (el) el.classList.remove("d-none");
