@@ -68,35 +68,80 @@ function isAllowedEmbedSrc(src) {
   }
 }
 
-// Harden sanitized article HTML once at module load.
-DOMPurify.addHook("uponSanitizeElement", (node, data) => {
-  if (data.tagName !== "iframe") return;
-  if (!isAllowedEmbedSrc(node.getAttribute("src"))) {
-    if (typeof node.remove === "function") {
-      node.remove();
-    } else if (node.parentNode) {
-      node.parentNode.removeChild(node);
+// Harden sanitized article HTML once at module load. DOMPurify has no hooks
+// without a DOM (e.g. node --test), so hook setup is skipped there.
+if (DOMPurify.isSupported) {
+  DOMPurify.addHook("uponSanitizeElement", (node, data) => {
+    if (data.tagName !== "iframe") return;
+    if (!isAllowedEmbedSrc(node.getAttribute("src"))) {
+      if (typeof node.remove === "function") {
+        node.remove();
+      } else if (node.parentNode) {
+        node.parentNode.removeChild(node);
+      }
     }
-  }
-});
+  });
+}
 
-DOMPurify.addHook("afterSanitizeAttributes", (node) => {
-  if (node.tagName === "A" && node.getAttribute("target") === "_blank") {
-    node.setAttribute("rel", "noopener noreferrer");
+// Base URL for the sanitize call in progress (see prepareArticleFragment).
+// Rewriting inside the hook runs on the inert parsed document, so images never
+// request an unresolved relative URL against the app origin.
+let articleBaseUrl = null;
+let inArticleFragment = false;
+
+/** Attributes holding a single URL, per element, that article HTML may use. */
+const URL_ATTRS = {
+  A: ["href"],
+  IMG: ["src"],
+  SOURCE: ["src"],
+  VIDEO: ["src"],
+};
+/** Attributes holding a srcset, per element. */
+const SRCSET_ATTRS = { IMG: ["srcset"], SOURCE: ["srcset"] };
+
+function rewriteNodeUrls(node, base) {
+  for (const attr of URL_ATTRS[node.tagName] || []) {
+    const value = node.getAttribute(attr);
+    if (value) node.setAttribute(attr, resolveContentUrl(value, base));
   }
-  if (node.tagName === "IFRAME") {
-    node.setAttribute(
-      "sandbox",
-      "allow-scripts allow-same-origin allow-presentation",
-    );
-    node.setAttribute("referrerpolicy", "no-referrer");
+  for (const attr of SRCSET_ATTRS[node.tagName] || []) {
+    const value = node.getAttribute(attr);
+    if (value) node.setAttribute(attr, resolveSrcset(value, base));
   }
-  if (node.tagName === "IMG") {
-    node.setAttribute("loading", "lazy");
-    node.setAttribute("decoding", "async");
-    node.setAttribute("referrerpolicy", "no-referrer");
-  }
-});
+}
+
+if (DOMPurify.isSupported) {
+  DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+    if (articleBaseUrl) rewriteNodeUrls(node, articleBaseUrl);
+    if (node.tagName === "A" && inArticleFragment) {
+      // Reader links must never navigate the app itself.
+      node.setAttribute("target", "_blank");
+    }
+    if (node.tagName === "A" && node.getAttribute("target") === "_blank") {
+      node.setAttribute("rel", "noopener noreferrer");
+    }
+    if (node.tagName === "IFRAME") {
+      node.setAttribute(
+        "sandbox",
+        "allow-scripts allow-same-origin allow-presentation",
+      );
+      node.setAttribute("referrerpolicy", "no-referrer");
+    }
+    if (node.tagName === "IMG") {
+      node.setAttribute("loading", "lazy");
+      node.setAttribute("decoding", "async");
+      node.setAttribute("referrerpolicy", "no-referrer");
+    }
+  });
+}
+
+const SANITIZE_CONFIG = {
+  USE_PROFILES: { html: true },
+  ADD_TAGS: ["iframe"],
+  ADD_ATTR: ["allow", "allowfullscreen", "frameborder", "sandbox", "referrerpolicy"],
+  FORBID_TAGS: ["style", "form", "input", "button"],
+  ALLOW_DATA_ATTR: false,
+};
 
 /**
  * Sanitizes untrusted RSS/HTML content for the reader pane.
@@ -105,13 +150,83 @@ DOMPurify.addHook("afterSanitizeAttributes", (node) => {
  */
 export function sanitizeHTML(html) {
   if (!html) return "";
-  return DOMPurify.sanitize(html, {
-    USE_PROFILES: { html: true },
-    ADD_TAGS: ["iframe"],
-    ADD_ATTR: ["allow", "allowfullscreen", "frameborder", "sandbox", "referrerpolicy"],
-    FORBID_TAGS: ["style", "form", "input", "button"],
-    ALLOW_DATA_ATTR: false,
-  });
+  return DOMPurify.sanitize(html, SANITIZE_CONFIG);
+}
+
+/**
+ * Resolves a possibly relative URL against base. Absolute URLs and values that
+ * cannot be resolved are returned unchanged.
+ * @param {string} value
+ * @param {string} base
+ * @returns {string}
+ */
+export function resolveContentUrl(value, base) {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (!trimmed || !base || /^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return value;
+  try {
+    return new URL(trimmed, base).href;
+  } catch {
+    return value;
+  }
+}
+
+/**
+ * Resolves every URL in a srcset value against base, keeping descriptors.
+ * Candidates are separated by commas; commas inside a URL (no whitespace
+ * after them) are preserved.
+ * @param {string} value
+ * @param {string} base
+ * @returns {string}
+ */
+export function resolveSrcset(value, base) {
+  if (typeof value !== "string" || !value.trim()) return value;
+  const candidates = [];
+  let i = 0;
+  const n = value.length;
+  while (i < n) {
+    while (i < n && (/\s/.test(value[i]) || value[i] === ",")) i++;
+    if (i >= n) break;
+    let start = i;
+    while (i < n && !/\s/.test(value[i])) i++;
+    let url = value.slice(start, i);
+    let descriptor = "";
+    if (url.endsWith(",")) {
+      url = url.replace(/,+$/, "");
+    } else {
+      start = i;
+      while (i < n && value[i] !== ",") i++;
+      descriptor = value.slice(start, i).trim();
+    }
+    if (!url) continue;
+    const resolved = resolveContentUrl(url, base);
+    candidates.push(descriptor ? `${resolved} ${descriptor}` : resolved);
+  }
+  return candidates.join(", ");
+}
+
+/**
+ * Sanitizes article HTML into a DOM fragment (browser only) with relative
+ * URLs resolved against baseUrl and every link forced to open in a new tab.
+ * Without a safe http(s) baseUrl, URLs are left as-is.
+ * @param {string} htmlString
+ * @param {string} [baseUrl] usually article.link
+ * @returns {DocumentFragment}
+ */
+export function prepareArticleFragment(htmlString, baseUrl) {
+  const previousBase = articleBaseUrl;
+  const previousFlag = inArticleFragment;
+  articleBaseUrl = isSafeHttpUrl(baseUrl) ? baseUrl : null;
+  inArticleFragment = true;
+  try {
+    return DOMPurify.sanitize(htmlString || "", {
+      ...SANITIZE_CONFIG,
+      RETURN_DOM_FRAGMENT: true,
+    });
+  } finally {
+    articleBaseUrl = previousBase;
+    inArticleFragment = previousFlag;
+  }
 }
 
 /**

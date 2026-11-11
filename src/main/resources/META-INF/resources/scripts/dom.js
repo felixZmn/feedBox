@@ -9,7 +9,14 @@ import { FOLDER_STATE_KEY } from "./data.js";
 import { savedBadgePresentation } from "./saved.js";
 import { pathForSelection } from "./state.js";
 import { unreadBadgeHtml, totalUnreadCount } from "./unread.js";
-import { html, getRelativeTime, parseDate, sanitizeHTML, isSafeHttpUrl } from "./util.js";
+import {
+  html,
+  getRelativeTime,
+  parseDate,
+  sanitizeHTML,
+  prepareArticleFragment,
+  isSafeHttpUrl,
+} from "./util.js";
 
 export {
   unreadBadgeHtml,
@@ -510,8 +517,17 @@ export function renderReaderView(article) {
   const externalLink = document.querySelector("#trigger-external-open");
 
   title.textContent = article.title || "No Title";
-  content.innerHTML =
-    sanitizeHTML(article.content || article.description || "") || "No Content";
+  const body = article.content || article.description || "";
+  if (article.link && isSafeHttpUrl(article.link)) {
+    const fragment = prepareArticleFragment(body, article.link);
+    if (fragment.childNodes.length) {
+      content.replaceChildren(fragment);
+    } else {
+      content.textContent = "No Content";
+    }
+  } else {
+    content.innerHTML = sanitizeHTML(body) || "No Content";
+  }
   date.textContent = `${parseDate(article.published) || "Unknown"} by ${
     article.authors || "Unknown"
   }`;
