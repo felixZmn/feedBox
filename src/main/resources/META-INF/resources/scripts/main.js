@@ -18,6 +18,8 @@ import {
   enterLoggedOut,
   onSessionLoss,
   isLoggedOut,
+  initReturnToCapture,
+  takeReturnTo,
 } from "./auth.js";
 import {
   state,
@@ -72,6 +74,7 @@ import {
   folderContextMenu,
   allFeedsContextMenu,
   restoreMenuTriggerFocus,
+  hideContextMenu,
 } from "./menu.js";
 
 setReloadArticlesForCurrentContext(
@@ -149,6 +152,10 @@ async function loadApp() {
     await refreshFolders({ background: true });
     if (isLoggedOut()) return;
     hydrateFeedIcons();
+    const returnTo = takeReturnTo(window.location.pathname);
+    if (returnTo) {
+      window.history.replaceState(window.history.state, "", returnTo);
+    }
     await applyRouteFromLocation({ replaceHistory: true });
   } catch (error) {
     if (isLoggedOut() || error?.message === "Session expired") {
@@ -207,9 +214,13 @@ async function retryConnection() {
 window.addEventListener("DOMContentLoaded", async () => {
   onSessionLoss(() => {
     connectivityBanner.hide();
+    if (modal.dialog?.open) modal.close(null);
+    hideContextMenu({ restoreFocus: false });
     hideFeedsSpinner();
     removeSkeletons();
   });
+
+  initReturnToCapture();
 
   document
     .getElementById("connectivity-retry")

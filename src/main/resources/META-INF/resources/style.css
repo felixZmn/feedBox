@@ -195,6 +195,18 @@ body:not(.logged-out) .login-panel {
   line-height: 1.35;
 }
 
+.login-reason {
+  margin: -1rem 0 1.5rem;
+  max-width: 18rem;
+  color: var(--login-fg);
+  font-size: var(--font-size-small);
+  line-height: 1.35;
+}
+
+.login-reason[hidden] {
+  display: none;
+}
+
 .login-providers {
   list-style: none;
   margin: 0;
