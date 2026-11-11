@@ -10,7 +10,8 @@
  * @property {string} [content] - Full HTML body (detail endpoint only; omitted from list).
  * @property {string|null} link - The URL link to the original article (null when missing).
  * @property {string} [guid] - Per-feed stable identity (detail endpoint).
- * @property {string|null} published - Publication instant (ISO-8601); null when the feed omitted it.
+ * @property {string|null} published - Publication instant (ISO-8601); first-seen time when the feed omitted it.
+ * @property {boolean} [publishedEstimated] - True when `published` is the first-seen time, not a feed date.
  * @property {string} authors - The author(s) of the article.
  * @property {string} imageUrl - The URL of the article's image (empty string if none).
  * @property {string} [categories] - JSON array of category strings (detail endpoint).
