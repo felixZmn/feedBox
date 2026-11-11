@@ -34,6 +34,9 @@ public class FeedRepository extends AbstractRepository {
     private static final String DELETE = """
             DELETE FROM feed WHERE id = ?
             """;
+    private static final String CLEAR_FOLDER = """
+            UPDATE feed SET folder_id = NULL WHERE folder_id = ?
+            """;
     private static final String MARK_REFRESH_SUCCESS = """
             UPDATE feed SET last_refreshed_at = ?, last_error = NULL WHERE id = ?
             """;
@@ -113,6 +116,20 @@ public class FeedRepository extends AbstractRepository {
             return super.update(DELETE, List.of(id));
         } catch (SQLException e) {
             throw new DataAccessException("Error deleting feed: " + id, e);
+        }
+    }
+
+    /**
+     * Move every feed in the folder to "No folder" so the folder row can be
+     * deleted without cascading the feeds away.
+     *
+     * @return number of feeds unlinked
+     */
+    public int clearFolderId(int folderId) {
+        try {
+            return super.update(CLEAR_FOLDER, List.of(folderId));
+        } catch (SQLException e) {
+            throw new DataAccessException("Error clearing folder from feeds: " + folderId, e);
         }
     }
 

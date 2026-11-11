@@ -11,6 +11,7 @@ import de._0x2b.service.FolderService;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
+import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -19,6 +20,7 @@ import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
@@ -56,9 +58,25 @@ public class FolderResource {
 
     @DELETE
     @Path("/{id}")
-    public Response deleteFolder(@PathParam("id") int id) {
-        folderService.delete(id);
+    public Response deleteFolder(
+            @PathParam("id") int id,
+            @QueryParam("feeds") String feeds) {
+        folderService.delete(id, parseFeedsMode(feeds));
         return Response.noContent().build();
+    }
+
+    /**
+     * {@code keep} (default) moves feeds to "No folder"; {@code delete}
+     * removes them with the folder.
+     */
+    static boolean parseFeedsMode(String feeds) {
+        if (feeds == null || feeds.isBlank() || "keep".equals(feeds)) {
+            return true;
+        }
+        if ("delete".equals(feeds)) {
+            return false;
+        }
+        throw new BadRequestException("feeds must be keep or delete");
     }
 
     @POST

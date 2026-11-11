@@ -80,6 +80,17 @@ public class ArticleRepository extends AbstractRepository {
             FROM article
             WHERE saved = true AND published IS NOT NULL
             """;
+    private static final String COUNT_SAVED_BY_FEED_SQL = """
+            SELECT COUNT(*)::int AS saved_count
+            FROM article
+            WHERE saved = true AND published IS NOT NULL AND feed_id = ?
+            """;
+    private static final String COUNT_SAVED_BY_FOLDER_SQL = """
+            SELECT COUNT(*)::int AS saved_count
+            FROM article a
+            JOIN feed f ON f.id = a.feed_id
+            WHERE a.saved = true AND a.published IS NOT NULL AND f.folder_id = ?
+            """;
     private static final String MARK_READ_ALL_SQL = """
             UPDATE reader_state
             SET mark_read_through_id = GREATEST(
@@ -248,13 +259,28 @@ public class ArticleRepository extends AbstractRepository {
 
     /** Dated saved articles. Other tests may have saved rows, so callers compare deltas. */
     public int countSaved() {
-        try (Connection conn = dataSource.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(COUNT_SAVED_SQL);
-                ResultSet rs = stmt.executeQuery()) {
-            return rs.next() ? rs.getInt("saved_count") : 0;
-        } catch (SQLException e) {
-            throw new DataAccessException("Query failed: " + COUNT_SAVED_SQL, e);
+        return countSaved(null, null);
+    }
+
+    /**
+     * Dated saved articles, optionally scoped to one feed or one folder.
+     * Pass at most one of {@code feedId} / {@code folderId}.
+     */
+    public int countSaved(Integer feedId, Integer folderId) {
+        if (feedId != null && folderId != null) {
+            throw new IllegalArgumentException("Specify at most one of feedId or folderId");
         }
+        String sql = COUNT_SAVED_SQL;
+        List<Object> params = List.of();
+        if (feedId != null) {
+            sql = COUNT_SAVED_BY_FEED_SQL;
+            params = List.of(feedId);
+        } else if (folderId != null) {
+            sql = COUNT_SAVED_BY_FOLDER_SQL;
+            params = List.of(folderId);
+        }
+        List<Integer> rows = super.query(sql, rs -> rs.getInt("saved_count"), params);
+        return rows.isEmpty() ? 0 : rows.getFirst();
     }
 
     /**
