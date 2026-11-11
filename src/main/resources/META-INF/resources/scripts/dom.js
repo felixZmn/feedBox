@@ -422,7 +422,7 @@ function createArticleElement(article) {
   const titleText = document.createElement("span");
   const readState = document.createElement("span");
   const sourceSpan = document.createElement("span");
-  const ageSpan = document.createElement("span");
+  const ageTime = document.createElement("time");
   const title = article.title || "No Title";
 
   articleDiv.className = "article";
@@ -448,20 +448,28 @@ function createArticleElement(article) {
   readState.textContent = articleReadSuffix(!!article.read);
   titleLink.append(titleText, readState);
   sourceSpan.className = "source";
-  ageSpan.className = "age";
+  ageTime.className = "age";
 
   sourceSpan.textContent = article.feedName || "Unknown";
+  const absolute = parseDate(article.published);
   const age = getRelativeTime(article.published) || "";
+  if (article.published) {
+    const published = new Date(article.published);
+    if (!isNaN(published)) {
+      ageTime.dateTime = published.toISOString();
+    }
+  }
   if (article.publishedEstimated && age) {
     // The feed gave no date; this age counts from when we first saw the article.
-    ageSpan.textContent = `~${age}`;
-    ageSpan.title = `Date unknown (first seen ${parseDate(article.published)})`;
+    ageTime.textContent = `~${age}`;
+    ageTime.title = `Date unknown (first seen ${absolute || "unknown"})`;
     const hint = document.createElement("span");
     hint.className = "visually-hidden";
     hint.textContent = " (estimated)";
-    ageSpan.appendChild(hint);
+    ageTime.appendChild(hint);
   } else {
-    ageSpan.textContent = age;
+    ageTime.textContent = age;
+    if (absolute) ageTime.title = absolute;
   }
 
   body.appendChild(titleLink);
@@ -478,7 +486,7 @@ function createArticleElement(article) {
   }
 
   headerDiv.appendChild(sourceSpan);
-  metaEnd.appendChild(ageSpan);
+  metaEnd.appendChild(ageTime);
   metaEnd.appendChild(flagButton("article-mark", articleMarkState(!!article.read)));
   metaEnd.appendChild(flagButton("article-star", articleStarState(!!article.saved)));
   headerDiv.appendChild(metaEnd);
@@ -562,7 +570,11 @@ export function renderReaderView(article) {
   const when = article.publishedEstimated
     ? `Date unknown (first seen ${parseDate(article.published) || "unknown"})`
     : parseDate(article.published) || "Unknown";
-  date.textContent = `${when} by ${article.authors || "Unknown"}`;
+  const author = (article.authors || "").trim();
+  date.textContent =
+    author && author.toLowerCase() !== "unknown"
+      ? `${when} by ${author}`
+      : when;
   publisher.textContent = article.feedName || "";
 
   if (article.link && isSafeHttpUrl(article.link)) {
