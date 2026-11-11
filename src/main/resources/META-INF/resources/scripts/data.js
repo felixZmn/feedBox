@@ -111,6 +111,20 @@ class DataService {
   }
 
   /**
+   * Count dated articles with id greater than {@code sinceId} in the list scope.
+   * @param {{ sinceId: number, feed?: number, folder?: number, view?: string }} args
+   * @returns {Promise<{ count: number }>}
+   */
+  async countArticles({ sinceId, feed, folder, view } = {}) {
+    const params = new URLSearchParams();
+    params.set("since_id", String(sinceId));
+    if (feed != null) params.set("feed", String(feed));
+    if (folder != null) params.set("folder", String(folder));
+    if (view) params.set("view", String(view));
+    return this._request(`./api/article/count?${params}`);
+  }
+
+  /**
    * Full article for the reader (list endpoints omit content/description).
    * @param {number|string} articleId
    * @param {{ signal?: AbortSignal }} [options]

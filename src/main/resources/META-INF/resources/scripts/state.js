@@ -34,6 +34,8 @@ export const state = {
   },
   selectedArticle: null,
   savedCount: 0,
+  /** Highest article id the open list has accounted for (new-articles probe). */
+  seenMaxArticleId: 0,
   lastClickedItem: { type: itemType.ALL, obj: null },
   restoredFromCache: false,
 };

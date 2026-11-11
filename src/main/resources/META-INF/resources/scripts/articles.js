@@ -41,7 +41,11 @@ import {
   findFeedMutable,
   decrementFeedUnreadCount,
   syncUnreadBadgesFromState,
+  refreshFolders,
 } from "./feeds.js";
+
+const NEW_ARTICLES_CHECK_THROTTLE_MS = 5 * 60 * 1000;
+let lastNewArticlesCheckAt = 0;
 
 export function clearSearchFilter() {
   state.filter.isActive = false;
@@ -68,11 +72,132 @@ export async function submitSearch() {
 
 export function clearArticles() {
   state.articles = [];
+  state.seenMaxArticleId = 0;
+  hideNewArticlesPill();
   articleDetailCache.clear();
   clearArticlesList();
   clearListFooter();
   removeSkeletons();
   document.querySelector("#articles-list .column").scrollTop = 0;
+}
+
+/** Max latestArticleId across the feeds in the current list context. */
+function latestArticleIdForCurrentContext() {
+  const { type, obj } = state.lastClickedItem;
+  if (type === itemType.FEED && obj) {
+    const live = findFeedMutable(obj.id) ?? obj;
+    return Number(live.latestArticleId) || 0;
+  }
+  if (type === itemType.FOLDER && obj) {
+    const folder = state.folders.find((f) => f.id === obj.id) ?? obj;
+    return maxLatestArticleId(folder.feeds ?? []);
+  }
+  return maxLatestArticleId(allFeedsInState());
+}
+
+/**
+ * Raise {@link state.seenMaxArticleId} from the open list and feed
+ * {@code latestArticleId} values. Call only after a list load — not after a
+ * background folder refresh, or the new-articles probe would go blind.
+ */
+export function updateSeenMaxArticleId() {
+  let max = Number(state.seenMaxArticleId) || 0;
+  for (const article of state.articles) {
+    const id = Number(article.id) || 0;
+    if (id > max) max = id;
+  }
+  max = Math.max(max, latestArticleIdForCurrentContext());
+  state.seenMaxArticleId = max;
+}
+
+function showNewArticlesPill(count) {
+  const pill = document.getElementById("new-articles-pill");
+  if (!pill) return;
+  const capped = count >= 1000;
+  const labelCount = capped ? "1000+" : String(count);
+  const noun = count === 1 ? "article" : "articles";
+  pill.textContent = `${labelCount} new ${noun}`;
+  pill.hidden = false;
+}
+
+export function hideNewArticlesPill() {
+  const pill = document.getElementById("new-articles-pill");
+  if (pill) pill.hidden = true;
+}
+
+/** Build the count API scope from the current sidebar selection. */
+function newArticlesCountParams(sinceId) {
+  const params = { sinceId };
+  switch (state.lastClickedItem.type) {
+    case itemType.FEED:
+      if (!state.lastClickedItem.obj) return null;
+      params.feed = state.lastClickedItem.obj.id;
+      break;
+    case itemType.FOLDER:
+      if (!state.lastClickedItem.obj) return null;
+      params.folder = state.lastClickedItem.obj.id;
+      break;
+    case itemType.UNREAD:
+      params.view = "unread";
+      break;
+    case itemType.SAVED:
+      params.view = "saved";
+      break;
+    case itemType.ALL:
+    default:
+      break;
+  }
+  return params;
+}
+
+/**
+ * Ask the server how many articles arrived after {@link state.seenMaxArticleId}.
+ * Shows the pill when the count is positive; never inserts into the open list.
+ */
+export async function checkForNewArticles() {
+  const sinceId = Number(state.seenMaxArticleId) || 0;
+  if (sinceId <= 0) return;
+  const params = newArticlesCountParams(sinceId);
+  if (!params) return;
+  try {
+    const result = await dataService.countArticles(params);
+    const count = Number(result?.count) || 0;
+    if (count > 0) {
+      showNewArticlesPill(count);
+    } else {
+      hideNewArticlesPill();
+    }
+  } catch (error) {
+    console.error("[app] Failed to count new articles:", error);
+  }
+}
+
+/**
+ * Refresh sidebar badges, then probe for new articles.
+ * @param {{ force?: boolean }} [options] force skips the 5-minute throttle
+ */
+export async function probeNewArticles({ force = false } = {}) {
+  const now = Date.now();
+  if (!force && now - lastNewArticlesCheckAt < NEW_ARTICLES_CHECK_THROTTLE_MS) {
+    return;
+  }
+  lastNewArticlesCheckAt = now;
+  await refreshFolders({ background: true });
+  await checkForNewArticles();
+}
+
+/** Wire the pill click and visibility-based new-articles probe. */
+export function initNewArticlesProbe() {
+  document
+    .getElementById("new-articles-pill")
+    ?.addEventListener("click", () => {
+      hideNewArticlesPill();
+      void reloadArticlesForCurrentContext({ keepReader: true });
+    });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    void probeNewArticles();
+  });
 }
 
 export function resetPagination() {
@@ -501,6 +626,7 @@ export async function loadArticles() {
 
     if (!newArticles || newArticles.length === 0) {
       state.status.hasMoreArticles = false;
+      updateSeenMaxArticleId();
       if (state.articles.length === 0) {
         let emptyMessage;
         if (state.filter.isActive) {
@@ -519,6 +645,7 @@ export async function loadArticles() {
 
     state.articles.push(...newArticles);
     state.status.hasMoreArticles = newArticles.length >= ARTICLES_PAGE_SIZE;
+    updateSeenMaxArticleId();
 
     const lastArticle = newArticles[newArticles.length - 1];
     state.pagination.id = lastArticle.id;

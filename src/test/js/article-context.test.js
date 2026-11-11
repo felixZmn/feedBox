@@ -47,6 +47,21 @@ test("restores the observer after a failed context load", async () => {
   ]);
 });
 
+test("keepReader skips clearing the reader", async () => {
+  const { calls, actions } = createActions(async () => {});
+  const reload = createArticleContextReloader(actions);
+
+  await reload({ keepReader: true });
+
+  assert.deepEqual(calls, [
+    "pause",
+    "resetPagination",
+    "clearArticles",
+    "resume",
+  ]);
+  assert.equal(calls.includes("clearReader"), false);
+});
+
 test("only the newest context switch restores the observer", async () => {
   const firstLoad = deferred();
   const secondLoad = deferred();

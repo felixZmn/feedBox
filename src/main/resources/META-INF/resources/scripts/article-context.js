@@ -19,10 +19,15 @@
 export function createArticleContextReloader(actions) {
   let contextToken = 0;
 
-  return async function reloadArticlesForCurrentContext() {
+  /**
+   * @param {{ keepReader?: boolean }} [options]
+   */
+  return async function reloadArticlesForCurrentContext({ keepReader = false } = {}) {
     const token = ++contextToken;
     actions.pauseObserver();
-    actions.clearReader();
+    if (!keepReader) {
+      actions.clearReader();
+    }
     actions.resetPagination();
     actions.clearArticles();
 

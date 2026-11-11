@@ -779,6 +779,40 @@ button {
   background-color: var(--surface-list);
 }
 
+.new-articles-pill {
+  display: block;
+  width: max-content;
+  max-width: calc(100% - 2 * var(--list-inset));
+  margin: 0 auto var(--default-space);
+  padding: 0.5rem 1rem;
+  min-height: 2.75rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background-color: var(--btn-primary-bg);
+  color: #ffffff;
+  font: inherit;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  cursor: pointer;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  box-shadow: var(--shadow-sm);
+}
+
+.new-articles-pill:hover {
+  filter: brightness(1.06);
+}
+
+.new-articles-pill:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.new-articles-pill[hidden] {
+  display: none;
+}
+
 .reader .column-header {
   background-color: var(--surface-reader);
 }

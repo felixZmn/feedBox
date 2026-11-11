@@ -553,9 +553,9 @@ export async function refreshFeeds() {
       });
       return;
     }
-    await refreshFolders({ background: false });
-    const { reloadArticlesForCurrentContext } = await import("./state.js");
-    await reloadArticlesForCurrentContext();
+    await refreshFolders({ background: true });
+    const { checkForNewArticles } = await import("./articles.js");
+    await checkForNewArticles();
     const summary = refreshSummaryText(job);
     if (summary) toast(summary, { timeoutMs: 8000 });
   } catch (error) {
