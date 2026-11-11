@@ -85,6 +85,15 @@ public class ArticleService {
     }
 
     /**
+     * Count dated articles newer than {@code sinceId} for the given list scope.
+     * Result is capped at 1000.
+     */
+    public int countSince(long sinceId, Integer feedId, Integer folderId, boolean unreadOnly,
+            boolean savedOnly) {
+        return articleRepository.countSince(sinceId, feedId, folderId, unreadOnly, savedOnly);
+    }
+
+    /**
      * Advance the global read horizon so every existing article counts as read.
      * New inserts (higher ids) stay unread. When {@code throughId} is set, only
      * articles up to that id (capped at the current max) are marked.

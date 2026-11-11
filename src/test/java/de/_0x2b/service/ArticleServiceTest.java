@@ -107,6 +107,26 @@ class ArticleServiceTest {
     }
 
     @Test
+    void countSince_forwardsScopeFlags() {
+        when(articleRepository.countSince(40L, 3, null, false, false)).thenReturn(7);
+
+        assertEquals(7, service.countSince(40L, 3, null, false, false));
+
+        verify(articleRepository).countSince(40L, 3, null, false, false);
+        verifyNoMoreInteractions(articleRepository);
+    }
+
+    @Test
+    void countSince_unreadView_forwardsUnreadFlag() {
+        when(articleRepository.countSince(10L, null, null, true, false)).thenReturn(2);
+
+        assertEquals(2, service.countSince(10L, null, null, true, false));
+
+        verify(articleRepository).countSince(10L, null, null, true, false);
+        verifyNoMoreInteractions(articleRepository);
+    }
+
+    @Test
     void getAll_noPagination_blankQ_callsRepoFindAll() {
         List<ArticleSummary> expected = List.of(mock(ArticleSummary.class));
         when(articleRepository.findAll("")).thenReturn(expected);
