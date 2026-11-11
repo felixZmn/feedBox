@@ -506,10 +506,9 @@ button {
   border-radius: var(--radius-sm);
 }
 
-/* Nested feeds share the same icon column as folders / All Feeds;
-   hierarchy is the open folder group, not a second left gutter. */
+/* Nest feeds under the folder label (icon 20px + row gap), not the pane edge. */
 .folder-container {
-  margin: 0;
+  margin: 0 0 0 calc(20px + var(--default-space));
 }
 
 /* articles list: header stays fixed; list scrolls. Matching
