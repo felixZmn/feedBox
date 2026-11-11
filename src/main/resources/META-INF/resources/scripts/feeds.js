@@ -6,6 +6,7 @@ import {
   loadFolderTreeCache,
   saveFolderTreeCache,
   folderTreesEqual,
+  parseApiError,
 } from "./data.js";
 import { modal } from "./modal.js";
 import {
@@ -393,9 +394,12 @@ export async function importFeeds() {
         });
 
         if (!response.ok) {
+          const { detail } = parseApiError(
+            await response.text().catch(() => ""),
+          );
           await modal.show({
             title: "Error",
-            content: "Error importing feeds: " + response.statusText,
+            content: html`<p>Error importing feeds: ${detail || response.statusText || response.status}</p>`,
             type: "alert",
           });
           return;
