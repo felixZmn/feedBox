@@ -60,15 +60,29 @@ public class FeedService {
     int refreshConcurrency = 10;
 
     /**
-     * Fetch metadata and favicon (network I/O), then persist in a short transaction.
+     * Fetch the feed once, read its metadata and favicon, persist it in a
+     * short transaction, then store its current articles from the same
+     * response so the new feed is not empty until the next refresh.
+     * A failure while storing articles is recorded as the feed's
+     * {@code last_error}; the feed itself stays created.
      *
      * @return generated feed id
      * @throws InvalidFeedException when the feed URL is unreachable or invalid
      */
     public int create(Feed feed) {
-        feed = this.getFeedMetadata(feed);
+        FetchResult fetched = fetchFeedOrThrow(feed.getFeedUrl());
+        feed = getFeedMetadata(feed, fetched);
         Icon icon = iconService.findIcon(feed);
-        return persistNewFeed(feed, icon);
+        int feedId = persistNewFeed(feed, icon);
+        ingest(feed.withId(feedId), fetched);
+        return feedId;
+    }
+
+    private FetchResult fetchFeedOrThrow(URI feedUrl) {
+        return switch (outboundHttpClient.fetchFeedDetailed(feedUrl)) {
+            case FetchResult result -> result;
+            case FetchFailure failure -> throw invalidFeed(failure);
+        };
     }
 
     @Transactional
@@ -211,18 +225,15 @@ public class FeedService {
     }
 
     /**
-     * Query a feed URL and return the filled feed object
+     * Fill name and site URL from an already-fetched feed body.
      *
-     * @param feed Feed object with feed_url filled
+     * @param feed    Feed object with feed_url filled
+     * @param fetched the response for {@code feed.getFeedUrl()}
      * @return Feed object with name and url filled
-     * @throws InvalidFeedException when the URL is unreachable or not a feed
+     * @throws InvalidFeedException when the body is not a feed
      */
-    public Feed getFeedMetadata(Feed feed) {
+    Feed getFeedMetadata(Feed feed, FetchResult fetched) {
         try {
-            FetchResult fetched = switch (outboundHttpClient.fetchFeedDetailed(feed.getFeedUrl())) {
-                case FetchResult result -> result;
-                case FetchFailure failure -> throw invalidFeed(failure);
-            };
             RssReader rssReader = new RssReader();
             rssReader.setUserAgent(outboundHttpClient.userAgent());
             var items = rssReader.read(fetched.bodyStream()).toList();
@@ -421,15 +432,21 @@ public class FeedService {
      * @return {@code true} when the feed was refreshed successfully
      */
     boolean parseFeed(Feed feed) { // package-private for direct testing
-        FetchResult response;
-        switch (outboundHttpClient.fetchFeedDetailed(feed.getFeedUrl())) {
-            case FetchResult result -> response = result;
+        return switch (outboundHttpClient.fetchFeedDetailed(feed.getFeedUrl())) {
+            case FetchResult result -> ingest(feed, result);
             case FetchFailure failure -> {
                 markRefreshError(feed, failure.message());
-                return false;
+                yield false;
             }
-        }
+        };
+    }
 
+    /**
+     * Store the articles of a fetched feed body and update refresh health.
+     *
+     * @return {@code true} when the articles were stored
+     */
+    private boolean ingest(Feed feed, FetchResult response) {
         List<MediaRssItem> items;
         try {
             items = mediaRssParser.parse(response.bodyStream());

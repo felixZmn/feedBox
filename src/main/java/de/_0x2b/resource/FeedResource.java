@@ -44,8 +44,21 @@ public class FeedResource {
     @Path("/{id}")
     public Response updateFeed(@PathParam("id") int id, @Valid UpdateFeedRequest request) {
         Feed existing = feedService.findById(id);
-        feedService.update(existing.withFolderId(request.folderId).withFeedUrl(request.feedUrl));
+        Feed updated = existing.withFolderId(request.folderId).withFeedUrl(request.feedUrl);
+        String name = normalizeName(request.name);
+        if (name != null) {
+            updated = updated.withName(name);
+        }
+        feedService.update(updated);
         return Response.ok(id).build();
+    }
+
+    /** @return the trimmed name, or null when blank (keep the current name) */
+    static String normalizeName(String name) {
+        if (name == null || name.isBlank()) {
+            return null;
+        }
+        return name.strip();
     }
 
     @DELETE
