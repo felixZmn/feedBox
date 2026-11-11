@@ -43,7 +43,7 @@ import {
   syncUnreadBadgesFromState,
   refreshFolders,
 } from "./feeds.js";
-import { updateSearchChrome } from "./search-ui.js";
+import { contextDisplayName, updateSearchChrome } from "./search-ui.js";
 
 const NEW_ARTICLES_CHECK_THROTTLE_MS = 5 * 60 * 1000;
 let lastNewArticlesCheckAt = 0;
@@ -632,13 +632,19 @@ export async function loadArticles() {
       state.status.hasMoreArticles = false;
       updateSeenMaxArticleId();
       if (state.articles.length === 0) {
+        const scope = contextDisplayName(
+          state.lastClickedItem.type,
+          state.lastClickedItem.obj,
+        );
         let emptyMessage;
         if (state.filter.isActive) {
-          emptyMessage = `No articles match "${state.filter.term}"`;
+          emptyMessage = `No articles match “${state.filter.term}” in ${scope}`;
         } else if (state.lastClickedItem.type === itemType.UNREAD) {
           emptyMessage = "No unread articles";
         } else if (state.lastClickedItem.type === itemType.SAVED) {
           emptyMessage = "No saved articles";
+        } else {
+          emptyMessage = `No articles in ${scope}`;
         }
         renderEmptyState(emptyMessage);
       } else {
