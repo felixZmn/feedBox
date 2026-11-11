@@ -229,10 +229,12 @@ export async function showShortcutsHelp() {
     title: "Keyboard shortcuts",
     type: "alert",
     content:
+      `<div class="dialog-stack">` +
       `<label class="shortcut-toggle">` +
       `<input type="checkbox" id="shortcut-enabled" name="shortcutsEnabled"${checkedAttr} />` +
-      ` Single-key shortcuts</label>` +
-      `<table class="shortcut-table"><tbody>${rows}</tbody></table>`,
+      `<span>Single-key shortcuts</span></label>` +
+      `<table class="shortcut-table"><tbody>${rows}</tbody></table>` +
+      `</div>`,
   });
 
   const checkbox = document.getElementById("shortcut-enabled");

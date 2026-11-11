@@ -745,12 +745,6 @@ button {
   overflow-x: auto;
 }
 
-.reader .content .summary-hint {
-  margin-top: 1.5rem;
-  color: var(--font-color-muted);
-  font-size: var(--font-size-small);
-}
-
 .column-header {
   position: relative;
   display: flex;
@@ -1224,11 +1218,13 @@ dialog::backdrop {
   display: grid;
   grid-template-columns: 1fr;
   gap: 0.75rem 1rem;
-  align-items: center;
+  align-items: start;
 }
 
-.modal-body:has(> :nth-child(2)) {
+/* Label + control pairs only (Add/Edit Feed/Folder). Free-form dialogs stay one column. */
+.modal-body:has(> .field) {
   grid-template-columns: 1fr 2fr;
+  align-items: center;
 }
 
 .modal-body .field {
@@ -1243,7 +1239,10 @@ dialog::backdrop {
   width: 100%;
 }
 
-.modal-body input,
+.modal-body input[type="text"],
+.modal-body input[type="url"],
+.modal-body input[type="search"],
+.modal-body input:not([type]),
 .modal-body select {
   width: 100%;
   min-height: 2.25rem;
@@ -1264,10 +1263,24 @@ dialog::backdrop {
   color: var(--font-color);
 }
 
-.modal-body input:focus,
+.modal-body input[type="text"]:focus,
+.modal-body input[type="url"]:focus,
+.modal-body input[type="search"]:focus,
+.modal-body input:not([type]):focus,
 .modal-body select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--hover-bg);
+}
+
+.modal-body input[type="checkbox"],
+.modal-body input[type="radio"] {
+  width: 1.05rem;
+  height: 1.05rem;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+  accent-color: var(--accent);
 }
 
 .dialog-error {
@@ -1284,16 +1297,16 @@ dialog::backdrop {
 }
 
 .shortcut-toggle {
-  grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin: 0 0 0.75rem;
+  gap: 0.55rem;
+  margin: 0;
   font-size: var(--font-size-small);
+  line-height: 1.3;
+  cursor: pointer;
 }
 
 .shortcut-table {
-  grid-column: 1 / -1;
   width: 100%;
   border-collapse: collapse;
   font-size: var(--font-size-small);
@@ -1302,30 +1315,44 @@ dialog::backdrop {
 .shortcut-table th,
 .shortcut-table td {
   text-align: left;
-  padding: 0.35rem 0.5rem 0.35rem 0;
-  vertical-align: top;
+  padding: 0.4rem 0;
+  vertical-align: baseline;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.shortcut-table tr:last-child th,
+.shortcut-table tr:last-child td {
+  border-bottom: none;
 }
 
 .shortcut-table th {
   font-weight: 600;
   white-space: nowrap;
+  width: 5.5rem;
   padding-right: 1rem;
+  color: var(--font-color);
+}
+
+.shortcut-table td {
+  color: var(--font-color-muted);
 }
 
 .shortcut-table kbd {
   font-family: var(--font-sans-serif);
   font-weight: 600;
+  color: var(--font-color);
 }
 
 .dialog-stack {
   grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
 .dialog-stack > p {
   margin: 0;
+  line-height: 1.45;
 }
 
 .dialog-choice {
@@ -1334,32 +1361,25 @@ dialog::backdrop {
   border: none;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.65rem;
 }
 
 .dialog-choice legend {
   padding: 0;
-  margin: 0 0 0.25rem;
+  margin: 0 0 0.15rem;
   font-size: var(--font-size-small);
   font-weight: 500;
   color: var(--font-color-muted);
+  line-height: 1.35;
 }
 
 .dialog-choice-option {
   display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  min-height: 2.25rem;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 1.75rem;
+  line-height: 1.35;
   cursor: pointer;
-}
-
-.modal-body .dialog-choice-option input[type="radio"] {
-  width: auto;
-  min-height: 1.25rem;
-  height: 1.25rem;
-  margin: 0.2rem 0 0;
-  padding: 0;
-  flex-shrink: 0;
 }
 
 .modal-footer {

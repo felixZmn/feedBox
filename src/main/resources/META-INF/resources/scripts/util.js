@@ -58,17 +58,6 @@ export function isSafeHttpUrl(value) {
   }
 }
 
-/**
- * True when an article carries no full content, only a feed summary, and has
- * a safe link to the original.
- * @param {{content?: string, description?: string, link?: string}} article
- * @returns {boolean}
- */
-export function isSummaryOnly(article) {
-  if (!article || !isSafeHttpUrl(article.link)) return false;
-  return !(article.content && article.content.trim());
-}
-
 function isAllowedEmbedSrc(src) {
   if (!src) return false;
   try {
