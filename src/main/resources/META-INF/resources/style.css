@@ -58,13 +58,14 @@
   /* Page-header controls keep the original glyph size */
   --header-icon-size: 20px;
   --touch-target: 36px;
-  /* Tree: denser than original, but still one-row-per-cursor */
-  --tree-icon-size: 16px;
-  --tree-row-gap: 0.2rem;
-  --tree-row-pad-y: 0.28rem;
-  --tree-row-min-height: 1.75rem;
+  /* Tree: airy like NNW — taller pill than type, small gap, icons carry the row */
+  --tree-icon-size: 18px;
+  --tree-row-gap: 0.15rem;
+  --tree-row-min-height: 2rem;
   --menu-pad: 0.15rem;
-  --menu-item-pad: 0.22rem 0.45rem;
+  /* Menu denser than tree; modestly taller than text-only */
+  --menu-item-min-height: 1.5rem;
+  --menu-item-pad: 0.35rem 0.5rem;
   --article-row-pad: 0.28rem 0.55rem;
   --skeleton-base: rgba(128, 128, 128, 0.15);
   --skeleton-shine: rgba(128, 128, 128, 0.05);
@@ -492,7 +493,6 @@ button {
 .tree-name {
   flex: 1;
   min-width: 0;
-  padding: var(--tree-row-pad-y) 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -566,7 +566,6 @@ button {
   gap: 0.4rem;
   min-height: var(--tree-row-min-height);
   margin-bottom: var(--tree-row-gap);
-  padding-block: var(--tree-row-pad-y);
   padding-left: var(--default-space);
   margin-inline: var(--list-inset);
   border-radius: var(--radius-sm);
@@ -633,8 +632,6 @@ button {
   align-items: center;
   gap: 0.4rem;
   min-height: var(--tree-row-min-height);
-  padding-bottom: var(--tree-row-pad-y);
-  padding-top: var(--tree-row-pad-y);
   padding-left: var(--default-space);
   margin-bottom: var(--tree-row-gap);
   margin-inline: var(--list-inset);
@@ -1193,8 +1190,8 @@ button {
 }
 
 #feeds-list {
-  /* Slightly under body size — readable, not chrome-tiny */
-  font-size: 0.9rem;
+  /* Match chrome size so type sits small in the 2rem pill (NNW airiness) */
+  font-size: var(--font-size-chrome);
 }
 
 #feeds-list .column {
@@ -1795,7 +1792,7 @@ dialog::backdrop {
 }
 
 /* ######################### */
-/* click menu — same chrome type/density as the sidebar tree */
+/* click menu — denser than tree rows (NetNewsWire hierarchy) */
 .context-menu {
   position: fixed;
   background: var(--surface-reader);
@@ -1828,7 +1825,11 @@ dialog::backdrop {
 }
 
 .context-menu li {
+  display: flex;
+  align-items: center;
+  min-height: var(--menu-item-min-height);
   padding: var(--menu-item-pad);
+  box-sizing: border-box;
   cursor: pointer;
   border-radius: 5px;
   margin: 0;
@@ -1845,13 +1846,14 @@ dialog::backdrop {
 }
 
 .context-menu-item:not(.d-none) {
-  display: block;
+  display: flex;
 }
 
 /* Must beat `.context-menu li` padding/radius or separators look like nested pills */
 .context-menu li.context-menu-separator {
   display: none;
   height: 1px;
+  min-height: 0;
   margin: 0.15rem 0.35rem;
   padding: 0;
   border: none;
@@ -1961,9 +1963,7 @@ dialog::backdrop {
     min-height: var(--touch-target);
   }
 
-  .feeds-ul li,
-  .details,
-  .folder-row,
+  /* Tree keeps desktop density; only icon controls grow for touch. */
   .articles-list .article {
     min-height: var(--touch-target);
     box-sizing: border-box;
