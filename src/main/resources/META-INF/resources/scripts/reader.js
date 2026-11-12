@@ -4,10 +4,12 @@ import { dataService } from "./data.js";
 import {
   clearReaderView,
   renderReaderView,
+  setReaderUnavailable,
   setSelectedArticleHighlight,
   updateNavSelection,
 } from "./dom.js";
-import { isSameContext, parseRoute } from "./router.js";
+import { isConnectivityFailure, notifyOffline } from "./connectivity.js";
+import { isSameContext, parseRoute, resolveRoute } from "./router.js";
 import {
   state,
   itemType,
@@ -177,30 +179,53 @@ export function closeReader() {
 }
 
 /**
- * @param {object} article
- * @param {string} type
- * @param {object | null} obj
+ * @param {import('./router.js').AppRoute} route
  */
-function articleBelongsToContext(article, type, obj) {
-  if (!article) return false;
-  if (type === itemType.ALL) return true;
-  if (type === itemType.FEED && obj) return article.feedId === obj.id;
-  if (type === itemType.FOLDER && obj) {
-    return (obj.feeds ?? []).some((feed) => feed.id === article.feedId);
+function placeFacts(route) {
+  return {
+    feedExists:
+      route.context !== "feed" || findFeedById(route.contextId) != null,
+    folderExists:
+      route.context !== "folder" || findFolderById(route.contextId) != null,
+    articleExists: true,
+  };
+}
+
+/**
+ * @param {ReturnType<typeof resolveRoute>} resolved
+ */
+function selectionFor(resolved) {
+  if (resolved.context === "unread") return { type: itemType.UNREAD, obj: null };
+  if (resolved.context === "saved") return { type: itemType.SAVED, obj: null };
+  if (resolved.context === "feed") {
+    return { type: itemType.FEED, obj: findFeedById(resolved.contextId) };
   }
-  return false;
+  if (resolved.context === "folder") {
+    return { type: itemType.FOLDER, obj: findFolderById(resolved.contextId) };
+  }
+  return { type: itemType.ALL, obj: null };
+}
+
+/** Replace the current entry with All Feeds and open no article. */
+async function showReplacedHome() {
+  const { selectAndLoadArticles } = await import("./articles.js");
+  state.selectedArticle = null;
+  clearReaderView();
+  await selectAndLoadArticles(itemType.ALL, null, {
+    syncUrl: "replace",
+    column: columns.FEEDS,
+  });
 }
 
 /**
  * @param {number} articleId
- * @returns {Promise<boolean>}
+ * @returns {Promise<boolean>} false when the article does not exist
  */
 async function openArticleById(articleId) {
   let summary = state.articles.find((a) => a.id === articleId) ?? null;
-  let full = null;
   if (!summary) {
     try {
-      full = await dataService.getArticle(articleId);
+      const full = await dataService.getArticle(articleId);
       cacheArticleDetail(full);
       summary = full;
     } catch (error) {
@@ -211,64 +236,38 @@ async function openArticleById(articleId) {
     }
   }
 
-  if (
-    !articleBelongsToContext(
-      summary,
-      state.lastClickedItem.type,
-      state.lastClickedItem.obj,
-    )
-  ) {
-    return false;
-  }
-
+  if (!summary?.id) return false;
   const listed = state.articles.find((a) => a.id === summary.id);
   await loadArticle(listed ?? summary);
   return true;
 }
 
 /**
- * Apply the current pathname to app state (selection, articles, reader).
- * @param {{ replaceHistory?: boolean }} [options]
+ * @param {unknown} error
+ * @returns {boolean} true when the offline notice handled it
  */
-export async function applyRouteFromLocation({ replaceHistory = false } = {}) {
+function handledConnectivity(error) {
+  if (!isConnectivityFailure(error)) return false;
+  notifyOffline();
+  return true;
+}
+
+/**
+ * Apply the current pathname to app state (selection, articles, reader).
+ * A resolved address is left as-is, including its query string. Only a missing
+ * list or an unrecognized path replaces the history entry with All Feeds.
+ */
+export async function applyRouteFromLocation() {
   if (isAuthCallback()) return;
 
-  let route = parseRoute(window.location.pathname);
-  if (!route.valid) {
-    route = { valid: true, context: "all", contextId: null, articleId: null };
-    replaceAppUrl("/", columns.FEEDS);
+  const route = parseRoute(window.location.pathname);
+  const resolved = resolveRoute(route, placeFacts(route));
+  if (resolved.status === "replaced-home") {
+    await showReplacedHome();
+    return;
   }
 
-  let type = itemType.ALL;
-  let obj = null;
-  if (route.context === "unread") {
-    type = itemType.UNREAD;
-  } else if (route.context === "saved") {
-    type = itemType.SAVED;
-  } else if (route.context === "feed") {
-    obj = findFeedById(route.contextId);
-    if (!obj) {
-      const { selectAndLoadArticles } = await import("./articles.js");
-      await selectAndLoadArticles(itemType.ALL, null, {
-        syncUrl: "replace",
-        column: columns.FEEDS,
-      });
-      return;
-    }
-    type = itemType.FEED;
-  } else if (route.context === "folder") {
-    obj = findFolderById(route.contextId);
-    if (!obj) {
-      const { selectAndLoadArticles } = await import("./articles.js");
-      await selectAndLoadArticles(itemType.ALL, null, {
-        syncUrl: "replace",
-        column: columns.FEEDS,
-      });
-      return;
-    }
-    type = itemType.FOLDER;
-  }
-
+  const { type, obj } = selectionFor(resolved);
   clearSearchFilter();
   state.lastClickedItem = { type, obj };
   updateNavSelection(type, obj);
@@ -276,28 +275,32 @@ export async function applyRouteFromLocation({ replaceHistory = false } = {}) {
 
   await reloadArticlesForCurrentContext();
 
-  let column = columnForRoute(route);
-  if (route.articleId != null) {
-    const opened = await openArticleById(route.articleId);
-    if (!opened) {
-      state.selectedArticle = null;
-      clearReaderView();
-      column = type === itemType.ALL ? columns.FEEDS : columns.ARTICLES;
-      replaceAppUrl(pathForSelection(null), column);
-      updateDocumentTitle();
-      return;
-    }
-    column = columns.READER;
-  } else {
+  if (route.articleId == null) {
     state.selectedArticle = null;
     clearReaderView();
+    navigationService.navigateTo(columnForRoute(route));
+    updateDocumentTitle();
+    return;
   }
 
-  if (replaceHistory) {
-    replaceAppUrl(pathForSelection(state.selectedArticle?.id ?? null), column);
-  } else {
-    navigationService.navigateTo(column);
+  let opened = false;
+  try {
+    opened = await openArticleById(route.articleId);
+  } catch (error) {
+    if (handledConnectivity(error)) return;
+    throw error;
   }
+
+  if (!opened) {
+    state.selectedArticle = null;
+    clearReaderView();
+    setReaderUnavailable(true);
+    navigationService.navigateTo(columns.READER);
+    updateDocumentTitle();
+    return;
+  }
+
+  navigationService.navigateTo(columns.READER);
   updateDocumentTitle();
 }
 
@@ -309,17 +312,26 @@ export async function onPopState(event) {
   setArticleHistoryPushed(false);
 
   const route = parseRoute(window.location.pathname);
-  if (!route.valid) {
-    await applyRouteFromLocation({ replaceHistory: true });
+  const resolved = resolveRoute(route, placeFacts(route));
+  if (resolved.status === "replaced-home") {
+    await applyRouteFromLocation();
     return;
   }
 
   const sameContext = isSameContext(route, state.lastClickedItem);
+  if (!sameContext) {
+    await applyRouteFromLocation();
+    return;
+  }
 
   const currentArticleId = state.selectedArticle?.id ?? null;
   const routeArticleId = route.articleId ?? null;
 
   if (sameContext && currentArticleId === routeArticleId) {
+    if (routeArticleId == null) {
+      state.selectedArticle = null;
+      clearReaderView();
+    }
     const column =
       event.state?.column && Object.values(columns).includes(event.state.column)
         ? event.state.column
@@ -329,29 +341,31 @@ export async function onPopState(event) {
     return;
   }
 
-  if (sameContext) {
-    if (routeArticleId != null) {
-      const opened = await openArticleById(routeArticleId);
-      if (!opened) {
-        replaceAppUrl(pathForSelection(null), columns.ARTICLES);
-        state.selectedArticle = null;
-        clearReaderView();
-        updateDocumentTitle();
-        return;
-      }
-      navigationService.navigateTo(columns.READER);
-    } else {
+  if (routeArticleId != null) {
+    let opened = false;
+    try {
+      opened = await openArticleById(routeArticleId);
+    } catch (error) {
+      if (handledConnectivity(error)) return;
+      throw error;
+    }
+    if (!opened) {
       state.selectedArticle = null;
       clearReaderView();
-      const column =
-        event.state?.column && Object.values(columns).includes(event.state.column)
-          ? event.state.column
-          : columnForRoute(route);
-      navigationService.navigateTo(column);
+      setReaderUnavailable(true);
+      navigationService.navigateTo(columns.READER);
+      updateDocumentTitle();
+      return;
     }
-    updateDocumentTitle();
-    return;
+    navigationService.navigateTo(columns.READER);
+  } else {
+    state.selectedArticle = null;
+    clearReaderView();
+    const column =
+      event.state?.column && Object.values(columns).includes(event.state.column)
+        ? event.state.column
+        : columnForRoute(route);
+    navigationService.navigateTo(column);
   }
-
-  await applyRouteFromLocation({ replaceHistory: false });
+  updateDocumentTitle();
 }

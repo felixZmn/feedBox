@@ -800,6 +800,14 @@ button {
   background-color: var(--selected-bg);
 }
 
+.reader-unavailable {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1.25rem 0.85rem 1.5rem;
+  font-family: var(--font-serif);
+  color: var(--font-color-muted);
+}
+
 .reader .article {
   max-width: 800px;
   display: flex;

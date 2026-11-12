@@ -28,6 +28,7 @@ import {
   dismissOfflineToast,
   onOfflineRetry,
   isConnectionPending,
+  isConnectivityFailure,
 } from "./connectivity.js";
 import {
   state,
@@ -161,9 +162,15 @@ async function loadApp() {
     if (returnTo) {
       window.history.replaceState(window.history.state, "", returnTo);
     }
-    await applyRouteFromLocation({ replaceHistory: true });
+    await applyRouteFromLocation();
   } catch (error) {
     if (isLoggedOut() || error?.message === "Session expired") {
+      return;
+    }
+    if (isConnectivityFailure(error)) {
+      hideFeedsSpinner();
+      removeSkeletons();
+      notifyOffline();
       return;
     }
     console.error("[app] Error during initialization:", error);

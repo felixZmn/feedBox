@@ -528,7 +528,21 @@ export function appendArticlesList(articles, keepSelectedId) {
 /**
  * @param {Article} article
  */
+const READER_UNAVAILABLE_TEXT = "This article is unavailable.";
+
+/**
+ * Show or hide the plain missing-article sentence. Not a control.
+ * @param {boolean} show
+ */
+export function setReaderUnavailable(show) {
+  const el = document.getElementById("reader-unavailable");
+  if (!el) return;
+  el.textContent = READER_UNAVAILABLE_TEXT;
+  el.hidden = !show;
+}
+
 export function renderReaderView(article) {
+  setReaderUnavailable(false);
   const reader = document.getElementById("reader");
   const articleEl = document.querySelector("#reader .article");
   const title = document.querySelector("#reader .title");
@@ -573,6 +587,7 @@ export function renderReaderView(article) {
 }
 
 export function clearReaderView() {
+  setReaderUnavailable(false);
   const reader = document.getElementById("reader");
   const articleEl = document.querySelector("#reader .article");
   const title = document.querySelector("#reader .title");

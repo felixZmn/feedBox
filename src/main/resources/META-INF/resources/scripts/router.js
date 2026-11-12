@@ -110,6 +110,54 @@ export function isAppPath(pathname) {
 }
 
 /**
+ * Decide what a parsed address should show. List membership is not an input:
+ * an existing article opens on the named list.
+ * @param {AppRoute} route
+ * @param {{ feedExists?: boolean, folderExists?: boolean, articleExists?: boolean }} [facts]
+ * @returns {{
+ *   status: 'ready' | 'article-unavailable' | 'replaced-home',
+ *   context: RouteContext,
+ *   contextId: number | null,
+ *   articleId: number | null,
+ *   replacePath: string | null,
+ * }}
+ */
+export function resolveRoute(
+  route,
+  { feedExists = true, folderExists = true, articleExists = true } = {},
+) {
+  const home = {
+    status: /** @type {'replaced-home'} */ ("replaced-home"),
+    context: /** @type {RouteContext} */ ("all"),
+    contextId: null,
+    articleId: null,
+    replacePath: "/",
+  };
+
+  if (!route?.valid) return home;
+  if (route.context === "feed" && !feedExists) return home;
+  if (route.context === "folder" && !folderExists) return home;
+
+  if (route.articleId != null && !articleExists) {
+    return {
+      status: "article-unavailable",
+      context: route.context,
+      contextId: route.contextId,
+      articleId: null,
+      replacePath: null,
+    };
+  }
+
+  return {
+    status: "ready",
+    context: route.context,
+    contextId: route.contextId,
+    articleId: route.articleId,
+    replacePath: null,
+  };
+}
+
+/**
  * Whether a parsed route matches the sidebar/list selection currently in memory.
  * Used by popstate so Back from an article in Unread/Saved does not reload the list.
  * @param {AppRoute} route
