@@ -6,16 +6,25 @@ import { feedHealth } from "./feed-health.js";
 /** @type {HTMLElement | null} */
 let menuTrigger = null;
 
-function showContextMenuGroup(groupClass, x, y, trigger) {
+/**
+ * @param {string} groupClass
+ * @param {number} x
+ * @param {number} y
+ * @param {EventTarget | null} [trigger]
+ * @param {{ align?: "start" | "end" }} [options]
+ */
+function showContextMenuGroup(groupClass, x, y, trigger, options) {
   dom.contextMenu
-    .querySelectorAll(".context-menu-item, .context-menu-status")
+    .querySelectorAll(
+      ".context-menu-item, .context-menu-status, .context-menu-separator",
+    )
     .forEach((element) => {
       element.classList.add("d-none");
     });
   document.querySelectorAll(`.${groupClass}`).forEach((element) => {
     element.classList.remove("d-none");
   });
-  openContextMenu(x, y, trigger);
+  openContextMenu(x, y, trigger, options);
 }
 
 /**
@@ -85,13 +94,14 @@ export function allFeedsContextMenu(x, y, trigger) {
 }
 
 /**
- * Feeds-header overflow: import, export, shortcuts, sign out.
+ * Profile / chrome overflow: import, export, shortcuts, sign out.
  * @param {number} x
  * @param {number} y
  * @param {EventTarget | null} [trigger]
+ * @param {{ align?: "start" | "end" }} [options]
  */
-export function openChromeContextMenu(x, y, trigger) {
-  showContextMenuGroup("context-chrome", x, y, trigger);
+export function openChromeContextMenu(x, y, trigger, options) {
+  showContextMenuGroup("context-chrome", x, y, trigger, options);
 }
 
 /**
@@ -105,11 +115,12 @@ function setMarkReadMenuLabel(el, count) {
 }
 
 /**
- * @param {number} x
+ * @param {number} x  Left edge for start align; right edge for end align
  * @param {number} y
  * @param {EventTarget | null} [trigger]
+ * @param {{ align?: "start" | "end" }} [options]
  */
-export function openContextMenu(x, y, trigger) {
+export function openContextMenu(x, y, trigger, options = {}) {
   const el =
     trigger instanceof HTMLElement
       ? trigger
@@ -118,12 +129,35 @@ export function openContextMenu(x, y, trigger) {
         : null;
   menuTrigger = el;
 
+  const align = options.align === "end" ? "end" : "start";
   const menu = dom.contextMenu;
+  menu.style.visibility = "hidden";
+  menu.style.left = "0px";
+  menu.style.top = "0px";
   menu.classList.add("is-open");
   const { innerWidth, innerHeight } = window;
   const menuRect = menu.getBoundingClientRect();
-  menu.style.left = `${Math.min(x, innerWidth - menuRect.width)}px`;
-  menu.style.top = `${Math.min(y, innerHeight - menuRect.height)}px`;
+  const triggerRect = el?.getBoundingClientRect();
+  const edge = 8;
+  const anchorX =
+    align === "end" && triggerRect ? triggerRect.right : x;
+  const left =
+    align === "end"
+      ? Math.max(
+          edge,
+          Math.min(
+            anchorX - menuRect.width,
+            innerWidth - menuRect.width - edge,
+          ),
+        )
+      : Math.max(edge, Math.min(anchorX, innerWidth - menuRect.width - edge));
+  const top = Math.min(
+    y,
+    Math.max(edge, innerHeight - menuRect.height - edge),
+  );
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+  menu.style.visibility = "";
   getVisibleContextMenuItems()[0]?.focus();
 }
 

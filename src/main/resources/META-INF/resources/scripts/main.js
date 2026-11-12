@@ -247,10 +247,17 @@ window.addEventListener("DOMContentLoaded", async () => {
 function initEventListeners() {
   dom.button.next.addEventListener("click", () => navigateArticle(1));
   dom.button.previous.addEventListener("click", () => navigateArticle(-1));
-  if (dom.button.backToFeeds) {
-    dom.button.backToFeeds.addEventListener("click", (e) => {
+  if (dom.button.pageBack) {
+    dom.button.pageBack.addEventListener("click", (e) => {
       e.preventDefault();
-      navigationService.navigateTo(columns.FEEDS);
+      const target = dom.button.pageBack.dataset.backTarget;
+      if (target === "feeds") {
+        navigationService.navigateTo(columns.FEEDS);
+        return;
+      }
+      if (target === "articles") {
+        closeReader();
+      }
     });
   }
   registerSaveArticleButton();
@@ -259,10 +266,12 @@ function initEventListeners() {
     openAddContextMenu(e.clientX, e.clientY, e.currentTarget);
   });
   dom.button.refresh.addEventListener("click", () => refreshFeeds());
-  dom.button.headerMenu?.addEventListener("click", (e) => {
+  dom.button.profile?.addEventListener("click", (e) => {
     e.stopPropagation();
     const rect = e.currentTarget.getBoundingClientRect();
-    openChromeContextMenu(rect.left, rect.bottom + 4, e.currentTarget);
+    openChromeContextMenu(rect.right, rect.bottom + 4, e.currentTarget, {
+      align: "end",
+    });
   });
   dom.button.export?.addEventListener("click", async (event) => {
     event.preventDefault();
@@ -353,10 +362,6 @@ function initEventListeners() {
     } finally {
       restoreMenuTriggerFocus();
     }
-  });
-  dom.button.close.addEventListener("click", (e) => {
-    e.preventDefault();
-    closeReader();
   });
   if (dom.button.logout) {
     dom.button.logout.addEventListener("click", () => {

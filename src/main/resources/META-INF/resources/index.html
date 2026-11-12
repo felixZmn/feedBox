@@ -112,6 +112,10 @@
         Mark as read
       </li>
       <li
+        class="context-menu-separator context-feed d-none"
+        role="separator"
+      ></li>
+      <li
         class="context-menu-item context-feed d-none"
         id="trigger-feed-edit"
         role="menuitem"
@@ -119,6 +123,10 @@
       >
         Edit Feed
       </li>
+      <li
+        class="context-menu-separator context-feed d-none"
+        role="separator"
+      ></li>
       <li
         class="context-menu-item context-feed d-none"
         id="trigger-feed-delete"
@@ -137,6 +145,10 @@
         Mark as read
       </li>
       <li
+        class="context-menu-separator context-folder d-none"
+        role="separator"
+      ></li>
+      <li
         class="context-menu-item context-folder d-none"
         id="trigger-folder-edit"
         role="menuitem"
@@ -144,6 +156,10 @@
       >
         Edit Folder
       </li>
+      <li
+        class="context-menu-separator context-folder d-none"
+        role="separator"
+      ></li>
       <li
         class="context-menu-item context-folder d-none"
         id="trigger-folder-delete"
@@ -170,6 +186,10 @@
         Export OPML
       </li>
       <li
+        class="context-menu-separator context-chrome d-none"
+        role="separator"
+      ></li>
+      <li
         class="context-menu-item context-chrome d-none"
         id="trigger-shortcuts-help"
         role="menuitem"
@@ -177,6 +197,10 @@
       >
         Keyboard shortcuts
       </li>
+      <li
+        class="context-menu-separator context-chrome d-none"
+        role="separator"
+      ></li>
       <li
         class="context-menu-item context-chrome d-none"
         id="trigger-logout"
@@ -187,38 +211,78 @@
       </li>
     </ul>
 
+    <header class="page-header" id="page-header">
+      <div class="page-header-leading" id="page-header-leading">
+        <button
+          type="button"
+          class="item-spacer"
+          id="trigger-page-back"
+          hidden
+        >
+          <img class="icon f-base" src="icons/nav_back.svg" alt="" />
+        </button>
+        <span class="page-header-mark" aria-hidden="true">
+          <img class="icon f-base" src="icons/package.svg" alt="" />
+        </span>
+      </div>
+      <div class="page-header-middle" id="page-header-middle">
+        <form class="search-container" id="search-form" role="search">
+          <img src="icons/search.svg" alt="" class="icon f-base" />
+          <input
+            type="search"
+            placeholder="Search All Feeds"
+            id="search-input"
+            aria-label="Search All Feeds"
+            title="Search articles in All Feeds"
+            enterkeyhint="search"
+            autocomplete="off"
+          />
+          <button
+            type="button"
+            class="search-clear"
+            id="search-clear"
+            hidden
+            aria-label="Clear search"
+            title="Clear search"
+          >
+            ×
+          </button>
+        </form>
+      </div>
+      <div class="page-header-trailing" id="page-header-trailing">
+        <button
+          type="button"
+          class="item-spacer"
+          id="trigger-refresh"
+          title="Refresh feeds"
+          aria-label="Refresh feeds"
+        >
+          <img
+            id="refresh-spinner"
+            class="icon f-base"
+            src="icons/refresh.svg"
+            alt=""
+          />
+        </button>
+        <button
+          type="button"
+          class="item-spacer"
+          id="trigger-profile"
+          title="Profile"
+          aria-label="Profile"
+          aria-haspopup="menu"
+        >
+          <img
+            class="icon f-base"
+            src="icons/profile_placeholder.svg"
+            alt=""
+          />
+        </button>
+      </div>
+    </header>
+
     <div class="layout">
       <nav id="feeds-list" class="feeds-list border-right" aria-label="Feeds">
-        <div class="column-header">
-          <div class="left">
-            <button
-              type="button"
-              class="item-spacer"
-              id="trigger-refresh"
-              title="Refresh feeds"
-              aria-label="Refresh feeds"
-            >
-              <img
-                id="refresh-spinner"
-                class="icon f-base"
-                src="icons/refresh.svg"
-                alt=""
-              />
-            </button>
-          </div>
-          <div class="right">
-            <button
-              type="button"
-              class="item-spacer"
-              id="trigger-header-menu"
-              title="More"
-              aria-label="More"
-              aria-haspopup="menu"
-            >
-              ⋯
-            </button>
-          </div>
-        </div>
         <div class="column" id="feeds-col">
           <div class="details" id="trigger-show-all-feeds">
             <a class="tree-link" href="/">
@@ -274,48 +338,12 @@
       </nav>
 
       <main id="articles-list" class="articles-list border-right">
-        <div class="column-header">
-          <div class="left">
-            <button
-              type="button"
-              class="item-spacer mobile-back"
-              id="trigger-back-feeds"
-              title="Back to feeds"
-              aria-label="Back to feeds"
-            >
-              <img class="icon f-base" src="icons/nav_back.svg" alt="" />
-            </button>
-            <form class="search-container" id="search-form" role="search">
-              <img src="icons/search.svg" alt="" class="icon f-base" />
-              <input
-                type="search"
-                placeholder="Search All Feeds"
-                id="search-input"
-                aria-label="Search All Feeds"
-                title="Search articles in All Feeds"
-                enterkeyhint="search"
-                autocomplete="off"
-              />
-              <button
-                type="button"
-                class="search-clear"
-                id="search-clear"
-                hidden
-                aria-label="Clear search"
-                title="Clear search"
-              >
-                ×
-              </button>
-            </form>
-          </div>
-          <div class="right"></div>
-        </div>
-        <div
-          class="search-results-row"
-          id="search-results-row"
-          hidden
-        ></div>
         <div class="column">
+          <div
+            class="search-results-row"
+            id="search-results-row"
+            hidden
+          ></div>
           <button
             type="button"
             id="new-articles-pill"
@@ -334,71 +362,64 @@
       </main>
 
       <section id="reader" class="reader" aria-labelledby="reader-title">
-        <div class="column-header">
-          <div class="left">
-            <button
-              type="button"
-              class="item-spacer reader-back"
-              id="trigger-close"
-              title="Back to articles"
-              aria-label="Back to articles"
-            >
-              <img class="icon f-base" src="icons/nav_back.svg" alt="" />
-            </button>
-          </div>
-          <div class="right">
-            <button
-              type="button"
-              class="item-spacer"
-              id="trigger-save-article"
-              title="Save article"
-              aria-label="Save article"
-              disabled
-            >
-              <img
-                id="reader-save-icon"
-                class="icon f-base"
-                src="icons/bookmark.svg"
-                alt=""
-              />
-            </button>
-            <a
-              class="item-spacer d-none"
-              id="trigger-external-open"
-              href="#"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Open in browser"
-              aria-label="Open in browser"
-              ><img
-                class="icon f-base"
-                src="icons/external.svg"
-                alt=""
-            /></a>
-            <button
-              type="button"
-              class="item-spacer"
-              id="trigger-previous"
-              title="Previous article"
-              aria-label="Previous article"
-            >
-              <img class="icon f-base" src="icons/reader_previous.svg" alt="" />
-            </button>
-            <button
-              type="button"
-              class="item-spacer"
-              id="trigger-next"
-              title="Next article"
-              aria-label="Next article"
-            >
-              <img class="icon f-base" src="icons/reader_next.svg" alt="" />
-            </button>
-          </div>
-        </div>
         <div class="column">
-          <div class="article">
-            <h1 id="reader-title" class="title" tabindex="-1">No article selected</h1>
-            <div id="reader-publisher"></div>
+          <div class="article" hidden>
+            <div
+              class="reader-actions"
+              id="reader-actions"
+              role="toolbar"
+              aria-label="Article actions"
+            >
+              <button
+                type="button"
+                class="item-spacer"
+                id="trigger-save-article"
+                title="Save article"
+                aria-label="Save article"
+                disabled
+              >
+                <img
+                  id="reader-save-icon"
+                  class="icon f-base"
+                  src="icons/bookmark.svg"
+                  alt=""
+                />
+              </button>
+              <a
+                class="item-spacer d-none"
+                id="trigger-external-open"
+                href="#"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open in browser"
+                aria-label="Open in browser"
+                ><img class="icon f-base" src="icons/external.svg" alt=""
+              /></a>
+              <button
+                type="button"
+                class="item-spacer"
+                id="trigger-previous"
+                title="Previous article"
+                aria-label="Previous article"
+              >
+                <img
+                  class="icon f-base"
+                  src="icons/reader_previous.svg"
+                  alt=""
+                />
+              </button>
+              <button
+                type="button"
+                class="item-spacer"
+                id="trigger-next"
+                title="Next article"
+                aria-label="Next article"
+              >
+                <img class="icon f-base" src="icons/reader_next.svg" alt="" />
+              </button>
+            </div>
+            <h1 id="reader-title" class="title" tabindex="-1"></h1>
+            <div id="reader-publisher" class="reader-meta"></div>
             <div class="date"></div>
             <div class="border-bottom"></div>
             <div class="content"></div>

@@ -529,11 +529,16 @@ export function appendArticlesList(articles, keepSelectedId) {
  * @param {Article} article
  */
 export function renderReaderView(article) {
+  const reader = document.getElementById("reader");
+  const articleEl = document.querySelector("#reader .article");
   const title = document.querySelector("#reader .title");
   const content = document.querySelector("#reader .content");
   const publisher = document.querySelector("#reader-publisher");
   const date = document.querySelector("#reader .date");
   const externalLink = document.querySelector("#trigger-external-open");
+
+  reader?.classList.add("has-article");
+  if (articleEl) articleEl.hidden = false;
 
   title.textContent = article.title || "No Title";
   const body = article.content || article.description || "";
@@ -568,13 +573,18 @@ export function renderReaderView(article) {
 }
 
 export function clearReaderView() {
+  const reader = document.getElementById("reader");
+  const articleEl = document.querySelector("#reader .article");
   const title = document.querySelector("#reader .title");
   const content = document.querySelector("#reader .content");
   const publisher = document.querySelector("#reader-publisher");
   const date = document.querySelector("#reader .date");
   const externalLink = document.querySelector("#trigger-external-open");
 
-  title.textContent = "No article selected";
+  reader?.classList.remove("has-article");
+  if (articleEl) articleEl.hidden = true;
+
+  title.textContent = "";
   content.innerHTML = "";
   date.textContent = "";
   publisher.textContent = "";
