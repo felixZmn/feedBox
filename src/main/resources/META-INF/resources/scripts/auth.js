@@ -1,11 +1,10 @@
 "use strict";
 
-import { toast } from "./toast.js";
+import { isOfflineResponse, notifyOffline } from "./connectivity.js";
 import { isAppPath } from "./router.js";
 
 const LOGOUT_KEY = "feedbox-logout";
 const RETURN_TO_KEY = "returnTo";
-const OFFLINE_HEADER = "X-FeedBox-Offline";
 const FOLDER_TREE_CACHE_KEY = "folder-tree-cache";
 const FOLDER_STATE_KEY = "folder-state";
 
@@ -109,22 +108,6 @@ function isAuthFailure(response) {
     response.type === "opaqueredirect" ||
     (response.status >= 300 && response.status < 400)
   );
-}
-
-/** @param {Response} response */
-function isOfflineResponse(response) {
-  return Boolean(response.headers?.get?.(OFFLINE_HEADER));
-}
-
-function notifyOffline() {
-  try {
-    toast("Can't reach FeedBox. Check your connection.", {
-      id: "offline",
-      timeoutMs: 4000,
-    });
-  } catch {
-    /* no DOM (tests) */
-  }
 }
 
 /**

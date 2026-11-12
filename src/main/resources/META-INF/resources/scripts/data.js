@@ -1,6 +1,7 @@
 "use strict";
 
 import { apiFetch } from "./auth.js";
+import { isOfflineResponse } from "./connectivity.js";
 
 export const FOLDER_TREE_CACHE_KEY = "folder-tree-cache";
 export const FOLDER_STATE_KEY = "folder-state";
@@ -224,6 +225,14 @@ class DataService {
 
     try {
       const response = await apiFetch(url, fetchOptions);
+
+      // Toast already fired in apiFetch; tag so UI can skip a second modal.
+      if (isOfflineResponse(response)) {
+        const error = new Error("Offline");
+        error.code = "OFFLINE";
+        error.status = response.status;
+        throw error;
+      }
 
       if (response.status === 204) return null;
 

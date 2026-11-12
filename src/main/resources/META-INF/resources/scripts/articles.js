@@ -1,5 +1,6 @@
 "use strict";
 
+import { isConnectivityFailure } from "./connectivity.js";
 import { dataService } from "./data.js";
 import { modal } from "./modal.js";
 import { toast } from "./toast.js";
@@ -242,6 +243,10 @@ export async function loadMoreArticles() {
 
 export async function showArticleLoadError(error) {
   console.error("[app] Failed to load articles:", error);
+  // Offline toast already covered this outage; don't stack a blocking dialog.
+  if (isConnectivityFailure(error)) {
+    return;
+  }
   await modal.show({
     title: "Could not load articles",
     content: "Please check your connection and try again.",
