@@ -837,20 +837,21 @@ button {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 0;
+  gap: 0.15rem;
   /* Cancel control padding so the first glyph lines up with the title */
-  margin: 0 0 0.55rem calc(-1 * var(--header-control-pad));
+  margin: 0 0 0.65rem calc(-1 * var(--header-control-pad));
 }
 
 .reader-actions .item-spacer {
-  min-width: 1.5rem;
-  min-height: 1.5rem;
-  padding-block: 0.1rem;
+  /* Match page-header control weight next to the large serif title */
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  padding-inline: var(--header-control-pad);
 }
 
 .reader-actions .icon {
-  width: var(--icon-size);
-  height: var(--icon-size);
+  width: var(--header-icon-size);
+  height: var(--header-icon-size);
 }
 
 .reader .title {
