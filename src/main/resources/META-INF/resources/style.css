@@ -499,6 +499,8 @@ button {
 }
 
 .tree-options {
+  position: relative;
+  z-index: 1;
   width: 1.75rem;
   min-height: var(--tree-row-min-height);
   text-align: center;
@@ -561,6 +563,7 @@ button {
 /*#############*/
 .details,
 .folder-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -592,7 +595,18 @@ button {
   outline: none;
 }
 
+/* Stretch the link over the whole pill so padding and empty space select. */
+.details .tree-link::after,
+.folder-row .tree-link::after,
+.feeds-ul li .tree-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
 .folder-toggle {
+  position: relative;
+  z-index: 1;
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -628,6 +642,7 @@ button {
   padding: 0;
 }
 .feeds-ul li {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -1176,7 +1191,6 @@ button {
 
 .article:focus-visible,
 .article-link:focus-visible,
-.tree-link:focus-visible,
 .folder-toggle:focus-visible,
 .context-menu-item:focus-visible,
 .tree-options:focus-visible,
@@ -1185,6 +1199,13 @@ button {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
   border-radius: var(--radius-sm);
+}
+
+.details:has(.tree-link:focus-visible),
+.folder-row:has(.tree-link:focus-visible),
+.feeds-ul li:has(.tree-link:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .sidebar-divider {
