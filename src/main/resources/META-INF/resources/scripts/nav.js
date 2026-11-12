@@ -1,5 +1,11 @@
 "use strict";
 
+import {
+  applyPageBack,
+  layoutBandFromWidth,
+  pageBackState,
+} from "./page-header.js";
+
 export const columns = Object.freeze({
   FEEDS: "feeds-list",
   ARTICLES: "articles-list",
@@ -14,6 +20,10 @@ export class NavigationService {
   #pageshowHandler;
   /** @type {MediaQueryList | null} */
   #narrowPanes = null;
+  /** @type {MediaQueryList | null} */
+  #onePane = null;
+  /** @type {(() => void) | null} */
+  #layoutChangeHandler = null;
 
   currentState = { column: columns.FEEDS };
 
@@ -31,6 +41,7 @@ export class NavigationService {
     this.articlesEl = document.getElementById("articles-list");
     this.readerEl = document.getElementById("reader");
     this.#narrowPanes = window.matchMedia("(max-width: 1100px)");
+    this.#onePane = window.matchMedia("(max-width: 700px)");
 
     if (!this.feedsEl || !this.articlesEl || !this.readerEl) {
       console.warn("NavigationService: Column elements not found in DOM");
@@ -43,6 +54,12 @@ export class NavigationService {
       this.#renderColumn(this.currentState.column, { moveFocus: false });
     };
     window.addEventListener("pageshow", this.#pageshowHandler);
+
+    this.#layoutChangeHandler = () => {
+      this.#syncPageHeaderBack();
+    };
+    this.#narrowPanes.addEventListener?.("change", this.#layoutChangeHandler);
+    this.#onePane.addEventListener?.("change", this.#layoutChangeHandler);
   }
 
   /**
@@ -90,8 +107,16 @@ export class NavigationService {
         return;
     }
 
+    this.#syncPageHeaderBack();
+
     if (!moveFocus || !this.#narrowPanes?.matches) return;
     this.#focusColumn(column);
+  }
+
+  #syncPageHeaderBack() {
+    const button = document.getElementById("trigger-page-back");
+    const band = layoutBandFromWidth(window.innerWidth);
+    applyPageBack(button, pageBackState(this.currentState.column, band));
   }
 
   /**
@@ -119,5 +144,15 @@ export class NavigationService {
       this.#domReadyListener = null;
     }
     window.removeEventListener("pageshow", this.#pageshowHandler);
+    if (this.#layoutChangeHandler) {
+      this.#narrowPanes?.removeEventListener?.(
+        "change",
+        this.#layoutChangeHandler,
+      );
+      this.#onePane?.removeEventListener?.(
+        "change",
+        this.#layoutChangeHandler,
+      );
+    }
   }
 }

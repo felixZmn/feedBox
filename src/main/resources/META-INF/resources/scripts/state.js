@@ -43,6 +43,9 @@ export const state = {
 export const dom = {
   contextMenu: document.getElementById("context-menu"),
   feedHealth: document.getElementById("feed-health"),
+  pageHeader: document.getElementById("page-header"),
+  pageHeaderLeading: document.getElementById("page-header-leading"),
+  pageHeaderTrailing: document.getElementById("page-header-trailing"),
   refreshSpinner: document.getElementById("refresh-spinner"),
   searchForm: document.getElementById("search-form"),
   searchInput: document.getElementById("search-input"),
@@ -52,8 +55,11 @@ export const dom = {
     refresh: document.getElementById("trigger-refresh"),
     previous: document.getElementById("trigger-previous"),
     next: document.getElementById("trigger-next"),
-    close: document.getElementById("trigger-close"),
-    backToFeeds: document.getElementById("trigger-back-feeds"),
+    pageBack: document.getElementById("trigger-page-back"),
+    /** @deprecated alias — page-header back closes the reader */
+    close: document.getElementById("trigger-page-back"),
+    /** @deprecated alias — page-header back returns to feeds */
+    backToFeeds: document.getElementById("trigger-page-back"),
     showAllFeeds: document.getElementById("trigger-show-all-feeds"),
     showUnread: document.getElementById("trigger-show-unread"),
     showSaved: document.getElementById("trigger-show-saved"),
@@ -70,7 +76,7 @@ export const dom = {
     deleteFolder: document.getElementById("trigger-folder-delete"),
     markFolderRead: document.getElementById("trigger-folder-mark-read"),
     logout: document.getElementById("trigger-logout"),
-    headerMenu: document.getElementById("trigger-header-menu"),
+    profile: document.getElementById("trigger-profile"),
     shortcutsHelp: document.getElementById("trigger-shortcuts-help"),
   },
 };

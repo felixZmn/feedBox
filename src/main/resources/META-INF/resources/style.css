@@ -19,10 +19,13 @@
   --font-color: #1d1d1f;
   --font-color-muted: #5c5c61;
   --font-color-highlight: var(--accent);
-  --background-color: #f5f5f7;
-  --surface-sidebar: #ececef;
-  --surface-list: #f5f5f7;
-  --surface-reader: #ffffff;
+  /* Two-tone shell: recessed chrome (header + feeds) / elevated content (list + reader) */
+  --surface-chrome: #ececef;
+  --surface-content: #ffffff;
+  --background-color: var(--surface-chrome);
+  --surface-sidebar: var(--surface-chrome);
+  --surface-list: var(--surface-content);
+  --surface-reader: var(--surface-content);
   --border-color: rgba(0, 0, 0, 0.1);
   --hover-bg: rgba(0, 94, 131, 0.08);
   --selected-bg: rgba(0, 94, 131, 0.16);
@@ -37,15 +40,32 @@
   --radius-md: 12px;
   --font-size-base: 1rem;
   --font-size-small: 0.8125rem;
-  --font-size-large: 1.875rem;
+  /* Shared chrome type for tree, menus, list meta, search */
+  --font-size-chrome: 0.8125rem;
+  /* Reader headline — between original 1.875rem and the tighter 1.4rem */
+  --font-size-large: 1.6rem;
+  --font-size-list-title: 0.9rem;
   --default-space: 0.5rem;
   --column-width: 350px;
   --list-inset: 0.35rem;
   /* Articles pane: search box + article rows share this outer inset */
   --articles-inline: calc(var(--default-space) + var(--list-inset));
-  /* Shared header chrome: edge padding + per-control inset (toolbar & search) */
-  --header-edge-pad: 0.5rem;
-  --header-control-pad: 0.35rem;
+  /* Shared header chrome */
+  --header-height: 2.75rem;
+  --header-edge-pad: 0.35rem;
+  --header-control-pad: 0.25rem;
+  --icon-size: 15px;
+  /* Page-header controls keep the original glyph size */
+  --header-icon-size: 20px;
+  --touch-target: 36px;
+  /* Tree: denser than original, but still one-row-per-cursor */
+  --tree-icon-size: 16px;
+  --tree-row-gap: 0.2rem;
+  --tree-row-pad-y: 0.28rem;
+  --tree-row-min-height: 1.75rem;
+  --menu-pad: 0.15rem;
+  --menu-item-pad: 0.22rem 0.45rem;
+  --article-row-pad: 0.28rem 0.55rem;
   --skeleton-base: rgba(128, 128, 128, 0.15);
   --skeleton-shine: rgba(128, 128, 128, 0.05);
 }
@@ -89,10 +109,12 @@
     --font-color: #f5f5f7;
     --font-color-muted: #98989d;
     --font-color-highlight: var(--accent);
-    --background-color: #1c1c1e;
-    --surface-sidebar: #2c2c2e;
-    --surface-list: #1c1c1e;
-    --surface-reader: #1c1c1e;
+    --surface-chrome: #1c1c1e;
+    --surface-content: #2c2c2e;
+    --background-color: var(--surface-chrome);
+    --surface-sidebar: var(--surface-chrome);
+    --surface-list: var(--surface-content);
+    --surface-reader: var(--surface-content);
     --border-color: rgba(255, 255, 255, 0.12);
     --hover-bg: rgba(93, 173, 226, 0.12);
     --selected-bg: rgba(93, 173, 226, 0.22);
@@ -136,6 +158,109 @@ body.logged-out {
 }
 
 body.logged-out .app-shell {
+  display: none !important;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  height: 100svh;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+  height: var(--header-height);
+  min-height: var(--header-height);
+  padding-inline: var(--header-edge-pad);
+  border-bottom: 1px solid var(--border-color);
+  /* Continuous with feed sidebar — recessed chrome, not content paper */
+  background-color: var(--surface-chrome);
+  box-sizing: border-box;
+  z-index: 3;
+}
+
+.page-header-leading,
+.page-header-trailing {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex: 0 0 auto;
+  min-width: 0;
+  height: 100%;
+}
+
+/* Match tree icon inset: column margin + row inset + row padding */
+.page-header-leading {
+  padding-left: calc(
+    var(--default-space) + var(--list-inset) + var(--default-space) -
+      var(--header-edge-pad) - var(--header-control-pad)
+  );
+}
+
+/* Back replaces the mark — use the normal header edge inset */
+.page-header-leading:has(#trigger-page-back:not([hidden])) {
+  padding-left: 0;
+}
+
+.page-header-middle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  margin-inline: 0.5rem;
+}
+
+.page-header-middle .search-container {
+  width: 100%;
+  max-width: 22rem;
+}
+
+.page-header-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  height: 100%;
+  padding-inline: var(--header-control-pad);
+  pointer-events: none;
+}
+
+.page-header-mark .icon {
+  display: block;
+}
+
+/* Back already identifies the view — drop the mark so search keeps the width */
+#trigger-page-back:not([hidden]) ~ .page-header-mark {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .page-header-mark {
+    display: none;
+  }
+}
+
+.page-header .item-spacer {
+  height: 100%;
+  padding-inline: var(--header-control-pad);
+}
+
+.page-header .icon {
+  width: var(--header-icon-size);
+  height: var(--header-icon-size);
+}
+
+.page-header #trigger-page-back[hidden] {
   display: none !important;
 }
 
@@ -321,7 +446,9 @@ button {
   display: grid;
   grid-template-columns: var(--column-width) var(--column-width) minmax(0, 1fr);
   gap: 0;
-  height: 100dvh;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
 }
 
 .feeds-list,
@@ -329,13 +456,14 @@ button {
 .reader {
   padding: 0;
   height: 100%;
-  max-height: 100dvh;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
 }
 
+/* Pane fills follow tokens only — one-pane layouts do not reassign surfaces */
 .feeds-list {
   background-color: var(--surface-sidebar);
 }
@@ -364,17 +492,23 @@ button {
 .tree-name {
   flex: 1;
   min-width: 0;
-  padding: var(--default-space) 0;
+  padding: var(--tree-row-pad-y) 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .tree-options {
-  width: 34px;
+  width: 1.75rem;
+  min-height: var(--tree-row-min-height);
   text-align: center;
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: var(--radius-sm);
+  font-size: 1em;
+  line-height: 1;
 }
 
 .tree-options:hover {
@@ -416,17 +550,11 @@ button {
   }
 }
 
-/* Hidden except on single-pane mobile (≤700px). Specificity must beat
-   `.left button { display: inline-flex }`. */
-.column-header .mobile-back {
-  display: none;
-}
-
 .tree-entry-icon {
-  width: 20px;
-  height: 20px;
+  width: var(--tree-icon-size);
+  height: var(--tree-icon-size);
   object-fit: contain;
-  flex: 0 0 20px;
+  flex: 0 0 var(--tree-icon-size);
   display: inline-block;
 }
 
@@ -435,16 +563,19 @@ button {
 .folder-row {
   display: flex;
   align-items: center;
-  gap: var(--default-space);
-  margin-bottom: var(--default-space);
+  gap: 0.4rem;
+  min-height: var(--tree-row-min-height);
+  margin-bottom: var(--tree-row-gap);
+  padding-block: var(--tree-row-pad-y);
   padding-left: var(--default-space);
   margin-inline: var(--list-inset);
   border-radius: var(--radius-sm);
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 .folder {
-  margin-bottom: var(--default-space);
+  margin-bottom: var(--tree-row-gap);
 }
 
 .folder-row {
@@ -454,7 +585,7 @@ button {
 .tree-link {
   display: flex;
   align-items: center;
-  gap: var(--default-space);
+  gap: 0.35rem;
   flex: 1;
   min-width: 0;
   color: inherit;
@@ -482,42 +613,51 @@ button {
 #trigger-add {
   width: calc(100% - 2 * var(--list-inset));
   text-align: left;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .icon {
-  width: 20px;
-  height: 20px;
+  width: var(--icon-size);
+  height: var(--icon-size);
   display: inline-block;
 }
 
 .feeds-ul {
-  margin: 6px 0 0 0;
+  margin: 0.15rem 0 0 0;
   list-style: none;
   padding: 0;
 }
 .feeds-ul li {
   display: flex;
   align-items: center;
-  gap: var(--default-space);
-  padding-bottom: calc(var(--default-space) / 2);
-  padding-top: calc(var(--default-space) / 2);
+  gap: 0.4rem;
+  min-height: var(--tree-row-min-height);
+  padding-bottom: var(--tree-row-pad-y);
+  padding-top: var(--tree-row-pad-y);
   padding-left: var(--default-space);
+  margin-bottom: var(--tree-row-gap);
   margin-inline: var(--list-inset);
   border-radius: var(--radius-sm);
+  box-sizing: border-box;
 }
 
 /* Soft nest: one icon-width step so hierarchy reads without eating labels. */
 .folder-container {
-  margin: 0 0 0 20px;
+  margin: 0 0 0 var(--tree-icon-size);
 }
 
-/* articles list: header stays fixed; list scrolls. Matching
-   scrollbar-gutter keeps search/article edges aligned. */
+#feeds-list .icon {
+  width: var(--tree-icon-size);
+  height: var(--tree-icon-size);
+}
+
+/* articles list: single scroll column under the page header */
 .articles-list .column {
   display: flex;
   flex-direction: column;
   margin: 0;
-  padding-top: var(--default-space);
+  padding-top: 0.35rem;
   scrollbar-gutter: stable;
 }
 
@@ -527,8 +667,9 @@ button {
   align-items: center;
   flex-wrap: nowrap;
   color: var(--font-color-muted);
-  font-size: var(--font-size-small);
-  gap: var(--default-space);
+  font-size: var(--font-size-chrome);
+  gap: 0.35rem;
+  line-height: 1.25;
 }
 
 .article-image img {
@@ -571,9 +712,10 @@ button {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.15rem;
-  padding: var(--default-space) 0.75rem;
+  gap: 0.08rem;
+  padding: var(--article-row-pad);
   margin-inline: var(--articles-inline);
+  margin-bottom: 0.05rem;
   border-radius: var(--radius-sm);
 }
 
@@ -605,39 +747,47 @@ button {
 .article-star::after {
   content: "";
   position: absolute;
-  /* Expand the hit box to ≥44×44 without growing the glyph */
-  inset: -12px -12px;
+  /* Expand the hit box without growing the glyph */
+  inset: -8px -8px;
 }
 
 .article-mark {
-  width: 1.25rem;
-  height: 1.25rem;
-  min-width: 1.25rem;
-  min-height: 1.25rem;
+  width: 1rem;
+  height: 1rem;
+  min-width: 1rem;
+  min-height: 1rem;
 }
 
 .article-mark .icon,
 .article-star .icon {
-  width: 16px !important;
-  height: 16px !important;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
 }
 
 .article-meta-end {
   display: flex;
   align-items: center;
   flex: 0 0 auto;
-  gap: 0.35rem;
+  gap: 0.2rem;
 }
 
 .article-star {
-  width: 1.5rem;
-  height: 1.25rem;
-  min-width: 1.5rem;
-  min-height: 1.25rem;
+  width: 1.1rem;
+  height: 1rem;
+  min-width: 1.1rem;
+  min-height: 1rem;
 }
 
 .article-body {
   min-width: 0;
+  font-size: var(--font-size-list-title);
+  line-height: 1.3;
+  font-weight: 400;
+}
+
+.articles-list .article-title,
+.articles-list .article-link {
+  font-weight: 400;
 }
 
 
@@ -659,24 +809,57 @@ button {
   flex-direction: column;
   margin-left: auto;
   margin-right: auto;
-  gap: var(--default-space);
-  padding: 0.5rem 1rem 2rem;
+  gap: 0;
+  padding: 0.2rem 0.85rem 1.5rem;
 }
 
-.reader .date {
-  color: var(--font-color-muted);
+.reader-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0;
+  /* Cancel control padding so the first glyph lines up with the title */
+  margin: 0 0 0.55rem calc(-1 * var(--header-control-pad));
+}
+
+.reader-actions .item-spacer {
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  padding-block: 0.1rem;
+}
+
+.reader-actions .icon {
+  width: var(--icon-size);
+  height: var(--icon-size);
 }
 
 .reader .title {
   font-size: var(--font-size-large);
   font-weight: 600;
   letter-spacing: -0.02em;
-  line-height: 1.2;
-  margin-bottom: var(--default-space);
+  line-height: 1.25;
+  margin: 0 0 0.2rem;
+}
+
+#reader-publisher {
+  margin: 0;
+  font-size: var(--font-size-small);
+  line-height: 1.3;
+}
+
+.reader .date {
+  color: var(--font-color-muted);
+  margin: 0.1rem 0 0.4rem;
+  font-size: var(--font-size-small);
+  line-height: 1.3;
+}
+
+.reader .article > .border-bottom {
+  margin: 0 0 0.55rem;
 }
 
 .reader .content {
-  margin-top: var(--default-space);
+  margin: 0;
   line-height: 1.5;
 }
 
@@ -690,9 +873,9 @@ button {
   height: auto !important;
   border-radius: var(--radius-sm);
   /* Leave room beside inline/floated teaser images; calc keeps full-width imgs from overflowing */
-  margin-block: 0.75rem !important;
-  margin-inline-end: 1rem !important;
-  max-width: calc(100% - 1rem) !important;
+  margin-block: 0.45rem !important;
+  margin-inline-end: 0.75rem !important;
+  max-width: calc(100% - 0.75rem) !important;
   vertical-align: top;
 }
 
@@ -775,49 +958,15 @@ button {
   gap: 0.25rem;
   padding: 0 var(--header-edge-pad);
   flex: 0 0 auto;
-  height: 2.75rem;
-  min-height: 2.75rem;
+  height: var(--header-height);
+  min-height: var(--header-height);
   border-bottom: 1px solid var(--border-color);
   box-sizing: border-box;
   background-color: inherit;
 }
 
-.feeds-list .column-header {
-  /* Same outer inset as tree rows: .column margin + row margin-inline */
-  padding-inline: calc(var(--default-space) + var(--list-inset));
-  background-color: var(--surface-sidebar);
-  /* Match .feeds-list .column so the tree doesn’t shift under the header */
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-}
-
 .feeds-list .column {
   scrollbar-gutter: stable;
-}
-
-/* Refresh glyph lines up with tree icons; ⋯ with .tree-options */
-.feeds-list .column-header .item-spacer {
-  padding-inline: 0;
-}
-
-.feeds-list .column-header .left .item-spacer {
-  justify-content: flex-start;
-  padding-left: var(--default-space);
-}
-
-.feeds-list .column-header .right .item-spacer {
-  width: 34px;
-  box-sizing: border-box;
-  justify-content: center;
-}
-
-.articles-list .column-header {
-  /* Reserve the same gutter as .column so edges stay aligned without
-     putting the scrollbar through the header. */
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-  padding-inline: var(--articles-inline);
-  background-color: var(--surface-list);
 }
 
 .new-articles-pill {
@@ -825,8 +974,8 @@ button {
   width: max-content;
   max-width: calc(100% - 2 * var(--list-inset));
   margin: 0 auto var(--default-space);
-  padding: 0.5rem 1rem;
-  min-height: 2.75rem;
+  padding: 0.35rem 0.75rem;
+  min-height: var(--header-height);
   border: none;
   border-radius: var(--radius-md);
   background-color: var(--btn-primary-soft);
@@ -854,8 +1003,8 @@ button {
   display: none;
 }
 
-.reader .column-header {
-  background-color: var(--surface-reader);
+.reader .article[hidden] {
+  display: none !important;
 }
 
 .column-header .left,
@@ -903,7 +1052,7 @@ button {
   position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 0.35rem;
+  gap: 0.3rem;
   flex: 1 1 auto;
   min-width: 0;
   align-items: center;
@@ -915,7 +1064,14 @@ button {
 
 .search-container .icon {
   flex: 0 0 auto;
+  width: var(--icon-size);
+  height: var(--icon-size);
   opacity: 0.55;
+}
+
+.page-header .search-container .icon {
+  width: calc(var(--header-icon-size) - 2px);
+  height: calc(var(--header-icon-size) - 2px);
 }
 
 .search-container input[type="search"] {
@@ -923,7 +1079,8 @@ button {
   outline: none;
   width: 100%;
   min-width: 0;
-  height: 1.75rem;
+  height: 1.5rem;
+  font-size: var(--font-size-chrome);
   line-height: normal;
   background-color: transparent;
   color: var(--font-color);
@@ -974,10 +1131,10 @@ button {
   flex-wrap: wrap;
   align-items: center;
   gap: 0;
-  padding: 0.4rem var(--articles-inline);
+  padding: 0.25rem var(--articles-inline);
   border-bottom: 1px solid var(--border-color);
   color: var(--font-color-muted);
-  font-size: var(--font-size-small);
+  font-size: var(--font-size-chrome);
   background-color: var(--surface-list);
 }
 
@@ -1027,12 +1184,21 @@ button {
 
 .sidebar-divider {
   height: 1px;
-  margin: 0.65rem 0.75rem 0.35rem;
+  margin: 0.35rem var(--list-inset) 0.25rem;
   background: var(--border-color);
 }
 
 .space-top {
-  margin-top: calc(var(--default-space) * 2);
+  margin-top: 0.35rem;
+}
+
+#feeds-list {
+  /* Slightly under body size — readable, not chrome-tiny */
+  font-size: 0.9rem;
+}
+
+#feeds-list .column {
+  margin-block: 0.35rem;
 }
 
 .folder-row:hover,
@@ -1671,23 +1837,31 @@ dialog::backdrop {
 }
 
 /* ######################### */
-/* click menu — same material language as the sidebar tree */
+/* click menu — same chrome type/density as the sidebar tree */
 .context-menu {
-  position: absolute;
+  position: fixed;
   background: var(--surface-reader);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  box-shadow: none;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   list-style: none;
-  padding: 0.25rem;
+  padding: var(--menu-pad);
   margin: 0;
-  min-width: 10.5rem;
+  min-width: 8.75rem;
   width: max-content;
-  max-width: min(18rem, calc(100vw - 1rem));
+  max-width: min(13rem, calc(100vw - 1rem));
   display: none;
   z-index: 1000;
   overflow: hidden;
+  font-size: var(--font-size-chrome);
   font-weight: 400;
+  line-height: 1.25;
+}
+
+@media (prefers-color-scheme: dark) {
+  .context-menu {
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  }
 }
 
 .context-menu.is-open {
@@ -1696,10 +1870,11 @@ dialog::backdrop {
 }
 
 .context-menu li {
-  padding: 0.4rem 0.65rem;
+  padding: var(--menu-item-pad);
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: 5px;
   margin: 0;
+  font-size: inherit;
   font-weight: 400;
 }
 
@@ -1715,13 +1890,36 @@ dialog::backdrop {
   display: block;
 }
 
+/* Must beat `.context-menu li` padding/radius or separators look like nested pills */
+.context-menu li.context-menu-separator {
+  display: none;
+  height: 1px;
+  margin: 0.15rem 0.35rem;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background-color: var(--border-color);
+  pointer-events: none;
+  cursor: default;
+  list-style: none;
+  overflow: hidden;
+}
+
+.context-menu li.context-menu-separator:not(.d-none) {
+  display: block;
+}
+
+.context-menu li.context-menu-separator:hover {
+  background-color: var(--border-color);
+}
+
 .context-menu li.context-menu-status {
   cursor: default;
-  padding: 0.35rem 0.65rem 0.45rem;
-  margin-bottom: 0.2rem;
+  padding: 0.2rem 0.5rem 0.28rem;
+  margin-bottom: 0.1rem;
   border-bottom: 1px solid var(--border-color);
   border-radius: 0;
-  font-size: var(--font-size-small);
+  font-size: inherit;
   font-weight: 400;
   color: var(--font-color-muted);
   overflow-wrap: anywhere;
@@ -1754,48 +1952,62 @@ dialog::backdrop {
 
 /* Shared touch / compact-header rules for single- and dual-pane layouts */
 @media (max-width: 1100px) {
-  .icon {
-    width: 24px !important;
-    height: 24px !important;
+  :root {
+    --icon-size: 18px;
+    --header-icon-size: 24px;
+    --header-height: 3.5rem;
+  }
+
+  .page-header-middle {
+    margin-inline: 0.25rem;
+  }
+
+  .page-header-middle .search-container {
+    max-width: none;
+  }
+
+  .page-header .item-spacer {
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+  }
+
+  .reader-actions .item-spacer {
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
   }
 
   .column-header {
-    height: 3.5rem;
-    min-height: 3.5rem;
+    height: var(--header-height);
+    min-height: var(--header-height);
     padding-top: 0;
     padding-bottom: 0;
     overflow: visible;
   }
 
   .column-header .item-spacer {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
   }
 
   .tree-options {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     box-sizing: border-box;
   }
 
-  .feeds-list .column-header .right .item-spacer {
-    width: 44px;
-    min-width: 44px;
-  }
-
   .search-clear {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
   }
 
   .feeds-ul li,
   .details,
   .folder-row,
   .articles-list .article {
-    min-height: 44px;
+    min-height: var(--touch-target);
     box-sizing: border-box;
   }
 
@@ -1808,16 +2020,16 @@ dialog::backdrop {
   }
 
   .search-container {
-    padding: 0.35rem 0.65rem;
+    padding: 0.2rem 0.5rem;
   }
 
   .search-container input[type="search"] {
-    height: 2rem;
+    height: 1.5rem;
   }
 
   .btn {
-    min-height: 44px;
-    padding: 0.6rem 1.1rem;
+    min-height: var(--touch-target);
+    padding: 0.45rem 0.85rem;
   }
 }
 
@@ -1832,20 +2044,30 @@ dialog::backdrop {
     overflow: hidden;
   }
 
-  .layout {
-    display: block;
+  .app-shell {
     position: fixed;
     inset: 0;
     width: 100%;
     height: 100%;
     height: 100dvh;
     height: 100svh;
-    overflow: hidden;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
     box-sizing: border-box;
+  }
+
+  .layout {
+    display: block;
+    position: relative;
+    inset: auto;
+    width: 100%;
+    height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0;
   }
 
   #feeds-list,
@@ -1869,16 +2091,12 @@ dialog::backdrop {
     -webkit-overflow-scrolling: touch;
   }
 
-  .column-header .mobile-back {
-    display: inline-flex;
-  }
-
   .reader .article {
-    padding: 0.25rem 0.5rem 2rem;
+    padding: 0.15rem 0.5rem 1.25rem;
   }
 
   .reader .title {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
   }
 
   dialog {
@@ -1921,8 +2139,9 @@ dialog::backdrop {
   .layout {
     display: grid;
     grid-template-columns: 2fr 2fr;
-    height: 100dvh;
-    height: 100svh;
+    height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow: hidden;
   }
 
@@ -1948,10 +2167,3 @@ dialog::backdrop {
   }
 }
 
-/* desktop 3-pane: reader stays visible beside articles — no back needed.
-   Specificity must beat `.left button { display: inline-flex }`. */
-@media (min-width: 1101px) {
-  .column-header .reader-back {
-    display: none;
-  }
-}
