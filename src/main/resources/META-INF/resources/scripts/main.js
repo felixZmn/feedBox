@@ -24,6 +24,12 @@ import {
   takeReturnTo,
 } from "./auth.js";
 import {
+  notifyOffline,
+  dismissOfflineToast,
+  onOfflineRetry,
+  isConnectionPending,
+} from "./connectivity.js";
+import {
   state,
   itemType,
   dom,
@@ -107,18 +113,6 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-const connectivityBanner = {
-  el: () => document.getElementById("connectivity-banner"),
-  show() {
-    const el = this.el();
-    if (el) el.hidden = false;
-  },
-  hide() {
-    const el = this.el();
-    if (el) el.hidden = true;
-  },
-};
-
 let appInitialized = false;
 let dataObserversReady = false;
 let retrying = false;
@@ -194,7 +188,7 @@ async function startSession() {
   }
 
   if (status === "signed-out") {
-    connectivityBanner.hide();
+    dismissOfflineToast();
     enterLoggedOut();
     return;
   }
@@ -204,11 +198,11 @@ async function startSession() {
 
   if (status === "unavailable") {
     // Not a sign-out: keep the cached tree and let the user retry.
-    connectivityBanner.show();
+    notifyOffline();
     return;
   }
 
-  connectivityBanner.hide();
+  dismissOfflineToast();
   await loadApp();
 }
 
@@ -223,8 +217,12 @@ async function retryConnection() {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
+  onOfflineRetry(() => {
+    void retryConnection();
+  });
+
   onSessionLoss(() => {
-    connectivityBanner.hide();
+    dismissOfflineToast();
     if (modal.dialog?.open) modal.close(null);
     hideContextMenu({ restoreFocus: false });
     hideFeedsSpinner();
@@ -234,11 +232,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   initReturnToCapture();
   initCrossTabLogout();
 
-  document
-    .getElementById("connectivity-retry")
-    ?.addEventListener("click", () => retryConnection());
   window.addEventListener("online", () => {
-    if (!connectivityBanner.el()?.hidden) retryConnection();
+    if (isConnectionPending()) void retryConnection();
   });
 
   await startSession();

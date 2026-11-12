@@ -56,6 +56,24 @@ test("_request exposes status, code and detail on API errors", async (t) => {
   });
 });
 
+test("_request tags OFFLINE when X-FeedBox-Offline is set", async (t) => {
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async () =>
+      new Response(null, {
+        status: 503,
+        headers: { "X-FeedBox-Offline": "1" },
+      }),
+  );
+
+  await assert.rejects(dataService.checkFeed("https://example.com"), (error) => {
+    assert.equal(error.code, "OFFLINE");
+    assert.equal(error.status, 503);
+    return true;
+  });
+});
+
 test("waitForJob reports every snapshot until the job finishes", async (t) => {
   const snapshots = [
     { id: "j", status: "RUNNING", total: 3, completed: 1, failed: 0 },
