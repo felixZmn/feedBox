@@ -6,6 +6,7 @@ import {
   isAppPath,
   isSameContext,
   parseRoute,
+  resolveRoute,
 } from "../../main/resources/META-INF/resources/scripts/router.js";
 
 test("parseRoute accepts root as all feeds", () => {
@@ -150,4 +151,119 @@ test("isSameContext matches all, feed, folder, unread and saved", () => {
     isSameContext(parseRoute("/"), { type: "unread", obj: null }),
     false,
   );
+});
+
+test("resolveRoute keeps a live article on the named list", () => {
+  const present = { feedExists: true, folderExists: true, articleExists: true };
+  assert.deepEqual(resolveRoute(parseRoute("/"), present), {
+    status: "ready",
+    context: "all",
+    contextId: null,
+    articleId: null,
+    replacePath: null,
+  });
+  assert.deepEqual(resolveRoute(parseRoute("/article/99"), present), {
+    status: "ready",
+    context: "all",
+    contextId: null,
+    articleId: 99,
+    replacePath: null,
+  });
+  assert.deepEqual(resolveRoute(parseRoute("/unread/article/8"), present), {
+    status: "ready",
+    context: "unread",
+    contextId: null,
+    articleId: 8,
+    replacePath: null,
+  });
+  assert.deepEqual(resolveRoute(parseRoute("/saved/article/4"), present), {
+    status: "ready",
+    context: "saved",
+    contextId: null,
+    articleId: 4,
+    replacePath: null,
+  });
+  assert.deepEqual(
+    resolveRoute(parseRoute("/feed/12/article/99"), present),
+    {
+      status: "ready",
+      context: "feed",
+      contextId: 12,
+      articleId: 99,
+      replacePath: null,
+    },
+  );
+  assert.deepEqual(
+    resolveRoute(parseRoute("/folder/3/article/99"), present),
+    {
+      status: "ready",
+      context: "folder",
+      contextId: 3,
+      articleId: 99,
+      replacePath: null,
+    },
+  );
+  assert.deepEqual(resolveRoute(parseRoute("/feed/12/"), present), {
+    status: "ready",
+    context: "feed",
+    contextId: 12,
+    articleId: null,
+    replacePath: null,
+  });
+});
+
+test("resolveRoute does not use list membership", () => {
+  const foreign = resolveRoute(parseRoute("/feed/12/article/99"), {
+    feedExists: true,
+    folderExists: true,
+    articleExists: true,
+  });
+  assert.equal(foreign.status, "ready");
+  assert.equal(foreign.articleId, 99);
+  assert.equal(foreign.contextId, 12);
+  assert.equal(foreign.replacePath, null);
+});
+
+test("resolveRoute keeps the address when the article is gone", () => {
+  assert.deepEqual(
+    resolveRoute(parseRoute("/feed/12/article/99"), {
+      feedExists: true,
+      folderExists: true,
+      articleExists: false,
+    }),
+    {
+      status: "article-unavailable",
+      context: "feed",
+      contextId: 12,
+      articleId: null,
+      replacePath: null,
+    },
+  );
+});
+
+test("resolveRoute sends a missing list or unknown path home", () => {
+  const home = {
+    status: "replaced-home",
+    context: "all",
+    contextId: null,
+    articleId: null,
+    replacePath: "/",
+  };
+  assert.deepEqual(
+    resolveRoute(parseRoute("/feed/12/article/99"), {
+      feedExists: false,
+      folderExists: true,
+      articleExists: true,
+    }),
+    home,
+  );
+  assert.deepEqual(
+    resolveRoute(parseRoute("/folder/3"), {
+      feedExists: true,
+      folderExists: false,
+      articleExists: true,
+    }),
+    home,
+  );
+  assert.deepEqual(resolveRoute(parseRoute("/no-such"), {}), home);
 });
