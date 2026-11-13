@@ -15,6 +15,7 @@ const SHELL = [
   "/scripts/articles.js",
   "/scripts/reader.js",
   "/scripts/menu.js",
+  "/scripts/menu-placement.js",
   "/scripts/data.js",
   "/scripts/dom.js",
   "/scripts/dialog.js",

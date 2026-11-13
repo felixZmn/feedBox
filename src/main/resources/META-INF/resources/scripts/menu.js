@@ -2,18 +2,19 @@
 
 import { dom, itemType, state } from "./state.js";
 import { feedHealth } from "./feed-health.js";
+import { placeContextMenu } from "./menu-placement.js";
+
+export { placeContextMenu } from "./menu-placement.js";
 
 /** @type {HTMLElement | null} */
 let menuTrigger = null;
 
 /**
  * @param {string} groupClass
- * @param {number} x
- * @param {number} y
  * @param {EventTarget | null} [trigger]
  * @param {{ align?: "start" | "end" }} [options]
  */
-function showContextMenuGroup(groupClass, x, y, trigger, options) {
+function showContextMenuGroup(groupClass, trigger, options) {
   dom.contextMenu
     .querySelectorAll(
       ".context-menu-item, .context-menu-status, .context-menu-separator",
@@ -24,25 +25,21 @@ function showContextMenuGroup(groupClass, x, y, trigger, options) {
   document.querySelectorAll(`.${groupClass}`).forEach((element) => {
     element.classList.remove("d-none");
   });
-  openContextMenu(x, y, trigger, options);
+  openContextMenu(trigger, options);
 }
 
 /**
- * @param {number} x
- * @param {number} y
  * @param {EventTarget | null} [trigger]
  */
-export function openAddContextMenu(x, y, trigger) {
-  showContextMenuGroup("context-add", x, y, trigger);
+export function openAddContextMenu(trigger) {
+  showContextMenuGroup("context-add", trigger, { align: "start" });
 }
 
 /**
- * @param {number} x
- * @param {number} y
  * @param {object} feed
  * @param {EventTarget | null} [trigger]
  */
-export function feedContextMenu(x, y, feed, trigger) {
+export function feedContextMenu(feed, trigger) {
   state.lastClickedItem.type = itemType.FEED;
   state.lastClickedItem.obj = feed;
   if (dom.feedHealth) {
@@ -51,16 +48,14 @@ export function feedContextMenu(x, y, feed, trigger) {
     dom.feedHealth.classList.toggle("is-error", isError);
   }
   setMarkReadMenuLabel(dom.button.markFeedRead, Number(feed?.unreadCount) || 0);
-  showContextMenuGroup("context-feed", x, y, trigger);
+  showContextMenuGroup("context-feed", trigger, { align: "start" });
 }
 
 /**
- * @param {number} x
- * @param {number} y
  * @param {object} folder
  * @param {EventTarget | null} [trigger]
  */
-export function folderContextMenu(x, y, folder, trigger) {
+export function folderContextMenu(folder, trigger) {
   state.lastClickedItem.type = itemType.FOLDER;
   state.lastClickedItem.obj = folder;
   const live = state.folders.find((f) => f.id === folder?.id) ?? folder;
@@ -69,15 +64,13 @@ export function folderContextMenu(x, y, folder, trigger) {
     0,
   );
   setMarkReadMenuLabel(dom.button.markFolderRead, count);
-  showContextMenuGroup("context-folder", x, y, trigger);
+  showContextMenuGroup("context-folder", trigger, { align: "start" });
 }
 
 /**
- * @param {number} x
- * @param {number} y
  * @param {EventTarget | null} [trigger]
  */
-export function allFeedsContextMenu(x, y, trigger) {
+export function allFeedsContextMenu(trigger) {
   state.lastClickedItem.type = itemType.ALL;
   state.lastClickedItem.obj = null;
   let count = 0;
@@ -90,18 +83,18 @@ export function allFeedsContextMenu(x, y, trigger) {
     count += Number(feed.unreadCount) || 0;
   }
   setMarkReadMenuLabel(dom.button.markAllRead, count);
-  showContextMenuGroup("context-all", x, y, trigger);
+  showContextMenuGroup("context-all", trigger, { align: "start" });
 }
 
 /**
  * Profile / chrome overflow: import, export, shortcuts, sign out.
- * @param {number} x
- * @param {number} y
  * @param {EventTarget | null} [trigger]
  * @param {{ align?: "start" | "end" }} [options]
  */
-export function openChromeContextMenu(x, y, trigger, options) {
-  showContextMenuGroup("context-chrome", x, y, trigger, options);
+export function openChromeContextMenu(trigger, options = {}) {
+  showContextMenuGroup("context-chrome", trigger, {
+    align: options.align === "start" ? "start" : "end",
+  });
 }
 
 /**
@@ -115,12 +108,10 @@ function setMarkReadMenuLabel(el, count) {
 }
 
 /**
- * @param {number} x  Left edge for start align; right edge for end align
- * @param {number} y
  * @param {EventTarget | null} [trigger]
  * @param {{ align?: "start" | "end" }} [options]
  */
-export function openContextMenu(x, y, trigger, options = {}) {
+export function openContextMenu(trigger, options = {}) {
   const el =
     trigger instanceof HTMLElement
       ? trigger
@@ -135,26 +126,22 @@ export function openContextMenu(x, y, trigger, options = {}) {
   menu.style.left = "0px";
   menu.style.top = "0px";
   menu.classList.add("is-open");
-  const { innerWidth, innerHeight } = window;
   const menuRect = menu.getBoundingClientRect();
-  const triggerRect = el?.getBoundingClientRect();
-  const edge = 8;
-  const anchorX =
-    align === "end" && triggerRect ? triggerRect.right : x;
-  const left =
-    align === "end"
-      ? Math.max(
-          edge,
-          Math.min(
-            anchorX - menuRect.width,
-            innerWidth - menuRect.width - edge,
-          ),
-        )
-      : Math.max(edge, Math.min(anchorX, innerWidth - menuRect.width - edge));
-  const top = Math.min(
-    y,
-    Math.max(edge, innerHeight - menuRect.height - edge),
-  );
+  const triggerRect = el?.getBoundingClientRect() ?? {
+    left: 8,
+    right: 8,
+    top: 8,
+    bottom: 8,
+  };
+  const { left, top } = placeContextMenu({
+    triggerRect,
+    menuWidth: menuRect.width,
+    menuHeight: menuRect.height,
+    viewport: { width: window.innerWidth, height: window.innerHeight },
+    align,
+    gap: 4,
+    edge: 8,
+  });
   menu.style.left = `${left}px`;
   menu.style.top = `${top}px`;
   menu.style.visibility = "";

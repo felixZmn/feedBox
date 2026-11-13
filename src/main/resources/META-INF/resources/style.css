@@ -63,9 +63,9 @@
   --tree-row-gap: 0.15rem;
   --tree-row-min-height: 2rem;
   --menu-pad: 0.15rem;
-  /* Menu denser than tree; modestly taller than text-only */
-  --menu-item-min-height: 1.5rem;
-  --menu-item-pad: 0.35rem 0.5rem;
+  /* Modest bump: ~24.8px content + 2×2.8px pad (half prior vertical pad); not ~44pt */
+  --menu-item-min-height: 30.4px;
+  --menu-item-pad: 0.175rem 0.5rem;
   --article-row-pad: 0.28rem 0.55rem;
   --skeleton-base: rgba(128, 128, 128, 0.15);
   --skeleton-shine: rgba(128, 128, 128, 0.05);
@@ -1905,6 +1905,7 @@ dialog::backdrop {
 
 .context-menu li.context-menu-status {
   cursor: default;
+  min-height: 0;
   padding: 0.2rem 0.5rem 0.28rem;
   margin-bottom: 0.1rem;
   border-bottom: 1px solid var(--border-color);
