@@ -134,12 +134,10 @@ function initApp() {
     onSelectFeed: (feed) => selectAndLoadArticles(itemType.FEED, feed),
     onSelectFolder: (folder) =>
       selectAndLoadArticles(itemType.FOLDER, folder),
-    onAllFeedsContextMenu: (x, y, trigger) =>
-      allFeedsContextMenu(x, y, trigger),
-    onFeedContextMenu: (x, y, feed, trigger) =>
-      feedContextMenu(x, y, feed, trigger),
-    onFolderContextMenu: (x, y, folder, trigger) =>
-      folderContextMenu(x, y, folder, trigger),
+    onAllFeedsContextMenu: (trigger) => allFeedsContextMenu(trigger),
+    onFeedContextMenu: (feed, trigger) => feedContextMenu(feed, trigger),
+    onFolderContextMenu: (folder, trigger) =>
+      folderContextMenu(folder, trigger),
   });
   registerArticlesDelegatedEvents(articleClickListener);
   initShortcuts();
@@ -265,15 +263,12 @@ function initEventListeners() {
   registerSaveArticleButton();
   dom.button.add.addEventListener("click", (e) => {
     e.stopPropagation();
-    openAddContextMenu(e.clientX, e.clientY, e.currentTarget);
+    openAddContextMenu(e.currentTarget);
   });
   dom.button.refresh.addEventListener("click", () => refreshFeeds());
   dom.button.profile?.addEventListener("click", (e) => {
     e.stopPropagation();
-    const rect = e.currentTarget.getBoundingClientRect();
-    openChromeContextMenu(rect.right, rect.bottom + 4, e.currentTarget, {
-      align: "end",
-    });
+    openChromeContextMenu(e.currentTarget, { align: "end" });
   });
   dom.button.export?.addEventListener("click", async (event) => {
     event.preventDefault();
